@@ -36,7 +36,7 @@ html, body {
 .gauge { display: flex; flex-direction: column; align-items: center; background: var(--hud-bg); padding: 6px; border-radius: 4px; width: 66px; }
 .glabel { font-size: 11px; letter-spacing: 1px; font-weight: bold; }
 .bar { position: relative; width: 22px; height: 130px; border: 1px solid rgba(216, 207, 168, 0.7); margin: 4px 0; background: rgba(0, 0, 0, 0.4); }
-.fill { position: absolute; bottom: 0; left: 0; right: 0; transition: height 0.2s; }
+.fill { position: absolute; bottom: 0; left: 0; right: 0; height: var(--v, 100%); transition: height 0.2s, width 0.2s; }
 .fill.ok { background: linear-gradient(#9fe07a, #4f9a35); }
 .fill.warn { background: linear-gradient(#ffd257, #c8941c); }
 .fill.crit { background: linear-gradient(#ff6a5a, #b4231a); animation: blink 0.6s infinite; }
@@ -154,12 +154,47 @@ body.gunner-mode .pilot-only { display: none !important; }
 body.gunner-mode #stick-left { display: none; }
 body.gunner-mode #stick-right .base { display: none; }
 body.gunner-mode #stick-right { width: 60%; height: 100%; }
-body.touch #gauges-right { top: auto; bottom: 46%; }
-body.touch #touch-controls ~ * { }
-body.touch #gauges-right .readout:nth-child(3) { display: none; }
-body.touch #radio { bottom: auto; top: 220px; width: 34vw; }
-body.touch #seat-label { bottom: auto; top: 186px; right: auto; left: max(12px, env(safe-area-inset-left)); }
-body.touch #gauges-left { top: 40%; transform: translateY(-50%) scale(0.85); transform-origin: left center; }
+/* Kompaktes Touch-Layout */
+body.touch #minimap { width: 96px; height: 96px; top: max(6px, env(safe-area-inset-top)); right: max(6px, env(safe-area-inset-right)); }
+body.touch #top { width: min(440px, 50vw); gap: 2px; top: max(4px, env(safe-area-inset-top)); }
+body.touch #mission-box { padding: 2px 8px; }
+body.touch #mission-line { font-size: 11px; }
+body.touch #mission-step { font-size: 10px; }
+body.touch #compass { max-width: 300px; }
+body.touch #wp-info { font-size: 11px; padding: 1px 8px; }
+body.touch #gauges-left { top: max(6px, env(safe-area-inset-top)); left: max(8px, env(safe-area-inset-left)); transform: none; flex-direction: column; gap: 3px; }
+body.touch .gauge { flex-direction: row; width: 186px; padding: 3px 6px; gap: 6px; white-space: nowrap; }
+body.touch .glabel { font-size: 9px; width: 52px; text-align: left; }
+body.touch .bar { width: 60px; height: 9px; margin: 0; flex: none; }
+body.touch .fill { top: 0; right: auto; height: auto; width: var(--v, 100%); }
+body.touch .tick.t25 { left: 25%; right: auto; bottom: -3px; top: -3px; width: 1px; height: auto; }
+body.touch .gval { font-size: 11px; min-width: 40px; text-align: right; }
+body.touch .gsub { display: none; }
+body.touch #gauges-right { top: 60px; left: max(8px, env(safe-area-inset-left)); right: auto; width: 186px; flex-direction: row; flex-wrap: wrap; gap: 3px; }
+body.touch .readout { padding: 1px 5px; gap: 3px; flex: 1 1 45%; }
+body.touch .readout span { font-size: 8px; width: auto; }
+body.touch .readout b { font-size: 12px; min-width: 0; }
+body.touch .readout small { font-size: 8px; }
+body.touch .readout:nth-child(3) { display: none; }
+body.touch #pax, body.touch #ammo { font-size: 10px; padding: 1px 5px; flex: 1 1 100%; }
+body.touch .lbl { font-size: 8px; }
+body.touch #radio { left: 50%; transform: translateX(-50%); bottom: 26px; top: auto; width: min(420px, 42vw); }
+body.touch .radio-line { font-size: 10px; padding: 2px 6px; }
+body.touch #seat-label { bottom: 4px; top: auto; left: 50%; right: auto; transform: translateX(-50%); font-size: 10px; padding: 2px 8px; }
+body.touch #touch-buttons { top: 108px; gap: 4px; }
+body.touch #touch-buttons button { font-size: 10px; padding: 6px 6px; min-width: 70px; }
+body.touch .stick-zone .base { top: 66%; }
+body.touch #btn-fire { right: 17%; bottom: 10%; width: 88px; height: 88px; font-size: 15px; }
+body.touch #hint { font-size: 11px; bottom: 18%; }
+body.touch .warn { font-size: 12px; padding: 2px 10px; }
+body.touch #warnings { top: 40%; }
+body.touch .marker .mlabel { font-size: 10px; }
+body.touch .panel { padding: 8px 14px; }
+body.touch .panel h2 { font-size: 15px; margin-bottom: 4px; }
+body.touch .panel table { font-size: 11px; }
+body.touch .panel th, body.touch .panel td { padding: 2px 8px 2px 0; }
+body.touch #brief-radio { font-size: 11px; margin: 6px 0 8px; }
+body.touch #brief-accept { padding: 8px; font-size: 14px; }
 
 @media (max-width: 900px), (max-height: 520px) {
   #minimap { width: 120px; height: 120px; }
@@ -172,8 +207,6 @@ body.touch #gauges-left { top: 40%; transform: translateY(-50%) scale(0.85); tra
   #wp-info { font-size: 12px; }
   .readout b { font-size: 15px; }
   .radio-line { font-size: 11px; }
-  body.touch #radio { top: 160px; }
-  body.touch #seat-label { top: 128px; }
   .warn { font-size: 13px; }
   #top { width: min(460px, 52vw); }
 }

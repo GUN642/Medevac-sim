@@ -33,7 +33,8 @@ export class HUD {
     div.innerHTML = (from ? `<b>${from}</b> ` : '') + text.replace(/</g, '&lt;');
     this.el.radio.appendChild(div);
     this.radioLines.push({ div, t: 0 });
-    while (this.radioLines.length > 5) this.radioLines.shift().div.remove();
+    const max = document.body.classList.contains('touch') ? 2 : 5;
+    while (this.radioLines.length > max) this.radioLines.shift().div.remove();
   }
 
   // ------------------------------------------------------------ Briefing / Ergebnis
@@ -91,7 +92,8 @@ export class HUD {
     if (this.resultTimer > 0) { this.resultTimer -= dt; if (this.resultTimer <= 0) this.el.result.classList.add('hidden'); }
     for (const l of this.radioLines) {
       l.t += dt;
-      if (l.t > 14) l.div.style.opacity = Math.max(0, 1 - (l.t - 14) / 2);
+      const life = document.body.classList.contains('touch') ? 9 : 14;
+      if (l.t > life) l.div.style.opacity = Math.max(0, 1 - (l.t - life) / 2);
     }
     const heading = headingFromYaw(h.yaw);
     const wp = info.waypoint;
@@ -118,13 +120,13 @@ export class HUD {
     // Treibstoff
     const fuel = h.fuel;
     const ff = this.el['fuel-fill'];
-    ff.style.height = fuel + '%';
+    ff.style.setProperty('--v', fuel + '%');
     ff.className = 'fill ' + (fuel < 15 ? 'crit' : fuel < 30 ? 'warn' : 'ok');
     this.el['fuel-val'].textContent = Math.round(fuel) + ' %';
     const burn = h.burnRate > 0 ? h.burnRate : 0.12;
     this.el['fuel-min'].textContent = h.engineOn ? '≈ ' + fmtTime(fuel / burn) + ' min' : 'TRIEBWERK AUS';
     const hf = this.el['hp-fill'];
-    hf.style.height = h.hp + '%';
+    hf.style.setProperty('--v', h.hp + '%');
     hf.className = 'fill ' + (h.hp < 25 ? 'crit' : h.hp < 55 ? 'warn' : 'ok');
     this.el['hp-val'].textContent = Math.round(h.hp) + ' %';
     // Instrumente (Fuß, Knoten)

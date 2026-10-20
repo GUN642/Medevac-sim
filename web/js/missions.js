@@ -133,7 +133,7 @@ export class Missions {
       rows.push(['LZ-Status', hotTxt, m.hot ? 'hot' : 'cold']);
       rows.push(['Markierung', `${SMOKE_ADJ[m.smoke]} Rauch`]);
       rows.push(['Ablieferung', `${FOB_NAME} – Lazarett (Pad MED)`]);
-      radio = `„${CALLSIGN}, hier ${m.unit}. Wir haben ${m.count} Verwundete${m.litters ? `, davon ${m.litters} Tragefälle` : ''}. ${m.hot ? 'Wir stehen unter Beschuss!' : 'Die Lage ist ruhig.'} Erbitten sofortige Evakuierung bei ${m.from.name}.“`;
+      radio = `„${CALLSIGN}, hier ${m.unit}. Wir haben ${m.count === 1 ? 'einen Verwundeten' : m.count + ' Verwundete'}${m.litters && m.count > 1 ? `, davon ${m.litters} ${m.litters === 1 ? 'Tragefall' : 'Tragefälle'}` : m.litters ? ' (Tragefall)' : ''}. ${m.hot ? 'Wir stehen unter Beschuss!' : 'Die Lage ist ruhig.'} Erbitten sofortige Evakuierung bei ${m.from.name}.“`;
     } else if (m.type === 'transport') {
       const b2 = bearing(m.from.x, m.from.z, m.to.x, m.to.z), d2 = dist2(m.from.x, m.from.z, m.to.x, m.to.z);
       rows.push(['Auftrag', `Truppentransport (${m.variant})`]);
