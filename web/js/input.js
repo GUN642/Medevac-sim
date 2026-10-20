@@ -69,6 +69,8 @@ export class Input {
           Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'crew',
         };
         if (map[k]) { this.actions.push(map[k]); if (k === 'Tab') e.preventDefault(); }
+        const nav = { ArrowUp: 'nav-up', ArrowDown: 'nav-down', ArrowLeft: 'nav-left', ArrowRight: 'nav-right' }[k];
+        if (nav) this.pushNav(nav, 'key');
       }
       this.keys.add(k);
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
@@ -234,10 +236,23 @@ export class Input {
       if (pressed(5)) this.actions.push('seat-next');
       if (pressed(9)) this.actions.push('pause');
       if (pressed(8)) this.actions.push('crew');
-      if (pressed(12)) this.actions.push('dpad-up');
-      if (pressed(13)) this.actions.push('dpad-down');
-      if (pressed(14)) this.actions.push('dpad-left');
-      if (pressed(15)) this.actions.push('dpad-right');
+      if (pressed(12)) { this.actions.push('dpad-up'); this.pushNav('nav-up', 'pad'); }
+      if (pressed(13)) { this.actions.push('dpad-down'); this.pushNav('nav-down', 'pad'); }
+      if (pressed(14)) { this.actions.push('dpad-left'); this.pushNav('nav-left', 'pad'); }
+      if (pressed(15)) { this.actions.push('dpad-right'); this.pushNav('nav-right', 'pad'); }
+      // Menü-Navigation auch mit dem linken Stick und dem Steuerkreuz als Achse (nicht-standard Mapping, z. B. Android)
+      let ny = ly, nx = lx;
+      if (gp.mapping !== 'standard' && ax.length >= 8) {
+        if (Math.abs(ax[7] || 0) > 0.5) ny = ax[7];
+        if (Math.abs(ax[6] || 0) > 0.5) nx = ax[6];
+      }
+      if (ax.length > 9 && Math.abs(ax[9] || 0) <= 1 && gp.mapping !== 'standard') {
+        // POV-Hut als einzelne Achse: -1 hoch, ~0.14 runter, 0.71 links, -0.43 rechts
+        const hv = ax[9];
+        if (Math.abs(hv + 1) < 0.1) ny = -1; else if (Math.abs(hv - 0.143) < 0.1) ny = 1;
+        else if (Math.abs(hv - 0.714) < 0.1) nx = -1; else if (Math.abs(hv + 0.429) < 0.1) nx = 1;
+      }
+      this.stickNav(gp.index, nx, ny, dt);
       this.gpPrev[gp.index] = gp.buttons.map((x) => x.pressed);
       this.gpConnected = true;
     }
@@ -250,6 +265,27 @@ export class Input {
     f.pitch = clamp(f.pitch, -1, 1); f.roll = clamp(f.roll, -1, 1); f.yaw = clamp(f.yaw, -1, 1); f.collective = clamp(f.collective, -1, 1);
     this.flight = f;
     this.fire = fire;
+  }
+
+  // Stick-Bewegung als Menütaste mit Wiederholung
+  stickNav(idx, x, y, dt) {
+    if (!this.navState) this.navState = {};
+    const st = this.navState[idx] || (this.navState[idx] = { dir: null, t: 0 });
+    const dir = y < -0.6 ? 'nav-up' : y > 0.6 ? 'nav-down' : x < -0.6 ? 'nav-left' : x > 0.6 ? 'nav-right' : null;
+    if (dir !== st.dir) { st.dir = dir; st.t = 0.45; if (dir) this.pushNav(dir, 'pad'); return; }
+    if (!dir) return;
+    st.t -= dt;
+    if (st.t <= 0) { st.t = 0.18; this.pushNav(dir, 'pad'); }
+  }
+
+  // Auf Android kommt das Steuerkreuz doppelt an (Gamepad-API und Tastenereignis der WebView): nur einmal werten
+  pushNav(dir, src) {
+    const now = performance.now();
+    if (!this.lastNav) this.lastNav = {};
+    const other = this.lastNav[dir + (src === 'key' ? 'pad' : 'key')];
+    this.lastNav[dir + src] = now;
+    if (other && now - other < 150) return;
+    this.actions.push(dir);
   }
 
   consumeAim() { const a = { dx: this.aim.dx, dy: this.aim.dy }; this.aim.dx = this.aim.dy = 0; return a; }

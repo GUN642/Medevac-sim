@@ -233,6 +233,12 @@ class Game {
 
   // ------------------------------------------------------------ UI
   setupUI() {
+    // Doppelte Bestätigung verhindern (Gamepad-Taste + native Tastenaktivierung)
+    document.addEventListener('click', (e) => {
+      if (this.synthClick) return;
+      if (performance.now() < (this.suppressClickUntil || 0)) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+      this.lastNativeClick = performance.now();
+    }, true);
     const on = (id, fn) => { const e = $(id); if (e) e.addEventListener('click', (ev) => { ev.preventDefault(); this.audio.init(); fn(); }); };
     on('btn-start', () => this.startGame());
     on('btn-continue', () => this.startGame());
@@ -289,6 +295,7 @@ class Game {
     bind('set-volume', 'volume', Number, (v) => this.audio.setVolume(v));
     bind('set-sens', 'sensitivity', Number);
     bind('set-invert', 'invertY', Boolean);
+    bind('set-invertx', 'invertX', Boolean);
     bind('set-mouse-fly', 'mouseFly', Boolean);
     bind('set-mouse-inv', 'mouseFlyInvert', Boolean);
     bind('set-diff', 'difficulty', Number);
@@ -327,8 +334,10 @@ class Game {
   closePanel(id) { $(id).classList.add('hidden'); }
 
   focusFirst(root) {
-    const b = root && root.querySelector('button:not(.hidden), select, input');
-    if (b && this.input && this.input.device === 'gamepad') b.focus();
+    if (!root || (this.input && this.input.device === 'touch')) return;
+    const items = [...root.querySelectorAll('button:not(.hidden), select, input')].filter((e) => e.offsetParent !== null);
+    const b = items.find((e) => e.classList.contains('primary')) || items[0];
+    if (b) b.focus({ preventScroll: false });
   }
 
   showMenu() {
@@ -562,14 +571,18 @@ class Game {
       const blocking = this.state === 'menu' || this.state === 'paused' || this.hud.briefOpen || this.crashShown || this.hud.crewOpen || !$('lobby').classList.contains('hidden');
       if (blocking) {
         if (a === 'confirm') {
+          // Hat Browser/WebView den Druck schon selbst als Klick ausgelöst, nicht noch einmal klicken
+          if (performance.now() - (this.lastNativeClick || 0) < 350) continue;
           const ov = this.topOverlay();
           if (ov) {
             const b = ov.querySelector(':focus') || ov.querySelector('.primary:not(.hidden)') || ov.querySelector('button:not(.hidden)');
-            if (b) { this.audio.init(); b.click(); }
+            if (b) { this.audio.init(); this.suppressClickUntil = performance.now() + 350; this.synthClick = true; b.click(); this.synthClick = false; }
             continue;
           }
         }
-        if (a === 'dpad-down' || a === 'dpad-up') { this.moveFocus(a === 'dpad-down' ? 1 : -1); continue; }
+        if (a === 'nav-down' || a === 'nav-up') { this.moveFocus(a === 'nav-down' ? 1 : -1); continue; }
+        if (a === 'nav-left' || a === 'nav-right') { this.adjustFocused(a === 'nav-right' ? 1 : -1); continue; }
+        if (a.startsWith('dpad-')) continue;
         if (a === 'pause' && this.state === 'paused') { this.pause(false); continue; }
         if (a === 'crew' && this.hud.crewOpen) { this.hud.toggleCrew(false); continue; }
         if (this.state !== 'playing') continue;
@@ -593,6 +606,7 @@ class Game {
           break;
         }
         case 'confirm': if (this.hud.mapOpen) this.hud.toggleMap(false); break;
+        default: break;
       }
     }
   }
@@ -609,6 +623,20 @@ class Game {
     if (!items.length) return;
     const i = items.indexOf(document.activeElement);
     items[(i + dir + items.length) % items.length].focus();
+  }
+
+  // Links/rechts ändert Auswahlfelder und Schieberegler im Menü
+  adjustFocused(dir) {
+    const el = document.activeElement;
+    if (!el || !this.topOverlay() || !this.topOverlay().contains(el)) { this.moveFocus(dir); return; }
+    if (el.tagName === 'SELECT') {
+      el.selectedIndex = clamp(el.selectedIndex + dir, 0, el.options.length - 1);
+      el.dispatchEvent(new Event('change'));
+    } else if (el.type === 'range') {
+      const step = +el.step || 0.1;
+      el.value = clamp(+el.value + dir * step, +el.min, +el.max);
+      el.dispatchEvent(new Event('change'));
+    } else this.moveFocus(dir);
   }
 
   // ------------------------------------------------------------ Hauptschleife
@@ -674,6 +702,7 @@ class Game {
 
     // Bordschützen
     const aim = this.input.consumeAim();
+    if (this.settings.invertX) aim.dx = -aim.dx;
     this.helis.forEach((hh, i) => {
       for (const side of ['left', 'right']) {
         const mine = i === this.myHeli && this.seat === side;

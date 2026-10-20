@@ -82,7 +82,13 @@ public class MainActivity extends Activity {
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
-        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        // Spieldateien liegen in der APK: nie aus dem WebView-Cache laden, sonst bleiben nach einem Update alte Dateien aktiv
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);
+        android.content.SharedPreferences prefs = getSharedPreferences("app", 0);
+        if (prefs.getInt("cacheVersion", -1) != BuildConfig.VERSION_CODE) {
+            web.clearCache(true);
+            prefs.edit().putInt("cacheVersion", BuildConfig.VERSION_CODE).apply();
+        }
 
         web.addJavascriptInterface(new Bridge(), "AndroidApp");
         web.setFocusable(true);

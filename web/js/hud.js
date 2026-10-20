@@ -305,7 +305,7 @@ export class HUD {
     this.crewOpen = force ?? !this.crewOpen;
     this.el.crew.classList.toggle('hidden', !this.crewOpen);
     if (document.pointerLockElement) document.exitPointerLock();
-    if (this.crewOpen) this.updateCrew();
+    if (this.crewOpen) { this.lastCrewHtml = null; this.updateCrew(); this.game.focusFirst(this.el['crew-list']); }
   }
 
   updateCrew() {
@@ -335,7 +335,12 @@ export class HUD {
       html += '</div>';
     });
     if (g.helis.length > 1) html += '<p class="note">Umsteigen in den anderen Hubschrauber: beide Maschinen nebeneinander landen (unter 150 m).</p>';
+    if (html === this.lastCrewHtml) return;
+    this.lastCrewHtml = html;
+    const f = document.activeElement;
+    const key = f && f.dataset && f.dataset.heli !== undefined ? `[data-heli="${f.dataset.heli}"][data-seat="${f.dataset.seat}"]` : null;
     this.el['crew-list'].innerHTML = html;
+    if (key) { const n = this.el['crew-list'].querySelector(key); if (n) n.focus(); }
   }
 
   // Bildschirmmarker für Wegpunkt und FOB
