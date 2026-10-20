@@ -115,7 +115,11 @@ export class Missions {
     this.phase = 'briefing';
     g.hud.showBriefing(m, this.describe(m));
     g.audio.radio();
+    this.changed();
   }
+
+  // Host: geänderten Auftrag an die Mitspieler senden
+  changed() { if (this.game.net && this.game.role === 'host') this.game.net.sendMission(); }
 
   describe(m) {
     const g = this.game, h = g.heli, w = g.world;
@@ -172,9 +176,10 @@ export class Missions {
     const m = this.current;
     if (!m || this.phase !== 'briefing') return;
     const g = this.game, U = g.units, w = g.world;
-    this.phase = 'pickup';
+    if (g.role === 'client') { g.net.send({ t: 'accept', id: m.id }); g.hud.hideBriefing(); return; }
+    this.phase = 'active';
     m.acceptTime = g.time;
-    m.damage0 = g.heli.damageTaken;
+    m.damage0 = this.teamDamage();
     g.hud.hideBriefing();
 
     // Passagiere an Punkt A
@@ -199,7 +204,7 @@ export class Missions {
     // Feind
     if (m.hot) {
       const p = m[m.hotAt];
-      const n = 5 + Math.floor(rand() * 5) + Math.min(5, Math.floor(this.count / 3));
+      const n = 5 + Math.floor(rand() * 5) + Math.min(5, Math.floor(this.count / 3)) + (g.helis.length > 1 ? 3 : 0);
       const en = U.spawnEnemies(p.x, p.z, n, { missionId: m.id, heavy: rand() < 0.3 + this.count * 0.02 });
       let sx = 0, sz = 0;
       for (const e of en) { sx += e.x; sz += e.z; }
@@ -208,17 +213,25 @@ export class Missions {
     // Wrack
     if (m.type === 'csar') {
       const a = rand() * Math.PI * 2;
-      const wx = m.from.x + Math.cos(a) * 30, wz = m.from.z + Math.sin(a) * 30;
-      const geo = merge(wreckParts(m.aircraft.kind));
-      m.wreck = new THREE.Mesh(geo, vcMat);
-      m.wreck.position.set(wx, w.height(wx, wz) - 0.1, wz);
-      m.wreck.rotation.y = rand() * 6;
-      g.scene.add(m.wreck);
-      m.emitters.push(g.effects.wreckFire(wx, w.height(wx, wz), wz));
+      m.wreckInfo = { x: m.from.x + Math.cos(a) * 30, z: m.from.z + Math.sin(a) * 30, r: rand() * 6 };
+      this.buildWreck(m);
     }
     g.radio(this.describe(m).radio, m.unit);
     if (m.from.kind === 'fob') g.radio(`TOC: Die Truppe wartet neben Pad ${m.from.pad.name}. Landen Sie dort zum Aufnehmen.`, 'TOC');
+    this.changed();
   }
+
+  buildWreck(m) {
+    const g = this.game, w = g.world, wi = m.wreckInfo;
+    m.wreck = new THREE.Mesh(merge(wreckParts(m.aircraft.kind)), vcMat);
+    m.wreck.position.set(wi.x, w.height(wi.x, wi.z) - 0.1, wi.z);
+    m.wreck.rotation.y = wi.r;
+    g.scene.add(m.wreck);
+    m.emitters.push(g.effects.wreckFire(wi.x, w.height(wi.x, wi.z), wi.z));
+  }
+
+  teamDamage() { return this.game.helis.reduce((s, h) => s + h.damageTaken, 0); }
+  paxOf(h, m = this.current) { return m ? h.passengers.filter((p) => p.missionId === m.id).length : 0; }
 
   // ------------------------------------------------------------ Laufzeit
   boardRadius() {
@@ -226,32 +239,41 @@ export class Missions {
     return m && m.from.kind === 'fob' ? 42 : 75;
   }
 
-  canBoard() {
-    const m = this.current, h = this.game.heli;
-    if (!m || this.phase !== 'pickup' || h.crashed || !h.onGround) return false;
-    if (h.passengers.length >= HELI.capacity) return false;
+  canBoard(h) {
+    const m = this.current;
+    if (!m || this.phase !== 'active' || !h || h.crashed || !h.onGround) return false;
+    if (m.boarded >= m.count || h.passengers.length >= HELI.capacity) return false;
     return dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius();
   }
 
-  onBoard(u) {
+  onBoard(u, h) {
     const m = this.current, g = this.game;
     if (!m) return;
-    g.heli.addPassenger({ type: u.paxType, missionId: m.id });
+    h.addPassenger({ type: u.paxType, missionId: m.id });
     m.boarded++;
     if (m.boarded === 1 && m.count > 1) g.radio(`Crew: Erster ist an Bord! Noch ${m.count - 1}.`, 'Crew');
     if (m.boarded >= m.count) {
-      this.phase = 'deliver';
       const to = m.to;
-      const b = bearing(g.heli.pos.x, g.heli.pos.z, to.x, to.z);
+      const b = bearing(h.pos.x, h.pos.z, to.x, to.z);
       const what = m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : 'Alle Soldaten';
       g.radio(`Crew: ${what} an Bord – los, los, los! Kurs ${fmtBearing(b)} nach ${to.name}.`, 'Crew');
-    }
+    } else if (h.passengers.length >= HELI.capacity) g.radio('Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.', 'Crew');
+    this.changed();
   }
 
-  waypoint() {
+  // Ziel für einen Hubschrauber: mit Passagieren zum Absetzpunkt, sonst zur Aufnahme
+  target(h = this.game.heli) {
     const m = this.current;
-    if (!m || this.phase === 'briefing' || this.phase === 'done' || this.phase === 'failed') return null;
-    if (this.phase === 'pickup') {
+    if (!m || this.phase !== 'active') return null;
+    if (this.paxOf(h) > 0 || m.boarded >= m.count) return 'to';
+    return 'from';
+  }
+
+  waypoint(h = this.game.heli) {
+    const m = this.current;
+    const t = this.target(h);
+    if (!t) return null;
+    if (t === 'from') {
       if (m.type === 'csar' && !m.revealed) return { x: m.approx.x, z: m.approx.z, y: this.game.world.height(m.approx.x, m.approx.z), label: 'Suchgebiet', radius: 400, approx: true };
       return { x: m.from.x, z: m.from.z, y: m.from.y, label: m.from.short, radius: m.from.kind === 'fob' ? 12 : 45 };
     }
@@ -259,31 +281,31 @@ export class Missions {
   }
 
   update(dt) {
-    const g = this.game, h = g.heli, m = this.current;
-    // alte Einsätze aufräumen, wenn weit genug weg
+    const g = this.game, m = this.current, helis = g.helis;
+    // alte Einsätze aufräumen, wenn alle Hubschrauber weit genug weg sind
     for (let i = this.stale.length - 1; i >= 0; i--) {
       const s = this.stale[i];
-      if (s.points.every((p) => dist2(p.x, p.z, h.pos.x, h.pos.z) > 1300)) { this.cleanup(s.m); this.stale.splice(i, 1); }
+      if (s.points.every((p) => helis.every((h) => dist2(p.x, p.z, h.pos.x, h.pos.z) > 1300))) { this.cleanup(s.m); this.stale.splice(i, 1); }
     }
+    if (g.role === 'client') { this.updateMirror(); return; }
     if (this.nextTimer > 0) {
       this.nextTimer -= dt;
       if (this.nextTimer <= 0) this.generate();
     }
-    if (!m) return;
-    if (this.phase === 'pickup' || this.phase === 'deliver') {
-      // Rauch werfen bei Annäherung
-      const end = this.phase === 'pickup' ? 'from' : 'to';
+    if (!m || this.phase !== 'active') return;
+    for (const h of helis) {
+      if (h.crashed) continue;
+      const end = this.target(h);
       const p = m[end];
       const d = dist2(h.pos.x, h.pos.z, p.x, p.z);
-      if (p.kind === 'site' && d < 1300 && !m.smokePopped[end] && (end === 'from' ? m.boarded < m.count : true)) {
-        if (m.type !== 'csar' || end !== 'from' || m.revealed) {
-          m.smokePopped[end] = true;
-          const e = g.effects.smokeGrenade(p.x + 4, g.world.height(p.x + 4, p.z), p.z, m.smoke);
-          m.emitters.push(e);
-          const who = m.type === 'csar' ? m.aircraft.call : m.unit.split(',')[0];
-          g.radio(`${who}: ${CALLSIGN}, wir hören Sie! Rauch ist geworfen – bestätigen Sie ${m.smoke}.`, who);
-          setTimeout(() => g.radio(`${CALLSIGN}: Sehe ${m.smoke}en Rauch, wir kommen rein.`, CALLSIGN), 2500);
-        }
+      // Rauch werfen bei Annäherung
+      if (p.kind === 'site' && d < 1300 && !m.smokePopped[end] && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
+        m.smokePopped[end] = true;
+        m.emitters.push(g.effects.smokeGrenade(p.x + 4, g.world.height(p.x + 4, p.z), p.z, m.smoke));
+        const who = m.type === 'csar' ? m.aircraft.call : m.unit.split(',')[0];
+        g.radio(`${who}: ${CALLSIGN}, wir hören Sie! Rauch ist geworfen – bestätigen Sie ${m.smoke}.`, who);
+        setTimeout(() => g.radio(`${CALLSIGN}: Sehe ${m.smoke}en Rauch, wir kommen rein.`, CALLSIGN), 2500);
+        this.changed();
       }
       if (m.hot && m.hotAt === end && !m.hotWarned && d < 1900) {
         m.hotWarned = true;
@@ -291,47 +313,52 @@ export class Missions {
       }
       if (m.type === 'csar' && !m.revealed && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < 950) {
         m.revealed = true;
-        g.radio(`${m.aircraft.call}: Wir sehen Ihren Hubschrauber! Wir sind ${dirName(bearing(h.pos.x, h.pos.z, m.from.x, m.from.z))} von Ihnen auf der Lichtung!`, m.aircraft.call);
+        g.radio(`${m.aircraft.call}: Wir sehen einen Hubschrauber! Wir sind ${dirName(bearing(h.pos.x, h.pos.z, m.from.x, m.from.z))} von ihm auf der Lichtung!`, m.aircraft.call);
+        this.changed();
       }
-    }
-    if (this.phase === 'deliver') {
-      const to = m.to;
-      if (h.onGround && dist2(h.pos.x, h.pos.z, to.x, to.z) < (to.kind === 'fob' ? 28 : 75)) {
-        this.phase = 'unload';
-        this.unloadT = 0.6;
-        g.radio(to.kind === 'fob' && m.type !== 'transport' ? 'Sanitäter: Wir übernehmen! Bringt sie ins Lazarett!' : 'Crew: Absetzen – alle raus!', to.kind === 'fob' ? 'Sanitäter' : 'Crew');
-      }
-    }
-    if (this.phase === 'unload') {
-      if (!h.onGround) return;
-      this.unloadT -= dt;
-      if (this.unloadT <= 0) {
-        this.unloadT = 0.7;
-        const idx = h.passengers.findIndex((p) => p.missionId === m.id);
-        if (idx >= 0) {
-          const p = h.passengers.splice(idx, 1)[0];
-          h.updatePassengerDisplay();
-          const side = m.delivered % 2 ? 'left' : 'right';
-          const from = h.doorPoint(side);
-          const f = g.world.fob;
-          let target, onArrive = null;
-          if (m.to.kind === 'fob') {
-            target = m.type === 'transport' ? { x: f.x - 100 + rand() * 20, z: f.z + 40 + rand() * 30 } : { x: f.hospitalDoor.x + rand.range(-1, 1), z: f.hospitalDoor.z };
-          } else {
-            const a = rand() * Math.PI * 2, r = 25 + rand() * 12;
-            target = { x: m.to.x + Math.cos(a) * r, z: m.to.z + Math.sin(a) * r };
-            onArrive = (u) => {
-              u.figs[0] && u.figs[0].kneel();
-              g.units.friendlies.push({ obj: u.obj, figs: u.figs, x: u.x, z: u.z, y: u.y, missionId: m.id, engage: m.hotAt === 'to', fireT: rand() * 2, burst: 0, shotT: 0 });
-            };
-          }
-          g.units.spawnWalker(p.type, from, target, onArrive);
-          m.delivered++;
-          if (m.type === 'medevac' || m.type === 'csar') g.stats.rescued++; else g.stats.transported++;
+      // Absetzen
+      if (end === 'to' && this.paxOf(h) > 0) {
+        const near = h.onGround && dist2(h.pos.x, h.pos.z, m.to.x, m.to.z) < (m.to.kind === 'fob' ? 28 : 75);
+        if (near && !h.unloading) {
+          h.unloading = true;
+          h.unloadT = 0.6;
+          g.radio(m.to.kind === 'fob' && m.type !== 'transport' ? 'Sanitäter: Wir übernehmen! Bringt sie ins Lazarett!' : 'Crew: Absetzen – alle raus!', m.to.kind === 'fob' ? 'Sanitäter' : 'Crew');
         }
-        if (m.delivered >= m.count || idx < 0) this.complete();
-      }
+        if (!near) h.unloading = false;
+        if (h.unloading) {
+          h.unloadT -= dt;
+          if (h.unloadT <= 0) { h.unloadT = 0.7; this.unloadOne(h); }
+        }
+      } else h.unloading = false;
     }
+    if (m.delivered >= m.count) this.complete();
+  }
+
+  unloadOne(h) {
+    const g = this.game, m = this.current;
+    const idx = h.passengers.findIndex((p) => p.missionId === m.id);
+    if (idx < 0) return;
+    const p = h.passengers.splice(idx, 1)[0];
+    h.updatePassengerDisplay();
+    const from = h.doorPoint(m.delivered % 2 ? 'left' : 'right');
+    const f = g.world.fob;
+    let target, onArrive = null;
+    if (m.to.kind === 'fob') {
+      target = m.type === 'transport' ? { x: f.x - 100 + rand() * 20, z: f.z + 40 + rand() * 30 } : { x: f.hospitalDoor.x + rand.range(-1, 1), z: f.hospitalDoor.z };
+    } else {
+      const a = rand() * Math.PI * 2, r = 25 + rand() * 12;
+      target = { x: m.to.x + Math.cos(a) * r, z: m.to.z + Math.sin(a) * r };
+      const id = m.id, eng = m.hotAt === 'to';
+      onArrive = (u) => {
+        g.units.setPose(u, 1);
+        Object.assign(u, { missionId: id, engage: eng, fireT: rand() * 2, burst: 0, shotT: 0 });
+        g.units.friendlies.push(u);
+      };
+    }
+    g.units.spawnWalker(p.type, from, target, onArrive);
+    m.delivered++;
+    if (m.type === 'medevac' || m.type === 'csar') g.stats.rescued++; else g.stats.transported++;
+    this.changed();
   }
 
   complete() {
@@ -341,15 +368,13 @@ export class Missions {
     const base = m.count * 100;
     const mult = (m.hot ? 1.5 : 1) * (m.type === 'csar' ? 1.3 : 1);
     const timeBonus = Math.max(0, Math.round(300 - elapsed));
-    const dmg = g.heli.damageTaken - m.damage0;
+    const dmg = this.teamDamage() - m.damage0;
     const dmgBonus = dmg < 1 ? 150 : 0;
     const score = Math.round(base * mult + timeBonus + dmgBonus);
-    g.stats.score += score;
-    g.stats.missions++;
-    g.saveStats();
     const what = m.type === 'medevac' ? `${m.count} Verwundete gerettet` : m.type === 'csar' ? `${m.count} ${m.count === 1 ? 'Pilot' : 'Besatzungsmitglieder'} gerettet` : `${m.count} Soldaten verbracht`;
-    g.hud.showResult({
+    const result = {
       title: 'AUFTRAG ERFÜLLT',
+      score,
       lines: [
         [what, `+${Math.round(base * mult)}`],
         m.hot ? ['Heiße LZ', '×1,5'] : null,
@@ -357,10 +382,13 @@ export class Missions {
         dmgBonus ? ['Ohne Schaden', `+${dmgBonus}`] : ['Schaden genommen', `${Math.round(dmg)} %`],
         ['Gesamt', `${score} Punkte`],
       ].filter(Boolean),
-    });
+    };
+    g.onMissionResult(result);
+    if (g.net) g.net.send({ t: 'result', r: result });
     g.radio(m.type === 'transport' ? `TOC: Gut gemacht, ${CALLSIGN}. Auftrag erledigt.` : `Lazarett: Danke, ${CALLSIGN}! Ihr habt Leben gerettet.`, 'TOC');
     this.retire(m);
     this.nextTimer = 7;
+    this.changed();
   }
 
   retire(m) {
@@ -375,34 +403,88 @@ export class Missions {
     if (m.wreck) { g.scene.remove(m.wreck); m.wreck.geometry.dispose(); }
   }
 
-  onHeliLost() {
+  // Ein Hubschrauber ist abgestürzt: seine Passagiere sind verloren
+  onHeliLost(h) {
     const m = this.current;
-    this.nextTimer = -1;
-    if (m) {
+    const lost = this.paxOf(h);
+    h.passengers = [];
+    h.updatePassengerDisplay();
+    if (this.game.role === 'client') return;
+    if (m && (lost > 0 || this.game.helis.every((x) => x.crashed))) {
       this.phase = 'failed';
+      this.game.radio('TOC: Der Auftrag ist gescheitert. Neuer Auftrag folgt.', 'TOC', true);
       this.retire(m);
+      this.nextTimer = 8;
+      this.changed();
     }
   }
 
-  hudInfo() {
-    const m = this.current, h = this.game.heli;
-    if (!m) return { line: this.nextTimer > 0 ? 'Warte auf neuen Auftrag…' : '', step: '' };
+  // ------------------------------------------------------------ Netzwerk (Client-Spiegel)
+  toNet() {
+    const m = this.current;
+    const skip = new Set(['wreck', 'emitters']);
+    return {
+      m: m ? JSON.parse(JSON.stringify(m, (k, v) => (skip.has(k) ? undefined : v))) : null,
+      phase: this.phase, nextTimer: this.nextTimer,
+    };
+  }
+
+  applyNet(d) {
+    const g = this.game;
+    const old = this.current;
+    this.phase = d.phase;
+    this.nextTimer = d.nextTimer;
+    if (!d.m) {
+      if (old) this.retire(old);
+      g.hud.hideBriefing();
+      return;
+    }
+    if (!old || old.id !== d.m.id) {
+      if (old) this.retire(old);
+      const m = Object.assign(d.m, { emitters: [], mirrorSmoke: {} });
+      this.current = m;
+      if (m.wreckInfo) this.buildWreck(m);
+      if (this.phase === 'briefing') { g.hud.showBriefing(m, this.describe(m)); g.audio.radio(); }
+    } else {
+      const m = old;
+      const keep = { emitters: m.emitters, wreck: m.wreck, mirrorSmoke: m.mirrorSmoke };
+      Object.assign(m, d.m, keep);
+      if (m.wreckInfo && !m.wreck) this.buildWreck(m);
+      if (this.phase !== 'briefing') g.hud.hideBriefing();
+    }
+  }
+
+  updateMirror() {
+    const m = this.current;
+    if (!m) return;
+    for (const end of ['from', 'to']) {
+      if (m.smokePopped[end] && !m.mirrorSmoke[end]) {
+        m.mirrorSmoke[end] = true;
+        const p = m[end];
+        m.emitters.push(this.game.effects.smokeGrenade(p.x + 4, this.game.world.height(p.x + 4, p.z), p.z, m.smoke));
+      }
+    }
+  }
+
+  hudInfo(h = this.game.heli) {
+    const m = this.current;
+    if (!m) return { line: this.nextTimer > 0 || this.phase === 'done' ? 'Warte auf neuen Auftrag…' : '', step: '' };
     const one = m.count === 1;
     const n = m.type === 'medevac' ? (one ? 'Verwundeter' : 'Verwundete') : m.type === 'csar' ? (one ? 'Überlebender' : 'Überlebende') : one ? 'Soldat' : 'Soldaten';
     let step = '';
+    const t = this.target(h);
+    const left = m.count - m.boarded;
     if (this.phase === 'briefing') step = 'Neuer Auftrag – Briefing bestätigen';
-    else if (this.phase === 'pickup') {
-      if (this.canBoard() || (h.onGround && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius())) step = `Einsteigen: ${m.boarded}/${m.count} – Position halten!`;
+    else if (t === 'from') {
+      if (h.onGround && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius()) step = `Einsteigen: ${m.boarded}/${m.count} – Position halten!`;
       else if (m.type === 'csar' && !m.revealed) step = 'Suchgebiet anfliegen – nach Rauchsäule des Wracks Ausschau halten';
       else if (m.from.kind === 'fob') step = `Auf Pad ${m.from.pad.name} landen – Soldaten aufnehmen`;
-      else step = `Bei ${m.from.name} landen (${m.smoke}er Rauch) – ${m.count - m.boarded} ${m.count - m.boarded === 1 ? 'wartet' : 'warten'}`;
-    } else if (this.phase === 'deliver') {
-      step = m.to.kind === 'fob' ? `Zur FOB – auf Pad ${m.to.pad.name} landen${m.to.pad.name === 'MED' ? ' (rotes Kreuz)' : ''}` : `Nach ${m.to.name} fliegen und landen`;
-    } else if (this.phase === 'unload') step = `Aussteigen: ${m.delivered}/${m.count} – am Boden bleiben`;
-    return {
-      line: `${m.title} · ${m.count} ${n} · ${m.hot ? 'HEISS' : 'KALT'}`,
-      step,
-      hot: m.hot,
-    };
+      else step = `Bei ${m.from.name} landen (${m.smoke}er Rauch) – ${left} ${left === 1 ? 'wartet' : 'warten'}`;
+    } else if (t === 'to') {
+      if (h.unloading) step = `Aussteigen: ${m.delivered}/${m.count} – am Boden bleiben`;
+      else if (this.paxOf(h) === 0) step = `Alle aufgenommen – ${m.delivered}/${m.count} abgeliefert`;
+      else step = m.to.kind === 'fob' ? `Zur FOB – auf Pad ${m.to.pad.name} landen${m.to.pad.name === 'MED' ? ' (rotes Kreuz)' : ''}` : `Nach ${m.to.name} fliegen und landen`;
+    }
+    return { line: `${m.title} · ${m.count} ${n} · ${m.hot ? 'HEISS' : 'KALT'}`, step, hot: m.hot };
   }
 }

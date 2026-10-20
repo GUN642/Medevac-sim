@@ -7,10 +7,11 @@ import { clamp, damp, rand } from './util.js';
 const UP = new THREE.Vector3(0, 1, 0);
 
 export class Helicopter {
-  constructor(scene, effects) {
+  constructor(scene, effects, index = 0) {
     this.scene = scene;
     this.effects = effects;
-    this.model = buildHuey();
+    this.index = index;
+    this.model = buildHuey({ number: index === 0 ? '66-16024' : '67-17633' });
     this.model.body.material = vcMatDouble.clone();
     scene.add(this.model.group);
     this.pos = new THREE.Vector3();
@@ -261,6 +262,14 @@ export class Helicopter {
     }
     this.treeWarn = Math.max(0, this.treeWarn - dt);
 
+    this.fx(dt, world);
+    this.syncModel();
+    this.animate(dt);
+  }
+
+  // Rotorabwind und Schadensrauch (lokal und für Hubschrauber anderer Spieler)
+  fx(dt, world) {
+    if (this.crashed) return;
     // Rotorabwind-Staub
     if (this.rpm > 0.5 && this.agl < 22) {
       const rate = (1 - this.agl / 22) * 70 * Math.max(0.3, this.thrustFrac) * this.effects.mul;
@@ -285,6 +294,50 @@ export class Helicopter {
     if (this.smokeEmitter) { this.smokeEmitter.dark = this.hp < 25; this.smokeEmitter.fire = this.hp < 15; }
     if (this.hp >= 50 && this.smokeEmitter) { this.effects.removeEmitter(this.smokeEmitter); this.smokeEmitter = null; }
 
+  }
+
+  // ---------------------------------------------------------------- Netzwerk
+  getState() {
+    const p = this.pos, q = this.quat, v = this.vel;
+    const f = (this.crashed ? 1 : 0) | (this.engineOn ? 2 : 0) | (this.contact ? 4 : 0) | (this.onGround ? 8 : 0) | (this.leak ? 16 : 0);
+    const r = (x, n = 100) => Math.round(x * n) / n;
+    return [r(p.x), r(p.y), r(p.z), r(q.x, 1e4), r(q.y, 1e4), r(q.z, 1e4), r(q.w, 1e4), r(v.x), r(v.y), r(v.z),
+      r(this.rpm), r(this.fuel), r(this.hp), f, r(this.yaw, 1e3), r(this.thrustFrac), r(this.damageTaken), r(this.agl)];
+  }
+
+  applyState(st, cause) {
+    if (!this.net) this.net = { p: new THREE.Vector3(), v: new THREE.Vector3(), q: new THREE.Quaternion(), t: 0 };
+    const n = this.net;
+    const jump = n.t === 0 || this.pos.distanceTo(n.p.set(st[0], st[1], st[2])) > 60;
+    n.p.set(st[0], st[1], st[2]); n.v.set(st[7], st[8], st[9]); n.q.set(st[3], st[4], st[5], st[6]); n.t = performance.now();
+    if (jump) { this.pos.copy(n.p); this.quat.copy(n.q); }
+    this.vel.copy(n.v);
+    this.rpm = st[10]; this.fuel = st[11];
+    const hp0 = this.hp;
+    this.hp = st[12];
+    this.hpDrop = Math.max(0, hp0 - this.hp);
+    const f = st[13];
+    this.engineOn = !!(f & 2); this.contact = !!(f & 4); this.onGround = !!(f & 8); this.leak = !!(f & 16);
+    this.yaw = st[14]; this.thrustFrac = st[15]; this.damageTaken = st[16]; this.agl = st[17];
+    if ((f & 1) && !this.crashed) this.crash(cause || 'Abgestürzt!');
+    if (!(f & 1) && this.crashed) { this.reset(n.p.x, n.p.y - HELI.skidH, n.p.z, this.yaw); this.pos.copy(n.p); this.quat.copy(n.q); }
+  }
+
+  // Hubschrauber, dessen Flugphysik ein anderes Gerät berechnet
+  updateRemote(dt, world) {
+    if (this.net && this.net.t) {
+      const n = this.net;
+      const age = Math.min(0.4, (performance.now() - n.t) / 1000);
+      const tx = n.p.x + n.v.x * age, ty = n.p.y + n.v.y * age, tz = n.p.z + n.v.z * age;
+      const k = damp(12, dt);
+      this.pos.x += (tx - this.pos.x) * k; this.pos.y += (ty - this.pos.y) * k; this.pos.z += (tz - this.pos.z) * k;
+      this.quat.slerp(n.q, k);
+    }
+    const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
+    this.fwd.set(-sy, 0, -cy);
+    this.right.set(cy, 0, -sy);
+    this.up.set(0, 1, 0).applyQuaternion(this.quat);
+    this.fx(dt, world);
     this.syncModel();
     this.animate(dt);
   }

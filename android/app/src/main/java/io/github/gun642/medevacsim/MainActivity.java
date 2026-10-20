@@ -3,7 +3,9 @@ package io.github.gun642.medevacsim;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.net.wifi.WifiManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -31,6 +33,8 @@ public class MainActivity extends Activity {
     private WebView web;
     private UpdateManager updater;
     private boolean lastKeyFromGamepad;
+    private final LanNet net = new LanNet();
+    private WifiManager.MulticastLock mcLock;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -114,6 +118,8 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        net.shutdown();
+        multicast(false);
         if (web != null) web.destroy();
         super.onDestroy();
     }
@@ -179,6 +185,37 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void checkForUpdates() {
             runOnUiThread(() -> updater.check(true));
+        }
+
+        // ---- LAN-Mehrspieler (siehe LanNet)
+        @JavascriptInterface public String deviceName() { return Build.MODEL == null ? "Android" : Build.MODEL; }
+        @JavascriptInterface public String netHost(String info) { multicast(true); return net.host(info); }
+        @JavascriptInterface public void netInfo(String info) { net.setInfo(info); }
+        @JavascriptInterface public void netJoin(String ip, int port) { net.join(ip, port); }
+        @JavascriptInterface public void netSend(int peer, String msg) { net.send(peer, msg); }
+        @JavascriptInterface public void netKick(int peer) { net.kick(peer); }
+        @JavascriptInterface public String netPoll() { return net.poll(); }
+        @JavascriptInterface public void netScan(boolean on) { if (on) multicast(true); net.scan(on); }
+        @JavascriptInterface public String netHosts() { return net.hostsJson(); }
+        @JavascriptInterface public String netIp() { return LanNet.localIp(); }
+        @JavascriptInterface public void netStop() { net.stop(); net.scan(false); multicast(false); }
+    }
+
+    /** Manche Geräte filtern Broadcasts im WLAN, solange keine Multicast-Sperre gehalten wird. */
+    private synchronized void multicast(boolean on) {
+        try {
+            if (on && mcLock == null) {
+                WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                if (wm != null) {
+                    mcLock = wm.createMulticastLock("dustoff");
+                    mcLock.setReferenceCounted(false);
+                    mcLock.acquire();
+                }
+            } else if (!on && mcLock != null) {
+                mcLock.release();
+                mcLock = null;
+            }
+        } catch (Exception ignored) {
         }
     }
 }

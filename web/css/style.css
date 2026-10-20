@@ -210,3 +210,27 @@ body.touch #brief-accept { padding: 8px; font-size: 14px; }
   .warn { font-size: 13px; }
   #top { width: min(460px, 52vw); }
 }
+
+/* Mehrspieler & Maussteuerung */
+.marker.heli .diamond { border-color: #8fe0ff; background: rgba(143, 224, 255, 0.2); border-radius: 50%; }
+.marker.heli .mlabel { color: #8fe0ff; font-size: 11px; }
+#mouse-stick { position: absolute; left: 50%; top: 50%; width: 100px; height: 100px; margin: -50px 0 0 -50px; border: 1px dashed rgba(216, 207, 168, 0.35); border-radius: 50%; display: none; }
+#mouse-stick div { position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px; border-radius: 50%; background: rgba(255, 210, 87, 0.85); }
+#crew-line { position: absolute; top: 190px; left: 50%; transform: translateX(-50%); font-size: 11px; opacity: 0.8; white-space: nowrap; }
+body.touch #crew-line { top: 104px; font-size: 9px; }
+#mp-hosts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+#mp-hosts button small, #crew-list button small { display: block; font-size: 11px; opacity: 0.75; letter-spacing: 0; font-weight: normal; }
+#mp-status { font-weight: bold; color: var(--green); }
+#mp-status.err { color: var(--red); }
+#lobby input[type="text"] { font-size: 15px; padding: 6px; min-width: 160px; background: #222617; color: var(--sand); border: 1px solid var(--olive); }
+#lobby label button { padding: 6px 10px; font-size: 13px; }
+.crew-heli { margin-bottom: 12px; }
+.crew-heli h3 { margin: 4px 0; }
+.crew-heli h3 small { font-weight: normal; font-size: 12px; opacity: 0.8; }
+.crew-heli { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.crew-heli h3 { grid-column: 1 / -1; }
+#crew-list button { font-size: 13px; padding: 8px 6px; letter-spacing: 1px; }
+#crew-list button.mine { border-color: var(--amber); background: #6b7a36; }
+#crew-list button.taken { opacity: 0.6; }
+code { background: rgba(0,0,0,0.35); padding: 1px 4px; }
+#lobby, #crew { background: rgba(8, 10, 5, 0.92); }

@@ -12,7 +12,7 @@ export class HUD {
     this.el = {};
     for (const id of ['hud', 'mission-line', 'mission-step', 'compass', 'wp-text', 'wp-arrow', 'minimap', 'fuel-fill', 'fuel-val', 'fuel-min', 'hp-fill', 'hp-val',
       'pax', 'ammo', 'r-alt', 'r-spd', 'r-vs', 'r-hdg', 'warnings', 'radio', 'crosshair', 'seat-label', 'marker', 'fob-marker', 'hint', 'damage-flash',
-      'status-badge', 'briefing', 'brief-title', 'brief-rows', 'brief-radio', 'result', 'result-title', 'result-rows', 'fullmap', 'fullmap-canvas', 'crashscreen', 'crash-cause', 'fps', 'vs-bar', 'collective-bar'])
+      'status-badge', 'heli-marker', 'crew', 'crew-list', 'crew-line', 'briefing', 'brief-title', 'brief-rows', 'brief-radio', 'result', 'result-title', 'result-rows', 'fullmap', 'fullmap-canvas', 'crashscreen', 'crash-cause', 'fps', 'vs-bar', 'collective-bar'])
       this.el[id] = $(id);
     this.compassCtx = this.el.compass.getContext('2d');
     this.miniCtx = this.el.minimap.getContext('2d');
@@ -140,15 +140,23 @@ export class HUD {
     // Passagiere
     const pc = h.passengers.length;
     this.el.pax.innerHTML = `<span class="lbl">KABINE</span> ${pc}/${HELI.capacity}`;
-    const L = g.gunners.left, R = g.gunners.right;
+    const L = h.gunners.left, R = h.gunners.right;
     this.el.ammo.innerHTML = `<span class="lbl">M60</span> L ${L.ammo} · R ${R.ammo}`;
     // Warnungen
     this.el.warnings.innerHTML = info.warnings.map((w) => `<div class="warn ${w.level || ''}">${w.text}</div>`).join('');
     this.el.hint.textContent = info.hint || '';
     this.el.hint.style.display = info.hint ? 'block' : 'none';
     const seatNames = { pilot: 'PILOT', left: 'SCHÜTZE LINKS', right: 'SCHÜTZE RECHTS' };
-    this.el['seat-label'].textContent = seatNames[g.seat] + (g.seat !== 'pilot' ? ' · Autopilot hält Position' : '') + (info.cameraLabel ? ' · ' + info.cameraLabel : '');
+    const c = g.crews[g.myHeli];
+    const pilotTxt = g.seat === 'pilot' ? '' : c.pilot == null ? ' · Autopilot hält Position' : c.pilot !== g.myId ? ' · Pilot: ' + g.playerName(c.pilot) : '';
+    this.el['seat-label'].textContent = (g.helis.length > 1 ? `#${g.myHeli + 1} ` : '') + seatNames[g.seat] + pilotTxt + (info.cameraLabel ? ' · ' + info.cameraLabel : '');
+    if (this.crewOpen) this.updateCrew();
     this.el.crosshair.style.display = g.seat === 'pilot' ? 'none' : 'block';
+    const ms = document.getElementById('mouse-stick');
+    if (ms) {
+      ms.style.display = g.input.mouseFlying ? 'block' : 'none';
+      if (g.input.mouseFlying) ms.firstElementChild.style.transform = `translate(${g.input.mYaw * 40}px, ${-g.input.mPitch * 40}px)`;
+    }
     this.drawMinimap(heading, wp);
     if (this.mapOpen) this.drawFullMap();
   }
@@ -230,6 +238,13 @@ export class HUD {
       c.arc(clamp(x, 6, S - 6), clamp(y, 6, S - 6), wp.approx ? (wp.radius / span) * S : 6, 0, 7);
       c.stroke();
     }
+    // anderer Hubschrauber
+    for (const o of g.helis) {
+      if (o === h) continue;
+      const [ox, oy] = toS(o.pos.x, o.pos.z);
+      c.fillStyle = '#8fe0ff';
+      c.beginPath(); c.arc(clamp(ox, 5, S - 5), clamp(oy, 5, S - 5), 4.5, 0, 7); c.fill();
+    }
     // Hubschrauber
     c.save();
     c.translate(S / 2, S / 2);
@@ -285,6 +300,44 @@ export class HUD {
     c.restore();
   }
 
+  // ------------------------------------------------------------ Besatzung
+  toggleCrew(force) {
+    this.crewOpen = force ?? !this.crewOpen;
+    this.el.crew.classList.toggle('hidden', !this.crewOpen);
+    if (document.pointerLockElement) document.exitPointerLock();
+    if (this.crewOpen) this.updateCrew();
+  }
+
+  updateCrew() {
+    const g = this.game;
+    const name = (pid) => (pid == null ? '' : pid === g.myId ? 'Sie' : g.playerName(pid));
+    const esc = (t) => String(t).replace(/</g, '&lt;');
+    // Kurzzeile im HUD (nur Mehrspieler)
+    if (this.el['crew-line']) {
+      if (g.role === 'solo') this.el['crew-line'].textContent = '';
+      else {
+        this.el['crew-line'].textContent = g.crews.map((c, i) => `#${i + 1}: ` + ['pilot', 'left', 'right'].map((s) => (c[s] != null ? name(c[s]) : '–')).join(' / ')).join('   ');
+      }
+    }
+    if (!this.crewOpen) return;
+    const labels = { pilot: 'Pilot', left: 'Schütze links', right: 'Schütze rechts' };
+    let html = '';
+    g.crews.forEach((c, i) => {
+      const h = g.helis[i];
+      const st = h.crashed ? 'abgestürzt' : h.contact ? 'gelandet' : 'in der Luft';
+      html += `<div class="crew-heli"><h3>UH-1D #${i + 1} <small>${st} · ${Math.round(h.fuel)} % Treibstoff · Kabine ${h.passengers.length}/${HELI.capacity}</small></h3>`;
+      for (const s of ['pilot', 'left', 'right']) {
+        const occ = c[s];
+        const mine = occ === g.myId;
+        const label = occ == null ? (s === 'pilot' ? 'frei (Autopilot)' : 'frei (KI-Schütze)') : esc(name(occ));
+        html += `<button data-heli="${i}" data-seat="${s}" class="${mine ? 'mine' : ''} ${occ != null && !mine ? 'taken' : ''}">${labels[s]}<small>${label}</small></button>`;
+      }
+      html += '</div>';
+    });
+    if (g.helis.length > 1) html += '<p class="note">Umsteigen in den anderen Hubschrauber: beide Maschinen nebeneinander landen (unter 150 m).</p>';
+    this.el['crew-list'].innerHTML = html;
+  }
+
   // Bildschirmmarker für Wegpunkt und FOB
   updateMarkers(wp) {
     const g = this.game, cam = g.camera;
@@ -308,6 +361,13 @@ export class HUD {
       const d = dist2(h.pos.x, h.pos.z, wp.x, wp.z);
       place(this.el.marker, wp.x, wp.y + 4, wp.z, `${wp.label} ${fmtDist(d)}`, true);
     } else place(this.el.marker, 0, 0, 0, '', false);
+    const other = g.helis.find((x) => x !== h);
+    if (other) {
+      const c = g.crews[other.index];
+      const d = dist2(h.pos.x, h.pos.z, other.pos.x, other.pos.z);
+      const who = c && c.pilot != null ? g.playerName(c.pilot) : 'Autopilot';
+      place(this.el['heli-marker'], other.pos.x, other.pos.y + 4, other.pos.z, `#${other.index + 1} ${who} ${fmtDist(d)}`, d > 30);
+    } else place(this.el['heli-marker'], 0, 0, 0, '', false);
     const f = g.world.fob;
     const df = dist2(h.pos.x, h.pos.z, f.x, f.z);
     place(this.el['fob-marker'], f.x, f.y + 10, f.z, `FOB ${fmtDist(df)}`, df > 350 && (!wp || dist2(wp.x, wp.z, f.x, f.z) > 300));

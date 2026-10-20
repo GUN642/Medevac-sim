@@ -342,6 +342,7 @@ export class World {
       troop: { x: f.x + 0, z: f.z + 40, name: 'H1' },
       med: { x: f.x - 62, z: f.z - 25, name: 'MED' },
       pol: { x: f.x + 62, z: f.z - 25, name: 'POL' },
+      h2: { x: f.x - 40, z: f.z + 95, name: 'H2' },
     };
     add(M.padParts('troop'), 0, 40);
     add(M.padParts('med'), -62, -25);
@@ -408,7 +409,8 @@ export class World {
     this.scene.add(this.flag);
     this.flagBase = this.flag.geometry.attributes.position.array.slice();
 
-    // Abgestellte Hueys
+    // Abgestellte Hueys (der erste steht auf Pad H2 und weicht im Mehrspieler dem zweiten Hubschrauber)
+    this.parked = [];
     for (const [x, z, r, num] of [[-40, 95, 0.3, '66-16112'], [40, 95, -0.2, '67-17541']]) {
       const h = M.buildHuey({ static: true, number: num });
       h.group.position.set(f.x + x, f.y + 1.6 + 0.12, f.z + z);
@@ -417,6 +419,7 @@ export class World {
       for (const g of Object.values(h.guns)) g.gunner.group.visible = false;
       for (const p of h.pilots) p.group.visible = false;
       this.scene.add(h.group);
+      this.parked.push(h.group);
     }
 
     // Statische Soldaten in der FOB

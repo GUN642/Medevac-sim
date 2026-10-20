@@ -37,15 +37,36 @@ wird getankt, repariert und Munition aufgefüllt. Bei leerem Tank fällt das Tri
 
 | | Tastatur / Maus | Switch-Controller | Touch |
 | --- | --- | --- | --- |
-| Zyklisch (neigen) | W/A/S/D oder Pfeiltasten | Linker Stick | Rechter Daumen |
+| Vor / zurück (Zyklisch) | **Maus ↑/↓** oder W/S | Linker Stick ↕ | Rechter Daumen ↕ |
+| Drehen (Pedale) | **Maus ←/→** oder Q/E | Rechter Stick ↔ | Linker Daumen ↔ |
+| Seitlich neigen | A/D oder ←/→ | Linker Stick ↔ | Rechter Daumen ↔ |
 | Kollektiv (steigen/sinken) | Leertaste/R · Shift/F | Rechter Stick ↕ oder ZR/ZL | Linker Daumen ↕ |
-| Pedale (drehen) | Q / E | Rechter Stick ↔ | Linker Daumen ↔ |
 | Sitz Pilot / Schütze L / R | 1 / 2 / 3, Tab | L / R, Steuerkreuz | Taste SITZ |
+| Besatzung / Platz wechseln | X | ⊖ | Taste CREW |
 | Schütze: zielen / feuern | Maus / Linksklick (Rechtsklick Zoom) | Stick / ZR (ZL Zoom) | Wischen / FEUER |
 | Kamera · Karte · Pause | C · M · Esc | Ⓨ · Ⓧ · ⊕ | Tasten am Rand |
 | Auftrag annehmen | Enter | Ⓐ | Antippen |
 
-Der **Flugassistent** hält bei losgelassenem Stick Höhe und Position und bremst die Sinkrate kurz vor dem Aufsetzen.
+Für die Maussteuerung einmal ins Bild klicken (Esc gibt die Maus wieder frei). Mit gedrückter rechter Maustaste
+schwenkt die Kamera. Der **Flugassistent** hält bei losgelassenem Stick Höhe und Position und bremst die Sinkrate
+kurz vor dem Aufsetzen.
+
+## Mehrspieler im lokalen Netzwerk
+
+Alle Geräte mit der **Android-App** im selben WLAN (Handys, Tablets, Android TV) können zusammen spielen:
+
+1. Im Hauptmenü **Mehrspieler (LAN)** wählen und Namen eintragen.
+2. Ein Gerät tippt **Spiel eröffnen** (optional mit zweitem Hubschrauber). Die anderen sehen das Spiel in der
+   Liste und treten bei – auch mitten im Einsatz. Notfalls die IP-Adresse des Hosts eintragen.
+3. **Zusammen fliegen:** Einer ist Pilot, die anderen übernehmen die M60 links/rechts. Freie Plätze besetzt die KI
+   (freier Pilotensitz = Autopilot hält die Position).
+4. **Zwei Hubschrauber:** Beide Maschinen arbeiten am selben Auftrag – Verwundete können auf beide verteilt werden.
+   Über **CREW** (Taste X, Controller ⊖) wechselt man den Platz; in den anderen Hubschrauber umsteigen geht, wenn
+   beide nebeneinander (unter 150 m) gelandet sind.
+
+Der Host berechnet Aufträge, Bodentruppen und Feinde; jeder Pilot berechnet die Flugphysik seines Hubschraubers
+selbst. Gäste-WLANs mit „Client-Isolation“ verhindern die Verbindung. Browser können keine direkten
+Netzwerkverbindungen aufbauen – zum Ausprobieren am PC das Spiel mit `?net=test` in zwei Tabs öffnen.
 
 ## Technik
 

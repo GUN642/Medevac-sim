@@ -25,13 +25,16 @@ export class Input {
     window.addEventListener('keydown', (e) => this.onKey(e, true));
     window.addEventListener('keyup', (e) => this.onKey(e, false));
     window.addEventListener('blur', () => { this.keys.clear(); this.fire = false; });
+    this.mfx = 0; this.mfy = 0; this.mYaw = 0; this.mPitch = 0;
     canvas.addEventListener('mousedown', (e) => {
       this.device = 'keyboard';
       this.mouseDown[e.button] = true;
-      if (this.mode !== 'pilot' && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
+      const want = this.mode !== 'pilot' || (this.settings.mouseFly && e.button === 0);
+      if (want && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
         try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (_) {}
       }
     });
+    document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas) { this.mPitch = 0; this.mYaw = 0; } });
     window.addEventListener('mouseup', (e) => { this.mouseDown[e.button] = false; });
     window.addEventListener('mousemove', (e) => {
       const locked = document.pointerLockElement === canvas;
@@ -39,6 +42,10 @@ export class Input {
         const s = 0.0022 * this.settings.sensitivity;
         this.aim.dx += e.movementX * s;
         this.aim.dy += e.movementY * s * (this.settings.invertY ? -1 : 1);
+      } else if (this.mode === 'pilot' && locked && this.settings.mouseFly && !this.mouseDown[2]) {
+        // Maus-Flugsteuerung: links/rechts = Pedale, vor/zurück = Zyklisch vor/zurück
+        this.mfx += e.movementX;
+        this.mfy += e.movementY;
       } else if (this.mouseDown[0] || this.mouseDown[2]) {
         this.look.dx += e.movementX * 0.005;
         this.look.dy += e.movementY * 0.005;
@@ -59,7 +66,7 @@ export class Input {
       if (!this.keys.has(k)) {
         const map = {
           Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'camera', KeyM: 'map',
-          Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio',
+          Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'crew',
         };
         if (map[k]) { this.actions.push(map[k]); if (k === 'Tab') e.preventDefault(); }
       }
@@ -174,6 +181,20 @@ export class Input {
     this.kb.yaw = sm(this.kb.yaw, ky, 5);
     this.kb.collective = sm(this.kb.collective, kc, 4);
     f.pitch += this.kb.pitch; f.roll += this.kb.roll; f.yaw += this.kb.yaw; f.collective += this.kb.collective;
+    // Maus als Steuerknüppel (nur Pilot, Zeiger gesperrt)
+    this.mouseFlying = this.mode === 'pilot' && this.settings.mouseFly && document.pointerLockElement === this.canvas;
+    if (this.mouseFlying) {
+      const sens = this.settings.sensitivity;
+      const yt = clamp((this.mfx / Math.max(dt, 0.001)) * 0.0022 * sens, -1, 1);
+      this.mYaw += (yt - this.mYaw) * Math.min(1, dt * 14);
+      const inv = this.settings.mouseFlyInvert ? -1 : 1;
+      this.mPitch = clamp(this.mPitch - this.mfy * 0.004 * sens * inv, -1, 1);
+      if (this.mfy === 0) this.mPitch -= clamp(this.mPitch, -dt * 0.35, dt * 0.35);
+      if (kp) this.mPitch = 0;
+      f.yaw += this.mYaw;
+      f.pitch += this.mPitch;
+    } else { this.mYaw = 0; this.mPitch = 0; }
+    this.mfx = 0; this.mfy = 0;
     if (this.mode !== 'pilot') {
       // Im Schützensitz: Pfeiltasten zum Zielen, Leertaste/Maus zum Feuern
       const ax = this.key('ArrowRight', 'KeyD') - this.key('ArrowLeft', 'KeyA');
@@ -212,7 +233,7 @@ export class Input {
       if (pressed(4)) this.actions.push('seat-prev');
       if (pressed(5)) this.actions.push('seat-next');
       if (pressed(9)) this.actions.push('pause');
-      if (pressed(8)) this.actions.push('help');
+      if (pressed(8)) this.actions.push('crew');
       if (pressed(12)) this.actions.push('dpad-up');
       if (pressed(13)) this.actions.push('dpad-down');
       if (pressed(14)) this.actions.push('dpad-left');

@@ -42,6 +42,9 @@
   <div id="hint"></div>
   <div id="marker" class="marker"><div class="diamond"></div><div class="mlabel"></div></div>
   <div id="fob-marker" class="marker fob"><div class="diamond"></div><div class="mlabel"></div></div>
+  <div id="heli-marker" class="marker heli"><div class="diamond"></div><div class="mlabel"></div></div>
+  <div id="mouse-stick"><div></div></div>
+  <div id="crew-line"></div>
   <div id="damage-flash"></div>
   <div id="fps" class="hidden"></div>
   <div id="status-badge"></div>
@@ -56,6 +59,7 @@
     <button data-action="camera" class="pilot-only">KAMERA</button>
     <button data-action="map">KARTE</button>
     <button data-action="radio">AUFTRAG</button>
+    <button data-action="crew">CREW</button>
     <button data-action="pause">❚❚</button>
   </div>
   <button id="btn-fire" class="gunner-only">FEUER</button>
@@ -76,6 +80,7 @@
     <button id="btn-start" class="primary">EINSATZ BEGINNEN</button>
     <button id="btn-continue" class="primary hidden">FORTSETZEN</button>
     <button id="btn-help">STEUERUNG</button>
+    <button id="btn-mp">MEHRSPIELER (LAN)</button>
     <button id="btn-settings">EINSTELLUNGEN</button>
     <button id="btn-update" class="app-only">NACH UPDATES SUCHEN</button>
     <a id="apk-link" class="web-only btn" href="apk/medevac-sim.apk" download>ANDROID-APP (APK)</a>
@@ -105,6 +110,48 @@
     <button id="btn-pause-settings">EINSTELLUNGEN</button>
     <button id="btn-pause-menu">HAUPTMENÜ</button>
   </div>
+  <p id="pause-mp-note" class="note hidden">Mehrspieler: Das Spiel läuft weiter, Ihr Hubschrauber schwebt solange auf der Stelle.</p>
+</div>
+
+<div id="lobby" class="overlay dim hidden">
+  <div class="panel-inner">
+    <h2>MEHRSPIELER IM LOKALEN NETZWERK</h2>
+    <div id="mp-unavailable" class="hidden">
+      <p>Der LAN-Mehrspieler funktioniert in der <b>Android-App</b> (Handy, Tablet, Android TV). Alle Geräte müssen im selben WLAN sein.</p>
+      <p class="note">Browser können aus Sicherheitsgründen keine direkten Netzwerkverbindungen öffnen. Zum Ausprobieren auf einem PC: Seite mit <code>?net=test</code> in zwei Tabs öffnen.</p>
+    </div>
+    <div id="mp-form">
+      <label>Ihr Name <input id="mp-name" type="text" maxlength="16"></label>
+      <label class="check"><input id="mp-heli2" type="checkbox" checked> Zweiten Hubschrauber (UH-1D #2) einsetzen</label>
+      <button id="btn-host" class="primary">SPIEL ERÖFFNEN</button>
+      <h3>Gefundene Spiele</h3>
+      <div id="mp-hosts"></div>
+      <label>Oder IP-Adresse <input id="mp-ip" type="text" placeholder="192.168.0.23"> <button id="btn-join-ip">VERBINDEN</button></label>
+      <p id="mp-myip" class="note"></p>
+      <p id="mp-status"></p>
+      <ul class="howto">
+        <li>Einer eröffnet das Spiel, die anderen treten bei. Neue Mitspieler können jederzeit dazukommen.</li>
+        <li>Zusammen fliegen: einer ist Pilot, die anderen sitzen an den M60. Freie Plätze übernimmt die KI.</li>
+        <li>Mit dem zweiten Hubschrauber fliegen zwei Piloten gemeinsam. Über <b>CREW</b> (Taste X, Controller ⊖) wechseln Sie den Platz – auch in die andere Maschine, wenn beide nebeneinander gelandet sind.</li>
+        <li>Gäste-WLANs mit „Client-Isolation“ verhindern die Verbindung.</li>
+      </ul>
+    </div>
+    <button id="btn-lobby-close">ZURÜCK</button>
+  </div>
+</div>
+
+<div id="crew" class="overlay dim hidden">
+  <div class="panel-inner">
+    <h2>BESATZUNG</h2>
+    <div id="crew-list"></div>
+    <button id="crew-close" class="primary">SCHLIESSEN</button>
+  </div>
+</div>
+
+<div id="netlost" class="overlay dim hidden">
+  <h1>VERBINDUNG GETRENNT</h1>
+  <p>Die Verbindung zum Host wurde unterbrochen.</p>
+  <div class="menu-buttons"><button id="btn-netlost" class="primary">ZUM HAUPTMENÜ</button></div>
 </div>
 
 <div id="crashscreen" class="overlay dim hidden">
@@ -126,14 +173,15 @@
     </div>
     <div id="help-kb" class="help-page">
       <table>
-        <tr><th>W / S  ·  ↑ / ↓</th><td>Zyklisch vor / zurück (Nase senken = beschleunigen)</td></tr>
-        <tr><th>A / D  ·  ← / →</th><td>Zyklisch links / rechts (Querneigung)</td></tr>
-        <tr><th>Q / E</th><td>Pedale – um die Hochachse drehen</td></tr>
+        <tr><th>Maus ↑ / ↓  ·  W / S</th><td>Vorwärts / rückwärts (Nase senken = beschleunigen). Erst ins Bild klicken.</td></tr>
+        <tr><th>Maus ← / →  ·  Q / E</th><td>Drehen (Pedale)</td></tr>
+        <tr><th>A / D  ·  ← / →</th><td>Seitlich neigen (im Vorwärtsflug: Kurve)</td></tr>
         <tr><th>Leertaste / R</th><td>Kollektiv: steigen</td></tr>
         <tr><th>Shift / F</th><td>Kollektiv: sinken / landen</td></tr>
         <tr><th>1 / 2 / 3 · Tab</th><td>Sitz: Pilot / linker Schütze / rechter Schütze</td></tr>
         <tr><th>Maus (Schütze)</th><td>Zielen (Klick sperrt den Zeiger) · Linksklick feuern · Rechtsklick Zoom</td></tr>
-        <tr><th>Maus ziehen (Pilot)</th><td>Kamera schwenken · Mausrad Zoom</td></tr>
+        <tr><th>Rechte Maustaste halten</th><td>Kamera schwenken · Mausrad Zoom · Esc gibt die Maus frei</td></tr>
+        <tr><th>X</th><td>Besatzung / Platz wechseln (Mehrspieler)</td></tr>
         <tr><th>C</th><td>Außenansicht / Cockpit</td></tr>
         <tr><th>M</th><td>Karte</td></tr>
         <tr><th>T</th><td>Aktuellen Auftrag anzeigen</td></tr>
@@ -152,7 +200,7 @@
         <tr><th>Ⓐ / Ⓑ</th><td>Bestätigen / Auftrag annehmen</td></tr>
         <tr><th>Ⓨ</th><td>Kamera wechseln</td></tr>
         <tr><th>Ⓧ</th><td>Karte</td></tr>
-        <tr><th>⊕</th><td>Pause · ⊖ Hilfe</td></tr>
+        <tr><th>⊕ / ⊖</th><td>Pause / Besatzung (Platz wechseln)</td></tr>
       </table>
       <p class="note">Den Switch Pro Controller oder die Joy-Cons per Bluetooth mit PC, TV-Box oder Handy koppeln. Nach dem Koppeln einmal eine Taste drücken, damit der Browser den Controller erkennt.</p>
     </div>
@@ -188,6 +236,8 @@
     <label>Lautstärke <input id="set-volume" type="range" min="0" max="1" step="0.05"></label>
     <label>Ziel-Empfindlichkeit <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1"></label>
     <label class="check"><input id="set-invert" type="checkbox"> Zielen: Y-Achse invertieren</label>
+    <label class="check"><input id="set-mouse-fly" type="checkbox"> Pilot: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)</label>
+    <label class="check"><input id="set-mouse-inv" type="checkbox"> Maussteuerung: vor/zurück umkehren</label>
     <label>Feindstärke
       <select id="set-diff"><option value="0.6">Leicht</option><option value="1">Normal</option><option value="1.5">Schwer</option></select>
     </label>

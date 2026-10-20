@@ -17,11 +17,12 @@ export class Combat {
 
   clear() { this.bullets.length = 0; this.visual.length = 0; }
 
-  fire(p, dir, inherit, tracer) {
+  // visual=true: Geschoss eines anderen Spielers (nur Darstellung, keine Trefferprüfung)
+  fire(p, dir, inherit, tracer, visual = false) {
     this.bullets.push({
       p: p.clone(),
       v: dir.clone().multiplyScalar(GUN.muzzleVel).add(inherit),
-      life: 0, tracer,
+      life: 0, tracer, visual,
     });
   }
 
@@ -46,7 +47,7 @@ export class Combat {
       const sx = b.p.x - ox, sy = b.p.y - oy, sz = b.p.z - oz;
       const sl2 = sx * sx + sy * sy + sz * sz;
       for (const e of enemies) {
-        if (!e.alive) continue;
+        if (!e.alive || b.visual) continue;
         const cx = e.x - ox, cy = e.y + 0.9 - oy, cz = e.z - oz;
         if (Math.abs(cx) > 900 || Math.abs(cz) > 900) continue;
         const t = clamp((cx * sx + cy * sy + cz * sz) / (sl2 || 1), 0, 1);
@@ -113,7 +114,6 @@ export class Gunner {
     this.target = null;
     this.retarget = 0;
     this.shots = 0;
-    this.player = false;
     this.firing = false;
   }
 
@@ -132,15 +132,22 @@ export class Gunner {
 
   inArc(a) { return Math.abs(a.yaw) < 1.35 && a.pitch > -1.2 && a.pitch < 0.35; }
 
-  update(dt, game, aimInput, fireInput) {
+  // mode: 'player' (lokaler Spieler), 'ai' (KI auf dem Host), 'remote' (Winkel kommen übers Netz)
+  update(dt, game, aimInput, fireInput, mode) {
     const h = this.heli;
     this.firing = false;
+    this.mode = mode;
     if (h.crashed) return;
-    this.cool -= dt;
-    if (this.player) {
-      this.yaw = clamp(this.yaw + aimInput.dx, -1.35, 1.35);
+    this.cool = Math.max(-0.2, this.cool - dt);
+    if (mode === 'remote') {
+      if (this.netYaw !== undefined) {
+        this.yaw += wrapAngle(this.netYaw - this.yaw) * Math.min(1, dt * 12);
+        this.pitch += (this.netPitch - this.pitch) * Math.min(1, dt * 12);
+      }
+    } else if (mode === 'player') {
+      this.yaw = clamp(this.yaw - aimInput.dx, -1.35, 1.35);
       this.pitch = clamp(this.pitch - aimInput.dy, -1.2, 0.35);
-      if (fireInput) this.tryFire(game, 0.0035);
+      for (let n = 0; fireInput && this.cool <= 0 && n < 4; n++) this.tryFire(game, 0.0035);
     } else {
       this.ai(dt, game);
     }
@@ -198,18 +205,18 @@ export class Gunner {
         this.pause -= dt;
         if (this.pause <= 0) { this.burst = 8 + Math.floor(rand() * 10); this.pause = 0.35 + rand() * 0.6; }
       }
-      if (this.burst > 0 && this.tryFire(game, 0.014)) this.burst--;
+      for (let n = 0; this.burst > 0 && this.cool <= 0 && n < 4; n++) if (this.tryFire(game, 0.014)) this.burst--; else break;
     }
   }
 
   tryFire(game, spread) {
     if (this.cool > 0) return false;
     if (this.ammo <= 0) {
-      if (!this.emptyWarned) { this.emptyWarned = true; game.radio(`${this.side === 'left' ? 'Linker' : 'Rechter'} Schütze: Munition leer!`, 'Crew'); }
+      if (!this.emptyWarned) { this.emptyWarned = true; game.radio(`${this.side === 'left' ? 'Linker' : 'Rechter'} Schütze: Munition leer!`, 'Crew', false, true); }
       return false;
     }
     this.emptyWarned = false;
-    this.cool = 60 / GUN.rpm;
+    this.cool += 60 / GUN.rpm;
     this.ammo--;
     this.shots++;
     this.firing = true;
@@ -217,7 +224,9 @@ export class Gunner {
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.rig.pitch.getWorldQuaternion(_q));
     dir.x += (rand() - 0.5) * spread * 2; dir.y += (rand() - 0.5) * spread * 2; dir.z += (rand() - 0.5) * spread * 2;
     dir.normalize();
-    game.combat.fire(muzzle, dir, this.heli.vel, this.shots % 2 === 0);
+    const tracer = this.shots % 2 === 0;
+    game.combat.fire(muzzle, dir, this.heli.vel, tracer);
+    if (tracer && game.net) game.net.gunFire(this.heli.index, this.side, muzzle, dir);
     game.effects.muzzle(muzzle.x + dir.x * 0.3, muzzle.y + dir.y * 0.3, muzzle.z + dir.z * 0.3, true);
     game.audio.shot('m60', game.camera.position.distanceTo(muzzle));
     return true;
