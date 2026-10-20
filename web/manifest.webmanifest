@@ -1,0 +1,12 @@
+{
+  "name": "Dustoff – UH-1D Medevac Vietnam",
+  "short_name": "Dustoff",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1b2013",
+  "theme_color": "#1b2013",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

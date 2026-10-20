@@ -1,0 +1,61 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Versionsnummer und Update-URL kommen aus der CI (GitHub Actions)
+def envOr = { String key, String fallback -> def v = System.getenv(key); return (v != null && !v.isEmpty()) ? v : fallback }
+def vCode = envOr('VERSION_CODE', '1').toInteger()
+def vName = envOr('VERSION_NAME', '1.0.0-dev')
+def updateUrl = envOr('UPDATE_URL', 'https://gun642.github.io/Medevac-sim/version.json')
+
+android {
+    namespace 'io.github.gun642.medevacsim'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'io.github.gun642.medevacsim'
+        minSdk 24
+        targetSdk 34
+        versionCode vCode
+        versionName vName
+        buildConfigField 'String', 'UPDATE_URL', "\"${updateUrl}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(envOr('KEYSTORE_FILE', "${rootDir}/keystore/release.jks"))
+            storePassword envOr('KEYSTORE_PASSWORD', 'dustoff1968')
+            keyAlias envOr('KEY_ALIAS', 'dustoff')
+            keyPassword envOr('KEY_PASSWORD', 'dustoff1968')
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+    // Die Spieldateien (web/) kopiert die CI vor dem Build nach src/main/assets/www
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}

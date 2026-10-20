@@ -1,0 +1,103 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.0.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update-URL bestimmen
+        run: |
+          OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          REPO="${GITHUB_REPOSITORY#*/}"
+          echo "PAGES_URL=https://${OWNER}.github.io/${REPO}" >> "$GITHUB_ENV"
+          echo "UPDATE_URL=https://${OWNER}.github.io/${REPO}/version.json" >> "$GITHUB_ENV"
+
+      - name: version.json erzeugen
+        run: |
+          MSG=$(git log -1 --pretty=%s | sed 's/"/\\"/g')
+          cat > version.json <<JSON
+          { "versionCode": ${VERSION_CODE}, "versionName": "${VERSION_NAME}", "apkUrl": "apk/medevac-sim.apk", "notes": "${MSG}", "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)" }
+          JSON
+          cat version.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Spieldateien in die App kopieren
+        run: |
+          rm -rf android/app/src/main/assets/www
+          mkdir -p android/app/src/main/assets/www
+          cp -r web/. android/app/src/main/assets/www/
+          cp version.json android/app/src/main/assets/www/version.json
+
+      - name: Signaturschlüssel (optional aus Secrets)
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+            echo "Eigener Keystore aus Secrets wird verwendet."
+          else
+            echo "Repository-Keystore android/keystore/release.jks wird verwendet."
+          fi
+
+      - name: APK bauen
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: gradle -p android assembleRelease --no-daemon --stacktrace
+
+      - name: Website zusammenstellen
+        run: |
+          mkdir -p _site/apk
+          cp -r web/. _site/
+          cp version.json _site/version.json
+          cp android/app/build/outputs/apk/release/app-release.apk _site/apk/medevac-sim.apk
+          touch _site/.nojekyll
+          ls -la _site _site/apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: medevac-sim-${{ env.VERSION_NAME }}.apk
+          path: _site/apk/medevac-sim.apk
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

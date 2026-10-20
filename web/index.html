@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1b2013">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="UH-1D Medevac-Hubschraubersimulator im Vietnamkrieg – Verwundete bergen, Truppen transportieren, abgeschossene Piloten retten.">
+<title>Dustoff – UH-1D Medevac Vietnam</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ============ HUD ============ -->
+<div id="hud" class="hidden">
+  <div id="top">
+    <div id="mission-box"><div id="mission-line"></div><div id="mission-step"></div></div>
+    <canvas id="compass" width="420" height="44"></canvas>
+    <div id="wp-info"><span id="wp-arrow">▲</span><span id="wp-text"></span></div>
+  </div>
+  <canvas id="minimap" width="170" height="170"></canvas>
+  <div id="gauges-left">
+    <div class="gauge"><div class="glabel">TREIBST.</div><div class="bar"><div class="fill ok" id="fuel-fill"></div><div class="tick t25"></div></div><div class="gval" id="fuel-val"></div><div class="gsub" id="fuel-min"></div></div>
+    <div class="gauge"><div class="glabel">STRUKTUR</div><div class="bar"><div class="fill ok" id="hp-fill"></div></div><div class="gval" id="hp-val"></div></div>
+  </div>
+  <div id="gauges-right">
+    <div class="readout"><span>HÖHE</span><b id="r-alt">0</b><small>ft</small></div>
+    <div class="readout"><span>FAHRT</span><b id="r-spd">0</b><small>kt</small></div>
+    <div class="readout"><span>STEIG</span><b id="r-vs">0</b><small>ft/m</small><div id="vs-wrap"><div id="vs-bar"></div></div></div>
+    <div class="readout"><span>KURS</span><b id="r-hdg">000°</b></div>
+    <div id="pax"></div>
+    <div id="ammo"></div>
+  </div>
+  <div id="warnings"></div>
+  <div id="radio"></div>
+  <div id="crosshair"><div></div></div>
+  <div id="seat-label"></div>
+  <div id="hint"></div>
+  <div id="marker" class="marker"><div class="diamond"></div><div class="mlabel"></div></div>
+  <div id="fob-marker" class="marker fob"><div class="diamond"></div><div class="mlabel"></div></div>
+  <div id="damage-flash"></div>
+  <div id="fps" class="hidden"></div>
+  <div id="status-badge"></div>
+</div>
+
+<!-- ============ Touch ============ -->
+<div id="touch-controls" class="hidden">
+  <div id="stick-left" class="stick-zone"><div class="base"><div class="knob"></div></div><div class="stick-hint">▲ Steigen · ▼ Sinken<br>◀ ▶ Pedale</div></div>
+  <div id="stick-right" class="stick-zone"><div class="base"><div class="knob"></div></div><div class="stick-hint pilot-only">Zyklisch (Neigen)</div><div class="stick-hint gunner-only">Wischen zum Zielen</div></div>
+  <div id="touch-buttons">
+    <button data-action="seat-next">SITZ</button>
+    <button data-action="camera" class="pilot-only">KAMERA</button>
+    <button data-action="map">KARTE</button>
+    <button data-action="radio">AUFTRAG</button>
+    <button data-action="pause">❚❚</button>
+  </div>
+  <button id="btn-fire" class="gunner-only">FEUER</button>
+</div>
+
+<!-- ============ Overlays ============ -->
+<div id="loading" class="overlay">
+  <div class="logo">DUSTOFF</div>
+  <div class="sub">UH-1D · VIETNAM 1968</div>
+  <div class="loadbar"><div id="load-bar"></div></div>
+  <div id="load-text">Lade …</div>
+</div>
+
+<div id="menu" class="overlay hidden">
+  <div class="logo">DUSTOFF</div>
+  <div class="sub">UH-1D MEDEVAC · VIETNAM 1968</div>
+  <div class="menu-buttons">
+    <button id="btn-start" class="primary">EINSATZ BEGINNEN</button>
+    <button id="btn-continue" class="primary hidden">FORTSETZEN</button>
+    <button id="btn-help">STEUERUNG</button>
+    <button id="btn-settings">EINSTELLUNGEN</button>
+    <button id="btn-update" class="app-only">NACH UPDATES SUCHEN</button>
+    <a id="apk-link" class="web-only btn" href="apk/medevac-sim.apk" download>ANDROID-APP (APK)</a>
+  </div>
+  <div id="menu-stats"></div>
+  <div id="version"></div>
+</div>
+
+<div id="briefing" class="panel hidden">
+  <h2 id="brief-title"></h2>
+  <table id="brief-rows"></table>
+  <p id="brief-radio"></p>
+  <button id="brief-accept" class="primary">AUFTRAG ANNEHMEN</button>
+  <div class="small-hint"><span class="kb">Enter</span> <span class="gp">Ⓐ</span> <span class="tc">Antippen</span></div>
+</div>
+
+<div id="result" class="panel hidden">
+  <h2 id="result-title"></h2>
+  <table id="result-rows"></table>
+</div>
+
+<div id="pause" class="overlay dim hidden">
+  <h1>PAUSE</h1>
+  <div class="menu-buttons">
+    <button id="btn-resume" class="primary">FORTSETZEN</button>
+    <button id="btn-pause-help">STEUERUNG</button>
+    <button id="btn-pause-settings">EINSTELLUNGEN</button>
+    <button id="btn-pause-menu">HAUPTMENÜ</button>
+  </div>
+</div>
+
+<div id="crashscreen" class="overlay dim hidden">
+  <h1>ABGESTÜRZT</h1>
+  <p id="crash-cause"></p>
+  <p>Der Auftrag ist gescheitert.</p>
+  <div class="menu-buttons"><button id="btn-respawn" class="primary">NEUER HUBSCHRAUBER</button></div>
+</div>
+
+<div id="fullmap" class="overlay dim hidden"><canvas id="fullmap-canvas"></canvas><div class="small-hint">Karte schließen: M / Ⓧ / Antippen</div></div>
+
+<div id="help" class="overlay dim hidden">
+  <div class="panel-inner">
+    <h2>STEUERUNG</h2>
+    <div class="help-tabs">
+      <button data-page="help-kb" class="active">Tastatur / Maus</button>
+      <button data-page="help-gp">Switch-Controller</button>
+      <button data-page="help-tc">Touch</button>
+    </div>
+    <div id="help-kb" class="help-page">
+      <table>
+        <tr><th>W / S  ·  ↑ / ↓</th><td>Zyklisch vor / zurück (Nase senken = beschleunigen)</td></tr>
+        <tr><th>A / D  ·  ← / →</th><td>Zyklisch links / rechts (Querneigung)</td></tr>
+        <tr><th>Q / E</th><td>Pedale – um die Hochachse drehen</td></tr>
+        <tr><th>Leertaste / R</th><td>Kollektiv: steigen</td></tr>
+        <tr><th>Shift / F</th><td>Kollektiv: sinken / landen</td></tr>
+        <tr><th>1 / 2 / 3 · Tab</th><td>Sitz: Pilot / linker Schütze / rechter Schütze</td></tr>
+        <tr><th>Maus (Schütze)</th><td>Zielen (Klick sperrt den Zeiger) · Linksklick feuern · Rechtsklick Zoom</td></tr>
+        <tr><th>Maus ziehen (Pilot)</th><td>Kamera schwenken · Mausrad Zoom</td></tr>
+        <tr><th>C</th><td>Außenansicht / Cockpit</td></tr>
+        <tr><th>M</th><td>Karte</td></tr>
+        <tr><th>T</th><td>Aktuellen Auftrag anzeigen</td></tr>
+        <tr><th>Enter</th><td>Auftrag annehmen</td></tr>
+        <tr><th>Esc / P</th><td>Pause</td></tr>
+      </table>
+    </div>
+    <div id="help-gp" class="help-page hidden">
+      <table>
+        <tr><th>Linker Stick</th><td>Zyklisch (neigen / beschleunigen)</td></tr>
+        <tr><th>Rechter Stick ↕</th><td>Kollektiv: steigen / sinken</td></tr>
+        <tr><th>Rechter Stick ↔</th><td>Pedale – drehen</td></tr>
+        <tr><th>ZR / ZL</th><td>Steigen / Sinken (als Schütze: ZR feuern, ZL Zoom)</td></tr>
+        <tr><th>L / R</th><td>Sitz wechseln (Pilot ↔ Schützen)</td></tr>
+        <tr><th>Steuerkreuz</th><td>↑ Pilot · ← linker · → rechter Schütze · ↓ Auftrag</td></tr>
+        <tr><th>Ⓐ / Ⓑ</th><td>Bestätigen / Auftrag annehmen</td></tr>
+        <tr><th>Ⓨ</th><td>Kamera wechseln</td></tr>
+        <tr><th>Ⓧ</th><td>Karte</td></tr>
+        <tr><th>⊕</th><td>Pause · ⊖ Hilfe</td></tr>
+      </table>
+      <p class="note">Den Switch Pro Controller oder die Joy-Cons per Bluetooth mit PC, TV-Box oder Handy koppeln. Nach dem Koppeln einmal eine Taste drücken, damit der Browser den Controller erkennt.</p>
+    </div>
+    <div id="help-tc" class="help-page hidden">
+      <table>
+        <tr><th>Linker Daumen</th><td>↑↓ Steigen / Sinken · ←→ Pedale</td></tr>
+        <tr><th>Rechter Daumen</th><td>Zyklisch: neigen / beschleunigen</td></tr>
+        <tr><th>SITZ</th><td>Pilot → linker Schütze → rechter Schütze</td></tr>
+        <tr><th>Als Schütze</th><td>Rechts wischen zum Zielen, FEUER halten</td></tr>
+        <tr><th>KAMERA · KARTE · AUFTRAG</th><td>Ansicht wechseln · Karte · Briefing zeigen</td></tr>
+      </table>
+    </div>
+    <h3>So geht's</h3>
+    <ul class="howto">
+      <li>Der <b>Flugassistent</b> hält Höhe und bremst automatisch ab, wenn Sie den Stick loslassen.</li>
+      <li>Fliegen Sie zum gelben Wegpunkt. Richtung und Entfernung stehen oben am Kompass.</li>
+      <li>Landen Sie sanft (Steigrate &lt; 800 ft/min) in der Landezone beim farbigen Rauch. Die Soldaten steigen selbst ein.</li>
+      <li>In <b>heißen LZs</b> schießen die Bordschützen selbstständig auf erkannte Feinde (Mündungsfeuer, grüne Leuchtspur).</li>
+      <li>Behalten Sie den <b>Treibstoff</b> im Blick: Auf Pad <b>POL</b> (gelber Rand, Tankwagen) wird getankt, repariert und Munition aufgefüllt.</li>
+      <li>Verwundete und gerettete Piloten auf Pad <b>MED</b> (rotes Kreuz) abliefern.</li>
+    </ul>
+    <button data-close="help" class="primary">SCHLIESSEN</button>
+  </div>
+</div>
+
+<div id="settings" class="overlay dim hidden">
+  <div class="panel-inner">
+    <h2>EINSTELLUNGEN</h2>
+    <label>Grafikqualität
+      <select id="set-quality"><option value="low">Niedrig (Handy)</option><option value="medium">Mittel</option><option value="high">Hoch</option></select>
+    </label>
+    <p id="quality-note" class="note hidden">Wird nach dem Neuladen aktiv. <button id="btn-reload">JETZT NEU LADEN</button></p>
+    <label>Lautstärke <input id="set-volume" type="range" min="0" max="1" step="0.05"></label>
+    <label>Ziel-Empfindlichkeit <input id="set-sens" type="range" min="0.3" max="2.5" step="0.1"></label>
+    <label class="check"><input id="set-invert" type="checkbox"> Zielen: Y-Achse invertieren</label>
+    <label>Feindstärke
+      <select id="set-diff"><option value="0.6">Leicht</option><option value="1">Normal</option><option value="1.5">Schwer</option></select>
+    </label>
+    <label class="check"><input id="set-fps" type="checkbox"> FPS anzeigen</label>
+    <button data-close="settings" class="primary">SCHLIESSEN</button>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

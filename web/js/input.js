@@ -1,0 +1,237 @@
+// Eingabe: Tastatur/Maus, Gamepad (z. B. Nintendo Switch Pro Controller), Touchscreen
+import { clamp } from './util.js';
+
+const DEAD = 0.14;
+const dz = (v) => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
+
+export class Input {
+  constructor(canvas, settings) {
+    this.canvas = canvas;
+    this.settings = settings;
+    this.keys = new Set();
+    this.flight = { pitch: 0, roll: 0, yaw: 0, collective: 0 };
+    this.aim = { dx: 0, dy: 0 };
+    this.look = { dx: 0, dy: 0, zoom: 0 };
+    this.fire = false;
+    this.zoomHeld = false;
+    this.actions = [];
+    this.device = 'keyboard';
+    this.mouseDown = [false, false, false];
+    this.gpPrev = [];
+    this.gpConnected = false;
+    this.touch = { left: null, right: null, aim: null, fire: false };
+    this.mode = 'pilot';
+
+    window.addEventListener('keydown', (e) => this.onKey(e, true));
+    window.addEventListener('keyup', (e) => this.onKey(e, false));
+    window.addEventListener('blur', () => { this.keys.clear(); this.fire = false; });
+    canvas.addEventListener('mousedown', (e) => {
+      this.device = 'keyboard';
+      this.mouseDown[e.button] = true;
+      if (this.mode !== 'pilot' && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
+        try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (_) {}
+      }
+    });
+    window.addEventListener('mouseup', (e) => { this.mouseDown[e.button] = false; });
+    window.addEventListener('mousemove', (e) => {
+      const locked = document.pointerLockElement === canvas;
+      if (this.mode !== 'pilot' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
+        const s = 0.0022 * this.settings.sensitivity;
+        this.aim.dx += e.movementX * s;
+        this.aim.dy += e.movementY * s * (this.settings.invertY ? -1 : 1);
+      } else if (this.mouseDown[0] || this.mouseDown[2]) {
+        this.look.dx += e.movementX * 0.005;
+        this.look.dy += e.movementY * 0.005;
+      }
+    });
+    canvas.addEventListener('wheel', (e) => { this.look.zoom += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    window.addEventListener('gamepadconnected', () => { this.gpConnected = true; this.device = 'gamepad'; this.onDevice && this.onDevice(); });
+    window.addEventListener('gamepaddisconnected', () => { this.gpConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((g) => g); });
+    this.setupTouch();
+  }
+
+  onKey(e, down) {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
+    const k = e.code;
+    if (down) {
+      if (this.device !== 'keyboard') { this.device = 'keyboard'; this.onDevice && this.onDevice(); }
+      if (!this.keys.has(k)) {
+        const map = {
+          Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'camera', KeyM: 'map',
+          Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio',
+        };
+        if (map[k]) { this.actions.push(map[k]); if (k === 'Tab') e.preventDefault(); }
+      }
+      this.keys.add(k);
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
+    } else this.keys.delete(k);
+  }
+
+  key(...codes) { return codes.some((c) => this.keys.has(c)) ? 1 : 0; }
+
+  setMode(mode) {
+    this.mode = mode;
+    if (mode === 'pilot' && document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    document.body.classList.toggle('gunner-mode', mode !== 'pilot');
+  }
+
+  // ---------------------------------------------------------------- Touch
+  setupTouch() {
+    const tc = document.getElementById('touch-controls');
+    if (!tc) return;
+    this.touchEl = tc;
+    const sticks = {
+      left: { zone: document.getElementById('stick-left'), knob: document.querySelector('#stick-left .knob'), base: document.querySelector('#stick-left .base') },
+      right: { zone: document.getElementById('stick-right'), knob: document.querySelector('#stick-right .knob'), base: document.querySelector('#stick-right .base') },
+    };
+    this.sticks = sticks;
+    const R = 62;
+    for (const side of ['left', 'right']) {
+      const st = sticks[side];
+      st.zone.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        this.setTouchDevice();
+        const t = e.changedTouches[0];
+        if (side === 'right' && this.mode !== 'pilot') {
+          this.touch.aim = { id: t.identifier, x: t.clientX, y: t.clientY };
+          return;
+        }
+        const rect = st.zone.getBoundingClientRect();
+        st.ox = t.clientX; st.oy = t.clientY;
+        st.base.style.left = t.clientX - rect.left + 'px';
+        st.base.style.top = t.clientY - rect.top + 'px';
+        st.base.classList.add('active');
+        this.touch[side] = { id: t.identifier, x: 0, y: 0 };
+        st.knob.style.transform = 'translate(-50%,-50%)';
+      }, { passive: false });
+      st.zone.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        for (const t of e.changedTouches) {
+          const a = this.touch.aim;
+          if (side === 'right' && a && a.id === t.identifier) {
+            const s = 0.005 * this.settings.sensitivity;
+            this.aim.dx += (t.clientX - a.x) * s;
+            this.aim.dy += (t.clientY - a.y) * s * (this.settings.invertY ? -1 : 1);
+            a.x = t.clientX; a.y = t.clientY;
+            continue;
+          }
+          const tt = this.touch[side];
+          if (!tt || tt.id !== t.identifier) continue;
+          let dx = t.clientX - st.ox, dy = t.clientY - st.oy;
+          const l = Math.hypot(dx, dy);
+          if (l > R) { dx *= R / l; dy *= R / l; }
+          tt.x = dx / R; tt.y = dy / R;
+          st.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+        }
+      }, { passive: false });
+      const end = (e) => {
+        for (const t of e.changedTouches) {
+          if (this.touch.aim && this.touch.aim.id === t.identifier) this.touch.aim = null;
+          const tt = this.touch[side];
+          if (tt && tt.id === t.identifier) {
+            this.touch[side] = null;
+            st.knob.style.transform = 'translate(-50%,-50%)';
+            st.base.classList.remove('active');
+          }
+        }
+      };
+      st.zone.addEventListener('touchend', end);
+      st.zone.addEventListener('touchcancel', end);
+    }
+    tc.querySelectorAll('[data-action]').forEach((b) => {
+      b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); this.setTouchDevice(); this.actions.push(b.dataset.action); }, { passive: false });
+      b.addEventListener('click', (e) => { e.preventDefault(); this.actions.push(b.dataset.action); });
+    });
+    const fireBtn = document.getElementById('btn-fire');
+    if (fireBtn) {
+      fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); this.touch.fire = true; }, { passive: false });
+      fireBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.touch.fire = false; });
+      fireBtn.addEventListener('touchcancel', () => { this.touch.fire = false; });
+    }
+    window.addEventListener('touchstart', () => this.setTouchDevice(), { passive: true });
+  }
+
+  setTouchDevice() {
+    if (this.device !== 'touch') { this.device = 'touch'; this.onDevice && this.onDevice(); }
+  }
+
+  // ---------------------------------------------------------------- Abfrage pro Frame
+  update(dt) {
+    const f = { pitch: 0, roll: 0, yaw: 0, collective: 0 };
+    let fire = false;
+    this.zoomHeld = false;
+
+    // Tastatur (geglättet)
+    const kp = this.key('KeyW', 'ArrowUp') - this.key('KeyS', 'ArrowDown');
+    const kr = this.key('KeyD', 'ArrowRight') - this.key('KeyA', 'ArrowLeft');
+    const ky = this.key('KeyE') - this.key('KeyQ');
+    const kc = this.key('Space', 'KeyR', 'PageUp') - this.key('ShiftLeft', 'ShiftRight', 'KeyF', 'PageDown');
+    if (!this.kb) this.kb = { pitch: 0, roll: 0, yaw: 0, collective: 0 };
+    const sm = (cur, tgt, rate) => cur + clamp(tgt - cur, -rate * dt, rate * dt);
+    this.kb.pitch = sm(this.kb.pitch, kp, kp ? 2.5 : 5);
+    this.kb.roll = sm(this.kb.roll, kr, kr ? 2.5 : 5);
+    this.kb.yaw = sm(this.kb.yaw, ky, 5);
+    this.kb.collective = sm(this.kb.collective, kc, 4);
+    f.pitch += this.kb.pitch; f.roll += this.kb.roll; f.yaw += this.kb.yaw; f.collective += this.kb.collective;
+    if (this.mode !== 'pilot') {
+      // Im Schützensitz: Pfeiltasten zum Zielen, Leertaste/Maus zum Feuern
+      const ax = this.key('ArrowRight', 'KeyD') - this.key('ArrowLeft', 'KeyA');
+      const ay = this.key('ArrowDown', 'KeyS') - this.key('ArrowUp', 'KeyW');
+      this.aim.dx += ax * dt * 1.2;
+      this.aim.dy += ay * dt * 1.0;
+      fire = fire || this.mouseDown[0] || this.keys.has('Space');
+      this.zoomHeld = this.mouseDown[2];
+    }
+
+    // Gamepad (Standard-Mapping)
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const gp of pads) {
+      if (!gp || !gp.connected) continue;
+      const ax = gp.axes;
+      const b = (i) => (gp.buttons[i] ? gp.buttons[i].value || (gp.buttons[i].pressed ? 1 : 0) : 0);
+      const prev = this.gpPrev[gp.index] || [];
+      const pressed = (i) => gp.buttons[i] && gp.buttons[i].pressed && !prev[i];
+      const lx = dz(ax[0] || 0), ly = dz(ax[1] || 0), rx = dz(ax[2] || 0), ry = dz(ax[3] || 0);
+      const any = Math.abs(lx) + Math.abs(ly) + Math.abs(rx) + Math.abs(ry) + b(6) + b(7) > 0.2 || gp.buttons.some((x) => x.pressed);
+      if (any && this.device !== 'gamepad') { this.device = 'gamepad'; this.onDevice && this.onDevice(); }
+      if (this.mode === 'pilot') {
+        f.roll += lx; f.pitch += -ly; f.yaw += rx;
+        f.collective += -ry + b(7) - b(6);
+      } else {
+        const s = 2.2 * this.settings.sensitivity * dt;
+        this.aim.dx += (rx + lx * 0.5) * s;
+        this.aim.dy += (ry + ly * 0.5) * s * (this.settings.invertY ? -1 : 1);
+        fire = fire || b(7) > 0.4;
+        this.zoomHeld = this.zoomHeld || b(6) > 0.4;
+      }
+      // Tasten: 0=B(unten) 1=A(rechts) 2=Y(links) 3=X(oben) 4=L 5=R 8=− 9=+ 12-15=Steuerkreuz
+      if (pressed(0) || pressed(1)) this.actions.push('confirm');
+      if (pressed(3)) this.actions.push('map');
+      if (pressed(2)) this.actions.push('camera');
+      if (pressed(4)) this.actions.push('seat-prev');
+      if (pressed(5)) this.actions.push('seat-next');
+      if (pressed(9)) this.actions.push('pause');
+      if (pressed(8)) this.actions.push('help');
+      if (pressed(12)) this.actions.push('dpad-up');
+      if (pressed(13)) this.actions.push('dpad-down');
+      if (pressed(14)) this.actions.push('dpad-left');
+      if (pressed(15)) this.actions.push('dpad-right');
+      this.gpPrev[gp.index] = gp.buttons.map((x) => x.pressed);
+      this.gpConnected = true;
+    }
+
+    // Touch
+    if (this.touch.left) { f.yaw += this.touch.left.x; f.collective += -this.touch.left.y; }
+    if (this.touch.right && this.mode === 'pilot') { f.roll += this.touch.right.x; f.pitch += -this.touch.right.y; }
+    fire = fire || this.touch.fire;
+
+    f.pitch = clamp(f.pitch, -1, 1); f.roll = clamp(f.roll, -1, 1); f.yaw = clamp(f.yaw, -1, 1); f.collective = clamp(f.collective, -1, 1);
+    this.flight = f;
+    this.fire = fire;
+  }
+
+  consumeAim() { const a = { dx: this.aim.dx, dy: this.aim.dy }; this.aim.dx = this.aim.dy = 0; return a; }
+  consumeLook() { const l = { ...this.look }; this.look.dx = this.look.dy = this.look.zoom = 0; return l; }
+  popActions() { const a = this.actions; this.actions = []; return a; }
+}

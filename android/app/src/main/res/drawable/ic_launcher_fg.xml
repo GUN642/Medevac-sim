@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- Rotor -->
+    <path android:fillColor="#FF1D1E1C" android:pathData="M20,38h68v3h-68z" />
+    <path android:fillColor="#FF1D1E1C" android:pathData="M52,38h4v8h-4z" />
+    <!-- Rumpf -->
+    <path android:fillColor="#FF2A2F1B" android:pathData="M38,46h30c10,0 15,7 16,13v3c-1,6 -6,8 -12,8h-34c-6,0 -8,-4 -8,-8v-7c0,-6 3,-9 8,-9z" />
+    <path android:fillColor="#FF6F8A90" android:pathData="M68,48c8,1 13,6 15,12h-15z" />
+    <!-- Heckausleger -->
+    <path android:fillColor="#FF2A2F1B" android:pathData="M31,52h-17l-4,-7h-3v14h3l4,-2h17z" />
+    <!-- Kufen -->
+    <path android:fillColor="#FF1D1E1C" android:pathData="M34,76h46v2h-46z" />
+    <path android:fillColor="#FF1D1E1C" android:pathData="M42,70h2v6h-2zM70,70h2v6h-2z" />
+    <!-- Rotes Kreuz -->
+    <path android:fillColor="#FFB8221C" android:pathData="M47,55h12v4h-12z" />
+    <path android:fillColor="#FFB8221C" android:pathData="M51,51h4v12h-4z" />
+</vector>
