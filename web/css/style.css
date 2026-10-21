@@ -234,3 +234,34 @@ body.touch #crew-line { top: 104px; font-size: 9px; }
 #crew-list button.taken { opacity: 0.6; }
 code { background: rgba(0,0,0,0.35); padding: 1px 4px; }
 #lobby, #crew { background: rgba(8, 10, 5, 0.92); }
+
+/* Infanterie */
+body:not(.foot-mode) .foot-only { display: none !important; }
+body.foot-mode .no-foot { display: none !important; }
+body:not(.aim-mode) .aim-only { display: none !important; }
+body.foot-mode #gauges-left, body.foot-mode #gauges-right, body.foot-mode #mouse-stick { display: none !important; }
+body:not(.foot-mode) #foot-hud { display: none; }
+#foot-hud { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: 46px; background: var(--hud-bg); padding: 8px 12px; border-radius: 4px; min-width: 200px; }
+#foot-hud .bar.h { width: 100%; height: 10px; margin: 3px 0 6px; }
+#foot-hud .bar.h .fill { top: 0; right: auto; height: auto; width: var(--v, 100%); }
+#foot-hud .fh-w { font-size: 16px; color: #e8f0d0; }
+#foot-hud .fh-w small { opacity: 0.7; font-size: 11px; }
+#foot-hud .fh-ammo { font-size: 26px; font-weight: bold; color: var(--amber); }
+#foot-hud .fh-ammo small { font-size: 14px; color: var(--sand); }
+#foot-hud .fh-st { font-size: 11px; opacity: 0.75; letter-spacing: 1px; }
+body.pax-mode #stick-left, body.pax-mode #stick-right .base { display: none; }
+body.pilot-seat .use-btn { display: none; }
+#foot-buttons { position: absolute; right: 30%; bottom: 8px; display: flex; gap: 6px; pointer-events: auto; }
+#foot-buttons button { font-size: 11px; padding: 8px 8px; letter-spacing: 1px; background: rgba(40, 46, 26, 0.75); }
+body.foot-mode #stick-right .base { display: none; }
+body.foot-mode #stick-right { width: 58%; height: 100%; }
+body.touch #foot-hud { bottom: auto; top: max(6px, env(safe-area-inset-top)); right: auto; left: max(8px, env(safe-area-inset-left)); min-width: 150px; padding: 4px 8px; }
+body.touch #foot-hud .fh-ammo { font-size: 18px; }
+body.touch #foot-hud .fh-w { font-size: 12px; }
+body.foot-mode .pilot-only, body.pax-mode .pilot-only { display: none !important; }
+body.touch #foot-buttons { right: 96px; top: 108px; bottom: auto; flex-direction: column; gap: 4px; }
+body.touch #foot-buttons button { font-size: 10px; padding: 6px 6px; min-width: 64px; }
+body.touch.foot-mode #hint { bottom: auto; top: 108px; }
+body.touch.foot-mode #seat-label { display: none; }
+body.touch.foot-mode #btn-fire { right: 15%; bottom: 14%; }
+body.touch.foot-mode #radio { width: min(340px, 34vw); }

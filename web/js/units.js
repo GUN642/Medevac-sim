@@ -327,6 +327,11 @@ export class Units {
           const dh = Math.hypot(h.pos.x - e.x, h.pos.y - e.y, h.pos.z - e.z);
           if (dh < bestD && (!e.patrol || h.agl < 450) && w.los(e.x, e.y + 1.5, e.z, h.pos.x, h.pos.y, h.pos.z)) { bestD = dh; e.tgt = h; }
         }
+        for (const ft of g.footTargets()) {
+          const sp = ft.s.pos;
+          const ds = Math.hypot(sp.x - e.x, sp.y - e.y, sp.z - e.z);
+          if (ds < Math.min(bestD, 380) && w.los(e.x, e.y + 1.5, e.z, sp.x, sp.y + 1.4, sp.z)) { bestD = ds; e.tgt = ft; }
+        }
         if (!e.tgt && m) {
           let best = 350;
           for (const f of this.friendlies) {
@@ -336,7 +341,7 @@ export class Units {
         }
         if (e.tgt) {
           e.burst = e.heavy ? 6 + Math.floor(rand() * 6) : 3 + Math.floor(rand() * 5);
-          const tp = e.tgt.pos || e.tgt;
+          const tp = e.tgt.pos || (e.tgt.s && e.tgt.s.pos) || e.tgt;
           e.obj.rotation.y = Math.atan2(-(tp.x - e.x), -(tp.z - e.z));
         }
       }
@@ -373,6 +378,27 @@ export class Units {
     const g = this.game;
     _a.set(e.x, e.y + (e.heavy ? 1.1 : 1.4), e.z);
     const h = e.tgt && e.tgt.pos ? e.tgt : null;
+    if (e.tgt && e.tgt.s) {
+      // Spieler zu Fuß
+      const S = e.tgt.s, sp = S.pos;
+      const dist = Math.hypot(sp.x - e.x, sp.y - e.y, sp.z - e.z);
+      let p = 0.06 * clamp(1.2 - dist / 380, 0.15, 1);
+      p *= S.crouch ? 0.55 : 1;
+      p *= S.moving ? 0.7 : 1;
+      p *= g.settings.difficulty;
+      if (!S.alive) return;
+      if (rand() < p) {
+        _b.set(sp.x + rand.range(-0.2, 0.2), sp.y + 1.1, sp.z + rand.range(-0.2, 0.2));
+        const dmg = (e.heavy ? 30 : 9) + rand() * 10;
+        const pid = e.tgt.pid;
+        g.groundShot(_a, _b, e.heavy ? 2 : 1, true, () => g.damageSoldier(pid, dmg));
+      } else {
+        _b.set(rand.range(-1, 1), rand.range(-0.3, 1), rand.range(-1, 1)).normalize().multiplyScalar(1.5 + rand() * 5).add(sp);
+        _b.sub(_a).normalize().multiplyScalar(dist + 80).add(_a);
+        g.groundShot(_a, _b, e.heavy ? 2 : 1, rand() < 0.5, null);
+      }
+      return;
+    }
     if (h) {
       const dist = Math.hypot(h.pos.x - e.x, h.pos.y - e.y, h.pos.z - e.z);
       const sp = h.speed;

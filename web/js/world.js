@@ -604,6 +604,40 @@ export class World {
     return best;
   }
 
+  // Fußsoldat: aus Baumstämmen herausschieben
+  trunkPush(p, r = 0.45) {
+    const TC = this.TC;
+    const ci = Math.floor((p.x + HALF) / TC), cj = Math.floor((p.z + HALF) / TC);
+    for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) {
+      if (i < 0 || j < 0 || i >= this.TN || j >= this.TN) continue;
+      const c = this.cellTrees(i, j);
+      for (let k = 0; k < c.n; k++) {
+        const dx = p.x - c.x[k], dz = p.z - c.z[k];
+        const rr = r + 0.45 * c.s[k];
+        const d2 = dx * dx + dz * dz;
+        if (d2 < rr * rr && d2 > 1e-6) {
+          const d = Math.sqrt(d2);
+          p.x = c.x[k] + (dx / d) * rr; p.z = c.z[k] + (dz / d) * rr;
+        }
+      }
+    }
+  }
+
+  // Erster Geländetreffer eines Strahls (für das Zielen zu Fuß)
+  raycast(o, dir, maxD = 900) {
+    let prev = 0;
+    for (let t = 2; t <= maxD; t += t < 60 ? 2 : 6) {
+      const x = o.x + dir.x * t, y = o.y + dir.y * t, z = o.z + dir.z * t;
+      if (y < this.groundHeight(x, z)) {
+        let a = prev, b = t;
+        for (let k = 0; k < 6; k++) { const m = (a + b) / 2; if (o.y + dir.y * m < this.groundHeight(o.x + dir.x * m, o.z + dir.z * m)) b = m; else a = m; }
+        return b;
+      }
+      prev = t;
+    }
+    return maxD;
+  }
+
   treeTopAt(x, z) {
     const c = this.treeContact(x, z, 1, -1e9, 1e9);
     return c ? c.top : null;

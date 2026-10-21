@@ -67,8 +67,11 @@ export class HUD {
     this.resultTimer = 6;
   }
 
-  showCrash(cause) {
+  showCrash(cause, sub = 'Der Auftrag ist gescheitert.', btn = 'NEUER HUBSCHRAUBER') {
     this.el['crash-cause'].textContent = cause;
+    document.getElementById('crash-title').textContent = btn === 'NEUER HUBSCHRAUBER' ? 'ABGESTÜRZT' : 'GEFALLEN';
+    document.getElementById('crash-sub').textContent = sub;
+    document.getElementById('btn-respawn').textContent = btn;
     this.el.crashscreen.classList.remove('hidden');
   }
   hideCrash() { this.el.crashscreen.classList.add('hidden'); }
@@ -95,7 +98,8 @@ export class HUD {
       const life = document.body.classList.contains('touch') ? 9 : 14;
       if (l.t > life) l.div.style.opacity = Math.max(0, 1 - (l.t - life) / 2);
     }
-    const heading = headingFromYaw(h.yaw);
+    const v = g.viewer();
+    const heading = headingFromYaw(v.yaw);
     const wp = info.waypoint;
     this.drawCompass(heading, wp, g.world.fob);
     this.updateMarkers(wp);
@@ -108,9 +112,9 @@ export class HUD {
     this.el['mission-line'].classList.toggle('hot', !!mi.hot);
     this.el['mission-step'].textContent = mi.step;
     if (wp) {
-      const b = bearing(h.pos.x, h.pos.z, wp.x, wp.z);
-      const d = dist2(h.pos.x, h.pos.z, wp.x, wp.z);
-      this.el['wp-text'].textContent = `${wp.label} · ${fmtBearing(b)} ${dirShort(b)} · ${fmtDist(d)}${h.speed > 8 ? ' · ' + fmtTime(d / h.speed) : ''}`;
+      const b = bearing(v.pos.x, v.pos.z, wp.x, wp.z);
+      const d = dist2(v.pos.x, v.pos.z, wp.x, wp.z);
+      this.el['wp-text'].textContent = `${wp.label} · ${fmtBearing(b)} ${dirShort(b)} · ${fmtDist(d)}${v.speed > 8 ? ' · ' + fmtTime(d / v.speed) : ''}`;
       this.el['wp-arrow'].style.transform = `rotate(${b - heading}deg)`;
       this.el['wp-arrow'].style.visibility = 'visible';
     } else {
@@ -142,16 +146,26 @@ export class HUD {
     this.el.pax.innerHTML = `<span class="lbl">KABINE</span> ${pc}/${HELI.capacity}`;
     const L = h.gunners.left, R = h.gunners.right;
     this.el.ammo.innerHTML = `<span class="lbl">M60</span> L ${L.ammo} · R ${R.ammo}`;
+    // Infanterie
+    const fh = document.getElementById('foot-hud');
+    if (g.seat === 'foot') {
+      const S = g.soldier, wpn = S.weapon;
+      const hpCls = S.hp < 35 ? 'crit' : S.hp < 65 ? 'warn' : 'ok';
+      fh.innerHTML = `<div class="fh-hp"><span class="lbl">GESUNDHEIT</span><div class="bar h"><div class="fill ${hpCls}" style="--v:${S.hp}%"></div></div></div>`
+        + `<div class="fh-w"><b>${wpn.name}</b> <small>${wpn.desc}</small></div>`
+        + `<div class="fh-ammo">${S.reloadT > 0 ? 'LÄDT …' : S.mag[S.w]} <small>/ ${S.res[S.w]}</small></div>`
+        + `<div class="fh-st">${S.crouch ? 'GEDUCKT' : 'STEHEND'}${S.zoom ? ' · ZIELEN' : ''}</div>`;
+    }
     // Warnungen
     this.el.warnings.innerHTML = info.warnings.map((w) => `<div class="warn ${w.level || ''}">${w.text}</div>`).join('');
     this.el.hint.textContent = info.hint || '';
     this.el.hint.style.display = info.hint ? 'block' : 'none';
-    const seatNames = { pilot: 'PILOT', left: 'SCHÜTZE LINKS', right: 'SCHÜTZE RECHTS' };
+    const seatNames = { pilot: 'PILOT', left: 'SCHÜTZE LINKS', right: 'SCHÜTZE RECHTS', pax: 'PASSAGIER', foot: 'INFANTERIE' };
     const c = g.crews[g.myHeli];
-    const pilotTxt = g.seat === 'pilot' ? '' : c.pilot == null ? ' · Autopilot hält Position' : c.pilot !== g.myId ? ' · Pilot: ' + g.playerName(c.pilot) : '';
-    this.el['seat-label'].textContent = (g.helis.length > 1 ? `#${g.myHeli + 1} ` : '') + seatNames[g.seat] + pilotTxt + (info.cameraLabel ? ' · ' + info.cameraLabel : '');
+    const pilotTxt = g.seat === 'pilot' || g.seat === 'foot' ? '' : c.pilot == null ? ' · KI-Pilot fliegt' : c.pilot !== g.myId ? ' · Pilot: ' + g.playerName(c.pilot) : '';
+    this.el['seat-label'].textContent = (g.helis.length > 1 && g.seat !== 'foot' ? `#${g.myHeli + 1} ` : '') + seatNames[g.seat] + pilotTxt + (info.cameraLabel ? ' · ' + info.cameraLabel : '');
     if (this.crewOpen) this.updateCrew();
-    this.el.crosshair.style.display = g.seat === 'pilot' ? 'none' : 'block';
+    this.el.crosshair.style.display = g.seat === 'pilot' || g.seat === 'pax' ? 'none' : 'block';
     const ms = document.getElementById('mouse-stick');
     if (ms) {
       ms.style.display = g.input.mouseFlying ? 'block' : 'none';
@@ -163,7 +177,7 @@ export class HUD {
 
   drawCompass(heading, wp, fob) {
     const c = this.compassCtx, W = c.canvas.width, H = c.canvas.height;
-    const h = this.game.heli;
+    const h = this.game.viewer();
     c.clearRect(0, 0, W, H);
     c.fillStyle = 'rgba(10,14,8,0.55)';
     c.fillRect(0, 0, W, H);
@@ -204,7 +218,7 @@ export class HUD {
   }
 
   drawMinimap(heading, wp) {
-    const g = this.game, h = g.heli, w = g.world;
+    const g = this.game, h = g.viewer(), w = g.world;
     const c = this.miniCtx, S = c.canvas.width;
     const span = 2600;
     const mc = w.mapCanvas, ms = mc.width;
@@ -240,7 +254,7 @@ export class HUD {
     }
     // anderer Hubschrauber
     for (const o of g.helis) {
-      if (o === h) continue;
+      if (o === g.heli && g.seat !== 'foot') continue;
       const [ox, oy] = toS(o.pos.x, o.pos.z);
       c.fillStyle = '#8fe0ff';
       c.beginPath(); c.arc(clamp(ox, 5, S - 5), clamp(oy, 5, S - 5), 4.5, 0, 7); c.fill();
@@ -260,7 +274,7 @@ export class HUD {
   }
 
   drawFullMap() {
-    const g = this.game, h = g.heli, w = g.world;
+    const g = this.game, h = g.viewer(), w = g.world;
     const cv = this.el['fullmap-canvas'];
     const size = Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.86);
     if (cv.width !== size) { cv.width = cv.height = size; }
@@ -329,11 +343,17 @@ export class HUD {
       for (const s of ['pilot', 'left', 'right']) {
         const occ = c[s];
         const mine = occ === g.myId;
-        const label = occ == null ? (s === 'pilot' ? 'frei (Autopilot)' : 'frei (KI-Schütze)') : esc(name(occ));
+        const label = occ == null ? (s === 'pilot' ? 'frei (KI-Pilot)' : 'frei (KI-Schütze)') : esc(name(occ));
         html += `<button data-heli="${i}" data-seat="${s}" class="${mine ? 'mine' : ''} ${occ != null && !mine ? 'taken' : ''}">${labels[s]}<small>${label}</small></button>`;
       }
+      const paxMine = c.pax.includes(g.myId);
+      const paxNames = c.pax.map((x) => esc(name(x))).join(', ');
+      html += `<button data-heli="${i}" data-seat="pax" class="${paxMine ? 'mine' : ''}">Passagier<small>${paxNames || 'Kabine'} · ${g.heliLoad(h)}/${HELI.capacity}</small></button>`;
+      const me = g.seatOf(g.myId);
+      if (me && me.i === i) html += `<button data-heli="${i}" data-seat="foot">Aussteigen<small>zu Fuß (nur am Boden)</small></button>`;
       html += '</div>';
     });
+    if (g.seat === 'foot') html += '<p class="note">Sie sind zu Fuß unterwegs. Einsteigen: an einen gelandeten Hubschrauber herangehen und E / Ⓐ drücken oder hier einen Platz wählen.</p>';
     if (g.helis.length > 1) html += '<p class="note">Umsteigen in den anderen Hubschrauber: beide Maschinen nebeneinander landen (unter 150 m).</p>';
     if (html === this.lastCrewHtml) return;
     this.lastCrewHtml = html;
@@ -361,16 +381,16 @@ export class HUD {
       const lab = el.querySelector('.mlabel');
       if (lab && lab.textContent !== label) lab.textContent = label;
     };
-    const h = g.heli;
+    const h = g.viewer();
     if (wp) {
       const d = dist2(h.pos.x, h.pos.z, wp.x, wp.z);
       place(this.el.marker, wp.x, wp.y + 4, wp.z, `${wp.label} ${fmtDist(d)}`, true);
     } else place(this.el.marker, 0, 0, 0, '', false);
-    const other = g.helis.find((x) => x !== h);
+    const other = g.helis.find((x) => x !== g.heli || g.seat === 'foot');
     if (other) {
       const c = g.crews[other.index];
       const d = dist2(h.pos.x, h.pos.z, other.pos.x, other.pos.z);
-      const who = c && c.pilot != null ? g.playerName(c.pilot) : 'Autopilot';
+      const who = c && c.pilot != null ? g.playerName(c.pilot) : 'KI-Pilot';
       place(this.el['heli-marker'], other.pos.x, other.pos.y + 4, other.pos.z, `#${other.index + 1} ${who} ${fmtDist(d)}`, d > 30);
     } else place(this.el['heli-marker'], 0, 0, 0, '', false);
     const f = g.world.fob;

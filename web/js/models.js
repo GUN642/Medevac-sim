@@ -79,6 +79,7 @@ const FIG_TYPES = {
   us2:     { uni: 0x4f5c37, skin: 0x6b4630, hat: 'm1', hatCol: 0x58623b, pack: 0x3f4a2b, gun: 0x1d1d1d },
   wounded: { uni: 0x4f5c37, skin: 0xd2a07a, hat: 'band', hatCol: 0xeeeeee, pack: null, gun: null, blood: true },
   pilot:   { uni: 0x66705e, skin: 0xd8a882, hat: 'flight', hatCol: 0xcfd0c8, pack: 0x55604a, gun: null },
+  player:  { uni: 0x4f5c37, skin: 0xd2a07a, hat: 'm1', hatCol: 0x58623b, pack: 0x3f4a2b, gun: null },
   crew:    { uni: 0x535d3d, skin: 0xd2a07a, hat: 'flight', hatCol: 0x3d4630, pack: null, gun: null },
   vc:      { uni: 0x1c1c22, skin: 0xc9956a, hat: 'conical', hatCol: 0xc9b27a, pack: null, gun: 0x3b2a1b },
   nva:     { uni: 0x6f6b45, skin: 0xc9956a, hat: 'pith', hatCol: 0x7d7749, pack: 0x5a5638, gun: 0x3b2a1b },
@@ -538,4 +539,42 @@ export function wreckParts(kind) {
     p.push(P(box(0.18, 2.2, 1.8), 0x5b6044, [-2.4, 1.6, 3.8], [0.3, 0.6, 0.6]));
   }
   return p;
+}
+
+// ---------------------------------------------------------------- Handwaffen (Ursprung = Griff, Lauf zeigt nach -Z)
+export function weaponGeo(id) {
+  const blk = 0x1b1c1c, wood = 0x6e4a2a, od = 0x4b5330;
+  let parts;
+  if (id === 'm16') parts = [
+    P(box(0.06, 0.1, 0.5), blk, [0, 0, -0.1]),
+    P(cyl(0.014, 0.014, 0.45, 6), blk, [0, 0.02, -0.55], [HALFPI, 0, 0]),
+    P(box(0.05, 0.06, 0.3), blk, [0, -0.02, 0.28]),
+    P(box(0.04, 0.12, 0.05), blk, [0, 0.09, -0.22]),
+    P(box(0.05, 0.13, 0.05), blk, [0, -0.09, -0.12], [0.2, 0, 0]),
+    P(box(0.035, 0.08, 0.05), blk, [0, -0.07, 0.02], [-0.3, 0, 0]),
+  ];
+  else if (id === 'm60') parts = [
+    P(box(0.09, 0.12, 0.55), blk, [0, 0, -0.1]),
+    P(cyl(0.02, 0.02, 0.6, 6), blk, [0, 0.01, -0.65], [HALFPI, 0, 0]),
+    P(box(0.07, 0.1, 0.3), wood, [0, -0.02, 0.3]),
+    P(box(0.15, 0.12, 0.2), od, [-0.11, -0.04, -0.12]),
+    P(box(0.02, 0.25, 0.02), blk, [0.05, -0.12, -0.75], [0.4, 0, 0.3]),
+    P(box(0.02, 0.25, 0.02), blk, [-0.05, -0.12, -0.75], [0.4, 0, -0.3]),
+  ];
+  else if (id === 'm79') parts = [
+    P(cyl(0.035, 0.035, 0.36, 10), 0x2a2b2a, [0, 0.03, -0.3], [HALFPI, 0, 0]),
+    P(box(0.07, 0.09, 0.18), blk, [0, 0, -0.05]),
+    P(box(0.06, 0.11, 0.32), wood, [0, -0.03, 0.2]),
+  ];
+  else if (id === 'ithaca') parts = [
+    P(cyl(0.016, 0.016, 0.55, 6), blk, [0, 0.02, -0.45], [HALFPI, 0, 0]),
+    P(cyl(0.02, 0.02, 0.3, 6), wood, [0, -0.02, -0.38], [HALFPI, 0, 0]),
+    P(box(0.06, 0.09, 0.25), blk, [0, 0, -0.08]),
+    P(box(0.06, 0.1, 0.32), wood, [0, -0.03, 0.2]),
+  ];
+  else parts = [
+    P(box(0.035, 0.05, 0.2), blk, [0, 0.02, -0.08]),
+    P(box(0.03, 0.11, 0.05), wood, [0, -0.05, 0.0], [-0.2, 0, 0]),
+  ];
+  return merge(parts);
 }

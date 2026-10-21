@@ -23,6 +23,11 @@ export class AudioSys {
       m60: this.makeShot(0.22, 1400, 35, 0.9),
       ak: this.makeShot(0.18, 2200, 40, 0.6),
       dshk: this.makeShot(0.35, 700, 18, 1.0),
+      m16: this.makeShot(0.16, 2600, 45, 0.5),
+      shotgun: this.makeShot(0.4, 1100, 14, 1.2),
+      pistol: this.makeShot(0.14, 2000, 50, 0.4),
+      thump: this.makeShot(0.2, 400, 25, 1.4),
+      click: this.makeShot(0.03, 6000, 200, 0),
       hit: this.makePing(),
       boom: this.makeBoom(),
       squelch: this.makeSquelch(),
@@ -196,26 +201,27 @@ export class AudioSys {
     const g = Math.min(1, 40 / Math.max(10, dist));
     if (g < 0.02) return;
     const delay = Math.min(1.5, dist / 343);
-    this.play(type, { gain: g * (type === 'm60' ? 0.55 : 0.9), rate: 0.92 + Math.random() * 0.16, delay, lowpass: dist > 150 ? 1800 : 0 });
+    this.play(type, { gain: g * (type === 'm60' ? 0.55 : type === 'click' ? 0.3 : 0.9), rate: 0.92 + Math.random() * 0.16, delay, lowpass: dist > 150 ? 1800 : 0 });
   }
   hit() { this.play('hit', { gain: 0.6, rate: 0.8 + Math.random() * 0.5 }); }
   boom(dist = 0) { this.play('boom', { gain: Math.min(1, 200 / Math.max(50, dist)), delay: Math.min(2, dist / 343) }); }
   radio() { this.play('squelch', { gain: 0.5 }); }
 
-  update(h, inside, warn, time) {
+  update(h, inside, warn, time, dist = 0) {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
+    const far = Math.min(1, 30 / Math.max(30, dist));
     const rpm = h.rpm;
     const load = h.thrustFrac;
     this.rotorSrc.playbackRate.setTargetAtTime(Math.max(0.2, rpm * (0.96 + load * 0.08)), t, 0.1);
-    this.rotorGain.gain.setTargetAtTime(h.crashed ? 0 : rpm * (0.35 + load * 0.5) * (inside ? 0.8 : 1), t, 0.1);
+    this.rotorGain.gain.setTargetAtTime(h.crashed ? 0 : rpm * (0.35 + load * 0.5) * (inside ? 0.8 : 1) * far, t, 0.1);
     this.rotorFilter.frequency.setTargetAtTime(inside ? 700 : 1200 + load * 1500, t, 0.1);
     const eng = h.engineOn && !h.crashed ? 1 : 0;
     this.turb.frequency.setTargetAtTime(380 + rpm * 520 * (0.9 + load * 0.2), t, 0.2);
-    this.turbGain.gain.setTargetAtTime(eng * rpm * (inside ? 0.05 : 0.035), t, 0.2);
-    this.whineGain.gain.setTargetAtTime(eng * rpm * 0.05, t, 0.2);
+    this.turbGain.gain.setTargetAtTime(eng * rpm * (inside ? 0.05 : 0.035) * far, t, 0.2);
+    this.whineGain.gain.setTargetAtTime(eng * rpm * 0.05 * far, t, 0.2);
     const sp = h.vel.length();
-    this.windGain.gain.setTargetAtTime(Math.min(0.35, sp / 160) * (inside ? 0.6 : 1), t, 0.2);
+    this.windGain.gain.setTargetAtTime(dist > 5 ? 0 : Math.min(0.35, sp / 160) * (inside ? 0.6 : 1), t, 0.2);
     this.windFilter.frequency.setTargetAtTime(300 + sp * 15, t, 0.2);
     const beep = warn && (Math.floor(time * 4) % 2 === 0) ? 0.05 : 0;
     this.warnGain.gain.setTargetAtTime(beep, t, 0.01);

@@ -83,8 +83,9 @@ export class Helicopter {
 
   updatePassengerDisplay() {
     const seats = this.model.seats;
+    const list = this.passengers.concat(Array.from({ length: this.playerPax || 0 }, () => ({ type: 'us' })));
     for (let i = 0; i < seats.length; i++) {
-      const p = this.passengers[i];
+      const p = list[i];
       let f = this.seatFigs[i];
       if (p) {
         const type = p.type === 'wounded' ? 'wounded' : p.type;

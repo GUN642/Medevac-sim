@@ -51,6 +51,25 @@ Für die Maussteuerung einmal ins Bild klicken (Esc gibt die Maus wieder frei). 
 schwenkt die Kamera. Der **Flugassistent** hält bei losgelassenem Stick Höhe und Position und bremst die Sinkrate
 kurz vor dem Aufsetzen.
 
+## Infanterie
+
+Über **„Als Infanterie beginnen“** im Hauptmenü oder **CREW → Aussteigen** (am Boden) spielen Sie einen Soldaten:
+
+- **Einsteigen:** an einen gelandeten Hubschrauber herangehen und **E** (Controller Ⓐ, Touch EIN/AUS) drücken – Sie sitzen
+  als Passagier in der Kabine. Über CREW lassen sich auch Pilot- oder Schützenplätze übernehmen.
+- **Zum Einsatzort fliegen lassen:** Sitzt niemand am Steuer, fliegt der **KI-Pilot** den aktuellen Auftrag, nimmt die
+  Truppe auf und landet in der LZ. Dort mit E aussteigen und mitkämpfen.
+- **Abholung:** Mit **G** (Controller ↓, Touch ABHOLUNG) fliegt ein freier Hubschrauber zur nächsten Lichtung und holt Sie ab.
+- **Waffen:** M16A1, M60, M79-Granatwerfer, Ithaca-37-Schrotflinte, M1911 (Tasten 1–5 / Mausrad, Controller L/R, Touch WAFFE).
+  Rechte Maustaste (ZL, Touch ZOOM) zielt mit Zoom. In der FOB füllen sich Munition und Gesundheit wieder auf.
+
+| | Tastatur / Maus | Switch-Controller | Touch |
+| --- | --- | --- | --- |
+| Laufen / Sprinten | WASD / Shift | Linker Stick / L3 | Linker Daumen (ganz außen: sprinten) |
+| Zielen / Zoom | Maus / rechte Maustaste | Rechter Stick / ZL | Wischen oder FEUER ziehen / ZOOM |
+| Feuern / Nachladen | Linksklick / R | ZR / Ⓨ | FEUER / LADEN |
+| Ducken / Springen | C / Leertaste | R3 / – | DUCKEN |
+
 ## Mehrspieler im lokalen Netzwerk
 
 Alle Geräte mit der **Android-App** im selben WLAN (Handys, Tablets, Android TV) können zusammen spielen:
@@ -58,9 +77,10 @@ Alle Geräte mit der **Android-App** im selben WLAN (Handys, Tablets, Android TV
 1. Im Hauptmenü **Mehrspieler (LAN)** wählen und Namen eintragen.
 2. Ein Gerät tippt **Spiel eröffnen** (optional mit zweitem Hubschrauber). Die anderen sehen das Spiel in der
    Liste und treten bei – auch mitten im Einsatz. Notfalls die IP-Adresse des Hosts eintragen.
-3. **Zusammen fliegen:** Einer ist Pilot, die anderen übernehmen die M60 links/rechts. Freie Plätze besetzt die KI
-   (freier Pilotensitz = Autopilot hält die Position).
-4. **Zwei Hubschrauber:** Beide Maschinen arbeiten am selben Auftrag – Verwundete können auf beide verteilt werden.
+3. **Zusammen spielen:** Mitspieler können auch als Infanterie mitfliegen oder am Boden kämpfen.
+4. **Zusammen fliegen:** Einer ist Pilot, die anderen übernehmen die M60 links/rechts. Freie Plätze besetzt die KI
+   (freier Pilotensitz = der KI-Pilot fliegt den Auftrag, sobald ein Mensch an Bord ist).
+5. **Zwei Hubschrauber:** Beide Maschinen arbeiten am selben Auftrag – Verwundete können auf beide verteilt werden.
    Über **CREW** (Taste X, Controller ⊖) wechselt man den Platz; in den anderen Hubschrauber umsteigen geht, wenn
    beide nebeneinander (unter 150 m) gelandet sind.
 

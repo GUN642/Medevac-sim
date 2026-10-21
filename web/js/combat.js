@@ -15,15 +15,35 @@ export class Combat {
     this.visual = [];    // rein visuelle Leuchtspuren (Feind / Bodentruppen)
   }
 
-  clear() { this.bullets.length = 0; this.visual.length = 0; }
+  clear() { this.bullets.length = 0; this.visual.length = 0; this.grenades = []; }
 
   // visual=true: Geschoss eines anderen Spielers (nur Darstellung, keine Trefferprüfung)
-  fire(p, dir, inherit, tracer, visual = false) {
+  fire(p, dir, inherit, tracer, visual = false, speed = GUN.muzzleVel) {
     this.bullets.push({
       p: p.clone(),
-      v: dir.clone().multiplyScalar(GUN.muzzleVel).add(inherit),
+      v: dir.clone().multiplyScalar(speed).add(inherit),
       life: 0, tracer, visual,
     });
+  }
+
+  // 40-mm-Granate (M79): fliegt im Bogen und explodiert beim Aufschlag
+  grenade(p, v, visual = false) {
+    this.grenades = this.grenades || [];
+    this.grenades.push({ p: p.clone(), v: v.clone(), life: 0, visual });
+  }
+
+  explode(x, y, z, visual) {
+    const g = this.game;
+    g.effects.explosion(x, y + 0.5, z, 0.45);
+    g.audio.boom(g.camera.position.distanceTo(_v.set(x, y, z)) + 60);
+    if (visual) return;
+    for (const e of g.units.enemies) {
+      if (!e.alive) continue;
+      const d = Math.hypot(e.x - x, e.y - y, e.z - z);
+      if (d < 4.5 || (d < 8 && rand() < 0.5)) g.units.killEnemy(e);
+      else if (d < 22) e.suppress = Math.max(e.suppress || 0, 4);
+    }
+    g.onExplosion && g.onExplosion(x, y, z);
   }
 
   // Sichtbare Leuchtspur von a nach b; onEnd wird bei Ankunft aufgerufen
@@ -76,6 +96,22 @@ export class Combat {
         fx.tracer(b.p.x, b.p.y, b.p.z, -_v.x, -_v.y, -_v.z, 11, 1.0, 0.28, 0.16);
       }
       if (dead) this.bullets.splice(i, 1);
+    }
+
+    const gr = this.grenades || [];
+    for (let i = gr.length - 1; i >= 0; i--) {
+      const n = gr[i];
+      n.v.y -= G * dt;
+      n.p.addScaledVector(n.v, dt);
+      n.life += dt;
+      let boom = n.life > 12;
+      const gh = world.groundHeight(n.p.x, n.p.z);
+      if (n.p.y <= gh + 0.1) { n.p.y = gh; boom = true; }
+      if (!boom && !n.visual && n.life > 0.15) {
+        for (const e of enemies) if (e.alive && Math.hypot(e.x - n.p.x, e.y + 1 - n.p.y, e.z - n.p.z) < 1.3) { boom = true; break; }
+      }
+      if (boom) { gr.splice(i, 1); this.explode(n.p.x, n.p.y, n.p.z, n.visual); continue; }
+      fx.glow.spawn(n.p.x, n.p.y, n.p.z, 0, 0, 0, 0.05, 0.25, 0.2, 0.9, 0.8, 0.5, 0.5, 0, 0);
     }
 
     for (let i = this.visual.length - 1; i >= 0; i--) {

@@ -21,6 +21,9 @@ export class Input {
     this.gpConnected = false;
     this.touch = { left: null, right: null, aim: null, fire: false };
     this.mode = 'pilot';
+    this.move = { x: 0, y: 0 };
+    this.sprint = false;
+    this.jumpPressed = false;
 
     window.addEventListener('keydown', (e) => this.onKey(e, true));
     window.addEventListener('keyup', (e) => this.onKey(e, false));
@@ -30,6 +33,7 @@ export class Input {
       this.device = 'keyboard';
       this.mouseDown[e.button] = true;
       const want = this.mode !== 'pilot' || (this.settings.mouseFly && e.button === 0);
+      if (this.mode === 'foot' && e.button === 0 && document.pointerLockElement !== canvas) this.lockClick = true;
       if (want && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
         try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (_) {}
       }
@@ -38,7 +42,10 @@ export class Input {
     window.addEventListener('mouseup', (e) => { this.mouseDown[e.button] = false; });
     window.addEventListener('mousemove', (e) => {
       const locked = document.pointerLockElement === canvas;
-      if (this.mode !== 'pilot' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
+      if (this.mode === 'pax' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
+        this.look.dx += e.movementX * 0.005;
+        this.look.dy += e.movementY * 0.005;
+      } else if (this.mode !== 'pilot' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
         const s = 0.0022 * this.settings.sensitivity;
         this.aim.dx += e.movementX * s;
         this.aim.dy += e.movementY * s * (this.settings.invertY ? -1 : 1);
@@ -51,7 +58,12 @@ export class Input {
         this.look.dy += e.movementY * 0.005;
       }
     });
-    canvas.addEventListener('wheel', (e) => { this.look.zoom += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
+    canvas.addEventListener('wheel', (e) => {
+      if (this.mode === 'foot') this.actions.push(e.deltaY > 0 ? 'wnext' : 'wprev');
+      else this.look.zoom += Math.sign(e.deltaY);
+      e.preventDefault();
+    }, { passive: false });
+    window.addEventListener('mouseup', (e) => { if (e.button === 0) this.lockClick = false; });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('gamepadconnected', () => { this.gpConnected = true; this.device = 'gamepad'; this.onDevice && this.onDevice(); });
     window.addEventListener('gamepaddisconnected', () => { this.gpConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((g) => g); });
@@ -67,6 +79,7 @@ export class Input {
         const map = {
           Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'camera', KeyM: 'map',
           Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'crew',
+          KeyE: 'use', KeyR: 'reload', Digit4: 'num4', Digit5: 'num5', KeyG: 'pickup',
         };
         if (map[k]) { this.actions.push(map[k]); if (k === 'Tab') e.preventDefault(); }
         const nav = { ArrowUp: 'nav-up', ArrowDown: 'nav-down', ArrowLeft: 'nav-left', ArrowRight: 'nav-right' }[k];
@@ -81,9 +94,16 @@ export class Input {
 
   setMode(mode) {
     this.mode = mode;
-    if (mode === 'pilot' && document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
-    document.body.classList.toggle('gunner-mode', mode !== 'pilot');
+    if ((mode === 'pilot' || mode === 'pax') && document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    const gunner = mode === 'left' || mode === 'right';
+    document.body.classList.toggle('gunner-mode', gunner);
+    document.body.classList.toggle('foot-mode', mode === 'foot');
+    document.body.classList.toggle('pax-mode', mode === 'pax');
+    document.body.classList.toggle('aim-mode', gunner || mode === 'foot');
+    document.body.classList.toggle('pilot-seat', mode === 'pilot');
   }
+
+  get aimMode() { return this.mode === 'left' || this.mode === 'right' || this.mode === 'foot'; }
 
   // ---------------------------------------------------------------- Touch
   setupTouch() {
@@ -152,11 +172,29 @@ export class Input {
       b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); this.setTouchDevice(); this.actions.push(b.dataset.action); }, { passive: false });
       b.addEventListener('click', (e) => { e.preventDefault(); this.actions.push(b.dataset.action); });
     });
+    // Feuerknopf: gedrückt halten feuert, Ziehen mit demselben Finger zielt (wie bei Battle of Hoth)
     const fireBtn = document.getElementById('btn-fire');
     if (fireBtn) {
-      fireBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); this.touch.fire = true; }, { passive: false });
-      fireBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.touch.fire = false; });
-      fireBtn.addEventListener('touchcancel', () => { this.touch.fire = false; });
+      fireBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        const t = e.changedTouches[0];
+        this.touch.fire = true;
+        this.touch.fireAim = { id: t.identifier, x: t.clientX, y: t.clientY };
+      }, { passive: false });
+      fireBtn.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const fa = this.touch.fireAim;
+        for (const t of e.changedTouches) {
+          if (!fa || fa.id !== t.identifier) continue;
+          const s = 0.005 * this.settings.sensitivity;
+          this.aim.dx += (t.clientX - fa.x) * s;
+          this.aim.dy += (t.clientY - fa.y) * s * (this.settings.invertY ? -1 : 1);
+          fa.x = t.clientX; fa.y = t.clientY;
+        }
+      }, { passive: false });
+      const fend = (e) => { e.preventDefault(); this.touch.fire = false; this.touch.fireAim = null; };
+      fireBtn.addEventListener('touchend', fend);
+      fireBtn.addEventListener('touchcancel', fend);
     }
     window.addEventListener('touchstart', () => this.setTouchDevice(), { passive: true });
   }
@@ -197,7 +235,21 @@ export class Input {
       f.pitch += this.mPitch;
     } else { this.mYaw = 0; this.mPitch = 0; }
     this.mfx = 0; this.mfy = 0;
-    if (this.mode !== 'pilot') {
+    const mv = { x: 0, y: 0 };
+    this.sprint = false;
+    const jump = this.keys.has('Space');
+    if (this.mode === 'foot') {
+      // Zu Fuß: WASD laufen, Pfeiltasten umsehen, Maus zielen, Shift sprinten, Leertaste springen
+      mv.x = this.key('KeyD') - this.key('KeyA');
+      mv.y = this.key('KeyW') - this.key('KeyS');
+      this.sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+      const ax = this.key('ArrowRight') - this.key('ArrowLeft');
+      const ay = this.key('ArrowDown') - this.key('ArrowUp');
+      this.aim.dx += ax * dt * 1.6;
+      this.aim.dy += ay * dt * 1.2;
+      fire = fire || (this.mouseDown[0] && !this.lockClick);
+      this.zoomHeld = this.mouseDown[2];
+    } else if (this.mode === 'left' || this.mode === 'right') {
       // Im Schützensitz: Pfeiltasten zum Zielen, Leertaste/Maus zum Feuern
       const ax = this.key('ArrowRight', 'KeyD') - this.key('ArrowLeft', 'KeyA');
       const ay = this.key('ArrowDown', 'KeyS') - this.key('ArrowUp', 'KeyW');
@@ -206,6 +258,8 @@ export class Input {
       fire = fire || this.mouseDown[0] || this.keys.has('Space');
       this.zoomHeld = this.mouseDown[2];
     }
+    this.jumpPressed = jump && !this.prevJump && this.mode === 'foot';
+    this.prevJump = jump;
 
     // Gamepad (Standard-Mapping)
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -221,6 +275,20 @@ export class Input {
       if (this.mode === 'pilot') {
         f.roll += lx; f.pitch += -ly; f.yaw += rx;
         f.collective += -ry + b(7) - b(6);
+      } else if (this.mode === 'foot') {
+        mv.x += lx; mv.y += -ly;
+        const s = 2.4 * this.settings.sensitivity * dt;
+        this.aim.dx += rx * s;
+        this.aim.dy += ry * s * 0.8 * (this.settings.invertY ? -1 : 1);
+        fire = fire || b(7) > 0.4;
+        this.zoomHeld = this.zoomHeld || b(6) > 0.4;
+        if (pressed(10)) this.padSprint = !this.padSprint;
+        if (Math.hypot(lx, ly) < 0.2) this.padSprint = false;
+        this.sprint = this.sprint || !!this.padSprint;
+        if (pressed(11)) this.actions.push('crouch');
+      } else if (this.mode === 'pax') {
+        this.look.dx += rx * dt * 2;
+        this.look.dy += ry * dt * 2;
       } else {
         const s = 2.2 * this.settings.sensitivity * dt;
         this.aim.dx += (rx + lx * 0.5) * s;
@@ -231,7 +299,7 @@ export class Input {
       // Tasten: 0=B(unten) 1=A(rechts) 2=Y(links) 3=X(oben) 4=L 5=R 8=− 9=+ 12-15=Steuerkreuz
       if (pressed(0) || pressed(1)) this.actions.push('confirm');
       if (pressed(3)) this.actions.push('map');
-      if (pressed(2)) this.actions.push('camera');
+      if (pressed(2)) this.actions.push(this.mode === 'foot' ? 'reload' : 'camera');
       if (pressed(4)) this.actions.push('seat-prev');
       if (pressed(5)) this.actions.push('seat-next');
       if (pressed(9)) this.actions.push('pause');
@@ -258,12 +326,14 @@ export class Input {
     }
 
     // Touch
-    if (this.touch.left) { f.yaw += this.touch.left.x; f.collective += -this.touch.left.y; }
+    if (this.touch.left && this.mode === 'foot') { mv.x += this.touch.left.x; mv.y += -this.touch.left.y; this.sprint = this.sprint || Math.hypot(this.touch.left.x, this.touch.left.y) > 0.95; }
+    else if (this.touch.left) { f.yaw += this.touch.left.x; f.collective += -this.touch.left.y; }
     if (this.touch.right && this.mode === 'pilot') { f.roll += this.touch.right.x; f.pitch += -this.touch.right.y; }
     fire = fire || this.touch.fire;
 
     f.pitch = clamp(f.pitch, -1, 1); f.roll = clamp(f.roll, -1, 1); f.yaw = clamp(f.yaw, -1, 1); f.collective = clamp(f.collective, -1, 1);
     this.flight = f;
+    this.move = mv;
     this.fire = fire;
   }
 

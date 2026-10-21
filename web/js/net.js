@@ -10,6 +10,7 @@
 // Broadcast zur Spielsuche). Für Tests im Browser gibt es mit "?net=test" einen
 // BroadcastChannel-Transport zwischen zwei Fenstern/Tabs.
 import * as THREE from './lib/three.module.min.js';
+import { Soldier, WEAPONS } from './soldier.js';
 
 function androidTransport() {
   const A = window.AndroidApp;
@@ -135,6 +136,40 @@ export class Net {
     this.send({ t: 'f', i, s: side === 'left' ? 0 : 1, o: [r2(o.x), r2(o.y), r2(o.z)], d: [q(d.x), q(d.y), q(d.z)] });
   }
 
+  // Schuss / Granate eines Spielers zu Fuß
+  footFire(o, d, wid, tracer) {
+    const q = (v) => Math.round(v * 1e4) / 1e4;
+    this.send({ t: 'ff', o: [r2(o.x), r2(o.y), r2(o.z)], d: [q(d.x), q(d.y), q(d.z)], w: wid, tr: tracer ? 1 : 0 });
+  }
+
+  renderFoot(m) {
+    const g = this.game;
+    const w = WEAPONS.find((x) => x.id === m.w) || WEAPONS[0];
+    this._a.set(m.o[0], m.o[1], m.o[2]);
+    this._b.set(m.d[0], m.d[1], m.d[2]);
+    if (w.grenade) g.combat.grenade(this._a, this._b, true);
+    else g.combat.fire(this._a, this._b, new THREE.Vector3(), !!m.tr, true, w.vel);
+    g.effects.muzzle(this._a.x, this._a.y, this._a.z, false);
+    g.audio.shot(w.sound, g.camera.position.distanceTo(this._a));
+  }
+
+  // Avatar eines Mitspielers zu Fuß
+  avatar(pid) {
+    const g = this.game;
+    let a = g.avatars.get(pid);
+    if (!a) {
+      const pl = this.players.get(pid);
+      a = new Soldier(g, true, pl ? pl.name : 'Spieler');
+      g.avatars.set(pid, a);
+    }
+    return a;
+  }
+
+  dropAvatar(pid) {
+    const a = this.game.avatars.get(pid);
+    if (a) { a.dispose(); this.game.avatars.delete(pid); }
+  }
+
   groundShot(a, b, col, tracer, hit) {
     if (!this.isHost) return;
     this.ev.push(r2(a.x), r2(a.y), r2(a.z), r2(b.x), r2(b.y), r2(b.z), col, tracer ? 1 : 0, hit ? 1 : 0);
@@ -170,7 +205,10 @@ export class Net {
       px: h.passengers.map((p) => PAX_CODE[p.type] || 'u').join(''),
       g: SIDES.map((s) => { const gu = h.gunners[s]; return [r2(gu.yaw), r2(gu.pitch), gu.ammo]; }),
     }));
-    const msg = { t: 's', T: Math.round(g.time * 10) / 10, H, E: this.ev };
+    const P = [];
+    if (g.seat === 'foot' && g.soldier.active) P.push([0, g.soldier.getState()]);
+    for (const [pid, a] of g.avatars) if (a.active && a.isFoot && !g.seatOf(pid) && a.tgt) P.push([pid, a.tgt]);
+    const msg = { t: 's', T: Math.round(g.time * 10) / 10, H, E: this.ev, P };
     if (this.snapN % 2 === 0) msg.U = g.units.snapshot();
     this.ev = [];
     this.send(msg);
@@ -180,7 +218,8 @@ export class Net {
   sendOwn() {
     const g = this.game;
     g.helis.forEach((h, i) => { if (g.owns(i)) this.send({ t: 'h', i, s: h.getState(), c: h.crashed ? h.crashCause : '' }); });
-    if (g.seat !== 'pilot') {
+    if (g.seat === 'foot') this.send({ t: 'p', s: g.soldier.getState() });
+    else if (g.seat === 'left' || g.seat === 'right') {
       const gu = g.heli.gunners[g.seat];
       this.send({ t: 'g', i: g.myHeli, s: g.seat === 'left' ? 0 : 1, y: r2(gu.yaw), p: r2(gu.pitch), a: gu.ammo });
     }
@@ -204,6 +243,7 @@ export class Net {
         const pl = this.players.get(p);
         this.players.delete(p);
         g.freeSeats(p);
+        this.dropAvatar(p);
         this.sendCrews();
         if (pl) g.radio(`${pl.name} hat den Einsatz verlassen.`, 'TOC');
         break;
@@ -226,7 +266,22 @@ export class Net {
         if (e && e.alive) g.units.killEnemy(e);
         break;
       }
-      case 'seat': g.requestSeat(p, m.i, m.seat); break;
+      case 'seat':
+        if (m.p) { const a = this.avatar(p); a.applyState(m.p); a.isFoot = true; }
+        g.requestSeat(p, m.i, m.seat);
+        break;
+      case 'p': {
+        if (g.seatOf(p)) break;
+        const a = this.avatar(p);
+        a.applyState(m.s);
+        a.isFoot = true;
+        break;
+      }
+      case 'ff':
+        this.renderFoot(m);
+        for (const id of this.players.keys()) if (id !== 0 && id !== p) this.sendTo(id, m);
+        break;
+      case 'pickup': g.handlePickup(p); break;
       case 'accept': if (g.missions.current && g.missions.current.id === m.id) g.missions.accept(); break;
       case 'respawn': g.respawnHeli(m.i); break;
     }
@@ -253,6 +308,9 @@ export class Net {
       case 's': this.applySnapshot(m); break;
       case 'm': g.missions.applyNet(m.d); break;
       case 'f': this.renderFire(m); break;
+      case 'ff': this.renderFoot(m); break;
+      case 'pdmg': g.damageSoldier(g.myId, m.a); break;
+      case 'pickupAck': g.myPickup = { x: m.x, z: m.z, name: m.name }; break;
       case 'dmg': if (g.owns(m.i)) g.damageHeli(g.helis[m.i], m.a); break;
       case 'reset': if (g.owns(m.i)) g.respawnHeli(m.i); break;
       case 'radio': g.hud.radio(m.x, m.f, m.u); g.audio.radio(); break;
@@ -280,6 +338,16 @@ export class Net {
       });
     });
     if (m.U) g.units.applySnapshot(m.U);
+    // Mitspieler zu Fuß
+    const seen = new Set();
+    for (const [pid, st] of m.P || []) {
+      if (pid === g.myId) continue;
+      seen.add(pid);
+      const a = this.avatar(pid);
+      a.applyState(st);
+      a.isFoot = true;
+    }
+    for (const [pid, a] of g.avatars) if (!seen.has(pid) && a.active) { a.hide(); a.isFoot = false; }
     const E = m.E || [];
     for (let k = 0; k < E.length; k += 9) {
       this._a.set(E[k], E[k + 1], E[k + 2]);

@@ -45,6 +45,7 @@
   <div id="heli-marker" class="marker heli"><div class="diamond"></div><div class="mlabel"></div></div>
   <div id="mouse-stick"><div></div></div>
   <div id="crew-line"></div>
+  <div id="foot-hud"></div>
   <div id="damage-flash"></div>
   <div id="fps" class="hidden"></div>
   <div id="status-badge"></div>
@@ -52,17 +53,25 @@
 
 <!-- ============ Touch ============ -->
 <div id="touch-controls" class="hidden">
-  <div id="stick-left" class="stick-zone"><div class="base"><div class="knob"></div></div><div class="stick-hint">▲ Steigen · ▼ Sinken<br>◀ ▶ Pedale</div></div>
-  <div id="stick-right" class="stick-zone"><div class="base"><div class="knob"></div></div><div class="stick-hint pilot-only">Zyklisch (Neigen)</div><div class="stick-hint gunner-only">Wischen zum Zielen</div></div>
+  <div id="stick-left" class="stick-zone"><div class="base"><div class="knob"></div></div><div class="stick-hint no-foot">▲ Steigen · ▼ Sinken<br>◀ ▶ Pedale</div><div class="stick-hint foot-only">Laufen (ganz außen: sprinten)</div></div>
+  <div id="stick-right" class="stick-zone"><div class="base"><div class="knob"></div></div><div class="stick-hint pilot-only">Zyklisch (Neigen)</div><div class="stick-hint aim-only">Wischen zum Zielen</div></div>
   <div id="touch-buttons">
-    <button data-action="seat-next">SITZ</button>
+    <button data-action="seat-next" class="no-foot">SITZ</button>
     <button data-action="camera" class="pilot-only">KAMERA</button>
     <button data-action="map">KARTE</button>
-    <button data-action="radio">AUFTRAG</button>
+    <button data-action="radio" class="no-foot">AUFTRAG</button>
+    <button data-action="pickup" class="foot-only">ABHOLUNG</button>
     <button data-action="crew">CREW</button>
+    <button data-action="use" class="use-btn">EIN/AUS</button>
     <button data-action="pause">❚❚</button>
   </div>
-  <button id="btn-fire" class="gunner-only">FEUER</button>
+  <div id="foot-buttons" class="foot-only">
+    <button data-action="wnext">WAFFE</button>
+    <button data-action="reload">LADEN</button>
+    <button data-action="zoom">ZOOM</button>
+    <button data-action="crouch">DUCKEN</button>
+  </div>
+  <button id="btn-fire" class="aim-only">FEUER</button>
 </div>
 
 <!-- ============ Overlays ============ -->
@@ -78,6 +87,7 @@
   <div class="sub">UH-1D MEDEVAC · VIETNAM 1968</div>
   <div class="menu-buttons">
     <button id="btn-start" class="primary">EINSATZ BEGINNEN</button>
+    <button id="btn-start-foot">ALS INFANTERIE BEGINNEN</button>
     <button id="btn-continue" class="primary hidden">FORTSETZEN</button>
     <button id="btn-help">STEUERUNG</button>
     <button id="btn-mp">MEHRSPIELER (LAN)</button>
@@ -155,9 +165,9 @@
 </div>
 
 <div id="crashscreen" class="overlay dim hidden">
-  <h1>ABGESTÜRZT</h1>
+  <h1 id="crash-title">ABGESTÜRZT</h1>
   <p id="crash-cause"></p>
-  <p>Der Auftrag ist gescheitert.</p>
+  <p id="crash-sub">Der Auftrag ist gescheitert.</p>
   <div class="menu-buttons"><button id="btn-respawn" class="primary">NEUER HUBSCHRAUBER</button></div>
 </div>
 
@@ -180,6 +190,7 @@
         <tr><th>Shift / F</th><td>Kollektiv: sinken / landen</td></tr>
         <tr><th>1 / 2 / 3 · Tab</th><td>Sitz: Pilot / linker Schütze / rechter Schütze</td></tr>
         <tr><th>Maus (Schütze)</th><td>Zielen (Klick sperrt den Zeiger) · Linksklick feuern · Rechtsklick Zoom</td></tr>
+        <tr><th>Zu Fuß</th><td>WASD laufen · Maus zielen · Linksklick feuern · Rechtsklick zoomen · Shift sprinten · Leertaste springen · C ducken · R nachladen · 1–5 / Mausrad Waffe · E ein-/aussteigen · G Abholung anfordern</td></tr>
         <tr><th>Rechte Maustaste halten</th><td>Kamera schwenken · Mausrad Zoom · Esc gibt die Maus frei</td></tr>
         <tr><th>X</th><td>Besatzung / Platz wechseln (Mehrspieler)</td></tr>
         <tr><th>C</th><td>Außenansicht / Cockpit</td></tr>
@@ -200,7 +211,8 @@
         <tr><th>Ⓐ / Ⓑ</th><td>Bestätigen / Auftrag annehmen</td></tr>
         <tr><th>Ⓨ</th><td>Kamera wechseln</td></tr>
         <tr><th>Ⓧ</th><td>Karte</td></tr>
-        <tr><th>⊕ / ⊖</th><td>Pause / Besatzung (Platz wechseln)</td></tr>
+        <tr><th>⊕ / ⊖</th><td>Pause / Besatzung (Platz wechseln, aussteigen)</td></tr>
+        <tr><th>Zu Fuß</th><td>Linker Stick laufen (L3 sprinten) · rechter Stick zielen · ZR feuern · ZL zoomen · L/R Waffe · Ⓨ nachladen · R3 ducken · Ⓐ ein-/aussteigen · ↓ Abholung</td></tr>
       </table>
       <p class="note">Den Switch Pro Controller oder die Joy-Cons per Bluetooth mit PC, TV-Box oder Handy koppeln. Nach dem Koppeln einmal eine Taste drücken, damit der Browser den Controller erkennt.</p>
     </div>
@@ -209,7 +221,8 @@
         <tr><th>Linker Daumen</th><td>↑↓ Steigen / Sinken · ←→ Pedale</td></tr>
         <tr><th>Rechter Daumen</th><td>Zyklisch: neigen / beschleunigen</td></tr>
         <tr><th>SITZ</th><td>Pilot → linker Schütze → rechter Schütze</td></tr>
-        <tr><th>Als Schütze</th><td>Rechts wischen zum Zielen, FEUER halten</td></tr>
+        <tr><th>Als Schütze</th><td>FEUER halten und mit demselben Finger ziehen zum Zielen (oder rechts wischen)</td></tr>
+        <tr><th>Zu Fuß</th><td>Links laufen, rechts wischen oder FEUER ziehen zum Zielen · WAFFE · LADEN · ZOOM · DUCKEN · EIN/AUS · ABHOLUNG</td></tr>
         <tr><th>KAMERA · KARTE · AUFTRAG</th><td>Ansicht wechseln · Karte · Briefing zeigen</td></tr>
       </table>
     </div>
@@ -221,6 +234,8 @@
       <li>In <b>heißen LZs</b> schießen die Bordschützen selbstständig auf erkannte Feinde (Mündungsfeuer, grüne Leuchtspur).</li>
       <li>Behalten Sie den <b>Treibstoff</b> im Blick: Auf Pad <b>POL</b> (gelber Rand, Tankwagen) wird getankt, repariert und Munition aufgefüllt.</li>
       <li>Verwundete und gerettete Piloten auf Pad <b>MED</b> (rotes Kreuz) abliefern.</li>
+      <li><b>Infanterie:</b> Über CREW → „Aussteigen“ oder „Als Infanterie beginnen“ spielen Sie einen Soldaten. Steigen Sie als Passagier ein – ist kein Mensch am Steuer, fliegt der KI-Pilot den Auftrag und setzt Sie an der LZ ab. Mit „Abholung“ (G) holt er Sie wieder.</li>
+      <li>Waffen zu Fuß: M16A1, M60, M79-Granatwerfer, Ithaca-37-Schrotflinte, M1911. Munition und Gesundheit füllen sich in der FOB auf.</li>
     </ul>
     <button data-close="help" class="primary">SCHLIESSEN</button>
   </div>

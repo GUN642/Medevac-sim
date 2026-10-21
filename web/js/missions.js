@@ -242,7 +242,7 @@ export class Missions {
   canBoard(h) {
     const m = this.current;
     if (!m || this.phase !== 'active' || !h || h.crashed || !h.onGround) return false;
-    if (m.boarded >= m.count || h.passengers.length >= HELI.capacity) return false;
+    if (m.boarded >= m.count || this.game.heliLoad(h) >= HELI.capacity) return false;
     return dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius();
   }
 
@@ -257,7 +257,7 @@ export class Missions {
       const b = bearing(h.pos.x, h.pos.z, to.x, to.z);
       const what = m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : 'Alle Soldaten';
       g.radio(`Crew: ${what} an Bord – los, los, los! Kurs ${fmtBearing(b)} nach ${to.name}.`, 'Crew');
-    } else if (h.passengers.length >= HELI.capacity) g.radio('Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.', 'Crew');
+    } else if (g.heliLoad(h) >= HELI.capacity) g.radio('Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.', 'Crew');
     this.changed();
   }
 
@@ -265,6 +265,11 @@ export class Missions {
   target(h = this.game.heli) {
     const m = this.current;
     if (!m || this.phase !== 'active') return null;
+    if (m.boarded < m.count && this.game.heliLoad(h) < HELI.capacity) {
+      if (this.paxOf(h) === 0) return 'from';
+      // noch beim Einsteigen: am Aufnahmeort bleiben
+      if (h.contact && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius()) return 'from';
+    }
     if (this.paxOf(h) > 0 || m.boarded >= m.count) return 'to';
     return 'from';
   }
