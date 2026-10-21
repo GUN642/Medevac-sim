@@ -65,7 +65,8 @@ class Game {
     this.scene = new THREE.Scene();
     this.fogDensity = 0.0005;
     this.scene.fog = new THREE.FogExp2(0xc4cbbd, this.fogDensity);
-    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 7000);
+    this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 7000);
+    this.scene.add(this.camera); // für die Waffe in der Ego-Perspektive
     this.scene.add(new THREE.HemisphereLight(0xd9e3ea, 0x46522f, 1.25));
     const sun = new THREE.DirectionalLight(0xfff0d6, 2.4);
     sun.position.set(-0.5, 1, 0.35).multiplyScalar(1000);
@@ -357,23 +358,39 @@ class Game {
     h.aiGroundT = h.contact ? (h.aiGroundT || 0) + dt : 0;
     const dx = goal.x - h.pos.x, dz = goal.z - h.pos.z, d = Math.hypot(dx, dz);
     const gy = w.groundHeight(goal.x, goal.z);
-    if (d < 28) {
-      if (h.contact) return idle;
-      // Restfahrt abbauen und senkrecht landen
-      return { pitch: clamp(Math.hypot(dx, dz) > 6 ? 0.15 : 0, -1, 1), roll: 0, yaw: 0, collective: h.speed < 6 ? -0.8 : 0 };
-    }
-    if (h.contact && h.aiGroundT < 5) return idle; // Zeit zum Ein-/Aussteigen
+    if (d < 28 && h.contact) return idle;
+    if (h.contact && h.aiGroundT < 5 && d > 28) return idle; // Zeit zum Ein-/Aussteigen
+    const ux = dx / (d || 1), uz = dz / (d || 1);
+    const vf = h.vel.dot(h.fwd), vr = h.vel.dot(h.right);
     const e = Math.atan2(-dx, -dz) - h.yaw;
     const err = Math.atan2(Math.sin(e), Math.cos(e));
-    const vf = h.vel.dot(h.fwd);
-    let hmax = w.groundHeight(h.pos.x, h.pos.z);
-    for (const s of [60, 140, 240, 360]) { const t = Math.min(s, d) / d; hmax = Math.max(hmax, w.groundHeight(h.pos.x + dx * t, h.pos.z + dz * t)); }
-    let targetY = hmax + 60;
-    if (d < 180) targetY = Math.max(gy + 20 + Math.max(0, d - 25) * 0.35, w.groundHeight(h.pos.x, h.pos.z) + 22);
-    const targetSpeed = d > 400 ? 50 : clamp((d - 12) * 0.2, 2, 50);
-    let pitch = Math.abs(err) > 0.5 ? clamp(-vf * 0.05, -1, 1) : clamp((targetSpeed - vf) * 0.07, -1, 1);
+    // Höhe: Reiseflug mit Abstand zum Gelände, ab ca. 600 m flacher Gleitpfad zur LZ
+    let hmax = w.groundHeight(h.pos.x, h.pos.z), hnear = hmax;
+    for (const sd of [60, 140, 240, 360]) {
+      const t = Math.min(sd, d) / d;
+      const gh = w.groundHeight(h.pos.x + dx * t, h.pos.z + dz * t);
+      hmax = Math.max(hmax, gh);
+      if (sd <= 140) hnear = Math.max(hnear, gh);
+    }
+    const glide = gy + 22 + Math.max(0, d - 20) * 0.15;
+    let targetY = Math.min(hmax + 60, glide);
+    if (d > 60) targetY = Math.max(targetY, hnear + 26);
+    // Geschwindigkeit: ab 300 m gleichmäßig abbremsen (ca. 1,5 m/s²)
+    const targetSpeed = d > 300 ? 50 : Math.min(45, Math.sqrt(2 * 1.5 * Math.max(0, d - 8)));
+    let pitch, roll = 0, yaw = clamp(-err * 2.2, -1, 1);
+    if (d > 300) {
+      pitch = Math.abs(err) > 0.5 ? clamp(-vf * 0.05, -1, 1) : clamp((targetSpeed - vf) * 0.07, -1, 1);
+    } else {
+      // Anflug: Geschwindigkeitsvektor direkt auf die LZ regeln (verhindert Überschießen und Abdrift)
+      const df = (ux * h.fwd.x + uz * h.fwd.z) * targetSpeed, dr = (ux * h.right.x + uz * h.right.z) * targetSpeed;
+      pitch = clamp((df - vf) * 0.08, -1, 1);
+      roll = clamp((dr - vr) * 0.08, -1, 1);
+      if (d < 60) yaw = 0;
+    }
     if (h.agl < 12 && d > 40) pitch = Math.min(pitch, 0.1);
-    return { pitch, roll: 0, yaw: clamp(-err * 2.2, -1, 1), collective: clamp((targetY - h.pos.y) * 0.08 - h.vel.y * 0.12, -1, 1) };
+    let collective = clamp((targetY - h.pos.y) * 0.08 - h.vel.y * 0.12, -1, 1);
+    if (d < 28) collective = h.speed < 6 ? -0.8 : 0; // senkrecht aufsetzen
+    return { pitch, roll, yaw, collective };
   }
 
   // Ziele für Feinde: Spieler zu Fuß
@@ -778,9 +795,15 @@ class Game {
         if (a === 'reload') { S.startReload(); continue; }
         if (a === 'camera' || a === 'crouch') { S.crouch = !S.crouch; continue; }
         if (a === 'zoom') { this.zoomToggle = !this.zoomToggle; continue; }
+        if (a === 'view' || a === 'dpad-up') {
+          this.settings.footView = this.settings.footView === 'first' ? 'third' : 'first';
+          PF.saveSettings(this.settings);
+          continue;
+        }
         if (a === 'use' || a === 'confirm') { if (!this.hud.mapOpen) { this.useAction(); continue; } }
         if (a === 'radio' || a === 'pickup' || a === 'dpad-down') { this.requestPickup(); continue; }
-        if (a === 'dpad-up' || a === 'dpad-left' || a === 'dpad-right') continue;
+        if (a === 'dpad-left') { S.setWeapon(S.w - 1); continue; }
+        if (a === 'dpad-right') { S.setWeapon(S.w + 1); continue; }
       } else if (a === 'use' || (a === 'confirm' && this.seat === 'pax' && !this.hud.mapOpen)) {
         if (this.seat !== 'pilot') this.useAction();
         continue;
@@ -790,7 +813,7 @@ class Game {
         case 'map': this.hud.toggleMap(); break;
         case 'help': this.pause(true); this.openPanel('help'); break;
         case 'crew': this.hud.toggleCrew(); break;
-        case 'camera':
+        case 'camera': case 'view':
           if (this.seat === 'pilot') this.camMode = this.camMode === 'chase' ? 'cockpit' : 'chase';
           break;
         case 'zoom': this.zoomToggle = !this.zoomToggle; break;
@@ -1053,11 +1076,26 @@ class Game {
     const look = this.input.consumeLook();
     let fov = 65;
     for (const hh of this.helis) hh.model.pilots[1].group.visible = true;
+    if (this.seat !== 'foot') {
+      this.soldier.updateViewModel(dt, cam, false);
+      document.body.classList.remove('fp-view', 'fp-ads');
+    }
     if (this.seat === 'foot') {
       // Schulterkamera hinter dem Soldaten
       const S = this.soldier;
       const zoom = S.zoom && S.alive;
       let yaw = S.yaw, pitch = S.pitch;
+      const first = this.settings.footView === 'first' && S.alive;
+      S.group.visible = !first;
+      S.updateViewModel(dt, cam, first);
+      document.body.classList.toggle('fp-view', first);
+      document.body.classList.toggle('fp-ads', first && S.adsT > 0.6);
+      if (first) {
+        cam.position.set(S.pos.x, S.pos.y + (S.crouch ? 1.05 : 1.6), S.pos.z);
+        cam.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+        fov = zoom ? S.weapon.fov * 1.25 : 75;
+        this.camInit = false;
+      } else {
       if (!S.alive) { this.deadOrbit = (this.deadOrbit || 0) + dt * 0.3; yaw += this.deadOrbit; pitch = -0.5; }
       const cp = Math.cos(pitch);
       const fx = -Math.sin(yaw) * cp, fy = Math.sin(pitch), fz = -Math.cos(yaw) * cp;
@@ -1070,6 +1108,7 @@ class Game {
       cam.lookAt(px + fx * 50, py + fy * 50, pz + fz * 50);
       fov = zoom ? S.weapon.fov : 70;
       this.camInit = false;
+      }
     } else if ((this.seat === 'left' || this.seat === 'right') && !h.crashed) {
       const rig = m.guns[this.seat];
       rig.eye.getWorldPosition(cam.position);

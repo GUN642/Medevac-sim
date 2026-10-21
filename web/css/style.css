@@ -265,3 +265,7 @@ body.touch.foot-mode #hint { bottom: auto; top: 108px; }
 body.touch.foot-mode #seat-label { display: none; }
 body.touch.foot-mode #btn-fire { right: 15%; bottom: 14%; }
 body.touch.foot-mode #radio { width: min(340px, 34vw); }
+/* Ego-Perspektive: beim Zielen über Kimme und Korn kein Fadenkreuz, sonst nur ein Punkt */
+body.fp-ads #crosshair { display: none !important; }
+body.fp-view #crosshair { width: 6px; height: 6px; border: none; }
+body.fp-view #crosshair::before, body.fp-view #crosshair::after { display: none; }

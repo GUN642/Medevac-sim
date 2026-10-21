@@ -77,7 +77,7 @@ export class Input {
       if (this.device !== 'keyboard') { this.device = 'keyboard'; this.onDevice && this.onDevice(); }
       if (!this.keys.has(k)) {
         const map = {
-          Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'camera', KeyM: 'map',
+          Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'view', KeyM: 'map',
           Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'crew',
           KeyE: 'use', KeyR: 'reload', Digit4: 'num4', Digit5: 'num5', KeyG: 'pickup',
         };
@@ -298,7 +298,7 @@ export class Input {
       }
       // Tasten: 0=B(unten) 1=A(rechts) 2=Y(links) 3=X(oben) 4=L 5=R 8=− 9=+ 12-15=Steuerkreuz
       if (pressed(0) || pressed(1)) this.actions.push('confirm');
-      if (pressed(3)) this.actions.push('map');
+      if (pressed(3)) this.actions.push(this.mode === 'foot' ? 'pickup' : 'map');
       if (pressed(2)) this.actions.push(this.mode === 'foot' ? 'reload' : 'camera');
       if (pressed(4)) this.actions.push('seat-prev');
       if (pressed(5)) this.actions.push('seat-next');
@@ -309,18 +309,23 @@ export class Input {
       if (pressed(14)) { this.actions.push('dpad-left'); this.pushNav('nav-left', 'pad'); }
       if (pressed(15)) { this.actions.push('dpad-right'); this.pushNav('nav-right', 'pad'); }
       // Menü-Navigation auch mit dem linken Stick und dem Steuerkreuz als Achse (nicht-standard Mapping, z. B. Android)
-      let ny = ly, nx = lx;
+      let hx = 0, hy = 0;
       if (gp.mapping !== 'standard' && ax.length >= 8) {
-        if (Math.abs(ax[7] || 0) > 0.5) ny = ax[7];
-        if (Math.abs(ax[6] || 0) > 0.5) nx = ax[6];
+        if (Math.abs(ax[7] || 0) > 0.5) hy = Math.sign(ax[7]);
+        if (Math.abs(ax[6] || 0) > 0.5) hx = Math.sign(ax[6]);
       }
       if (ax.length > 9 && Math.abs(ax[9] || 0) <= 1 && gp.mapping !== 'standard') {
         // POV-Hut als einzelne Achse: -1 hoch, ~0.14 runter, 0.71 links, -0.43 rechts
         const hv = ax[9];
-        if (Math.abs(hv + 1) < 0.1) ny = -1; else if (Math.abs(hv - 0.143) < 0.1) ny = 1;
-        else if (Math.abs(hv - 0.714) < 0.1) nx = -1; else if (Math.abs(hv + 0.429) < 0.1) nx = 1;
+        if (Math.abs(hv + 1) < 0.1) hy = -1; else if (Math.abs(hv - 0.143) < 0.1) hy = 1;
+        else if (Math.abs(hv - 0.714) < 0.1) hx = -1; else if (Math.abs(hv + 0.429) < 0.1) hx = 1;
       }
-      this.stickNav(gp.index, nx, ny, dt);
+      // Steuerkreuz als Achse (z. B. Switch-Controller an Android): auch die Spielaktionen auslösen
+      const hat = hy < 0 ? 'up' : hy > 0 ? 'down' : hx < 0 ? 'left' : hx > 0 ? 'right' : null;
+      const ph = (this.hatPrev || {})[gp.index];
+      if (hat && hat !== ph && !(gp.buttons[12] && (gp.buttons[12].pressed || gp.buttons[13].pressed || gp.buttons[14].pressed || gp.buttons[15].pressed))) this.actions.push('dpad-' + hat);
+      (this.hatPrev = this.hatPrev || {})[gp.index] = hat;
+      this.stickNav(gp.index, hx || lx, hy || ly, dt);
       this.gpPrev[gp.index] = gp.buttons.map((x) => x.pressed);
       this.gpConnected = true;
     }

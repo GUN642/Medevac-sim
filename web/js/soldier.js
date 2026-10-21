@@ -6,17 +6,41 @@ import { clamp, rand, dist2 } from './util.js';
 
 // Handwaffen der US-Infanterie in Vietnam
 export const WEAPONS = [
-  { id: 'm16', name: 'M16A1', desc: 'Sturmgewehr', mag: 20, reserve: 200, rpm: 750, auto: true, vel: 990, spread: 0.012, fov: 30, reload: 2.2, sound: 'm16', tracer: 3, recoil: 0.006 },
-  { id: 'm60', name: 'M60', desc: 'Maschinengewehr', mag: 100, reserve: 300, rpm: 550, auto: true, vel: 853, spread: 0.022, fov: 38, reload: 5.0, sound: 'm60', tracer: 2, recoil: 0.009, slow: 0.78 },
-  { id: 'm79', name: 'M79', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 50, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.8, sound: 'thump', grenade: true, recoil: 0.05 },
-  { id: 'ithaca', name: 'Ithaca 37', desc: 'Schrotflinte', mag: 5, reserve: 40, rpm: 80, auto: false, vel: 400, spread: 0.055, fov: 50, reload: 3.0, sound: 'shotgun', pellets: 9, recoil: 0.06 },
-  { id: 'm1911', name: 'M1911', desc: 'Pistole', mag: 7, reserve: 56, rpm: 360, auto: false, vel: 253, spread: 0.018, fov: 45, reload: 1.6, sound: 'pistol', recoil: 0.03 },
+  { id: 'm16', sight: [0.165, -0.0, -0.66, 0.26], name: 'M16A1', desc: 'Sturmgewehr', mag: 20, reserve: 200, rpm: 750, auto: true, vel: 990, spread: 0.012, fov: 30, reload: 2.2, sound: 'm16', tracer: 3, recoil: 0.006 },
+  { id: 'm60', sight: [0.1, 0.02, -0.93, 0.28], name: 'M60', desc: 'Maschinengewehr', mag: 100, reserve: 300, rpm: 550, auto: true, vel: 853, spread: 0.022, fov: 38, reload: 5.0, sound: 'm60', tracer: 2, recoil: 0.009, slow: 0.78 },
+  { id: 'm79', sight: [0.11, -0.06, -0.46, 0.3], name: 'M79', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 50, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.8, sound: 'thump', grenade: true, recoil: 0.05 },
+  { id: 'ithaca', sight: [0.06, 0.04, -0.71, 0.3], name: 'Ithaca 37', desc: 'Schrotflinte', mag: 5, reserve: 40, rpm: 80, auto: false, vel: 400, spread: 0.055, fov: 50, reload: 3.0, sound: 'shotgun', pellets: 9, recoil: 0.06 },
+  { id: 'm1911', sight: [0.06, 0.02, -0.17, 0.45], name: 'M1911', desc: 'Pistole', mag: 7, reserve: 56, rpm: 360, auto: false, vel: 253, spread: 0.018, fov: 45, reload: 1.6, sound: 'pistol', recoil: 0.03 },
 ];
 
 const geoCache = {};
 const wgeo = (id) => geoCache[id] || (geoCache[id] = weaponGeo(id));
 const ZERO = new THREE.Vector3();
 const _v = new THREE.Vector3(), _d = new THREE.Vector3(), _m = new THREE.Vector3();
+
+// Kimme (zwei Pfosten) und Korn: Oberkanten liegen genau auf der Visierlinie
+const sightMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+function sightMeshes(w) {
+  const [H, rz, fz, eye] = w.sight;
+  // Korn so breit, dass es aus Augenposition gut 60 % der Kimmenlücke füllt
+  const kw = 0.009 * ((eye + rz - fz) / eye) * 0.6;
+  const g = new THREE.Group();
+  for (const sx of [-1, 1]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.03, 0.01), sightMat);
+    post.position.set(sx * 0.0085, H + 0.008, rz);
+    g.add(post);
+  }
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.01), sightMat);
+  base.position.set(0, H - 0.013, rz);
+  g.add(base);
+  const korn = new THREE.Mesh(new THREE.BoxGeometry(kw, 0.028 * ((eye + rz - fz) / eye) * 0.5, 0.006), sightMat);
+  korn.position.set(0, H - korn.geometry.parameters.height / 2, fz);
+  g.add(korn);
+  const kornFuss = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.012, 0.012), sightMat);
+  kornFuss.position.set(0, H - 0.03, fz);
+  g.add(kornFuss);
+  return g;
+}
 
 function nameSprite(name) {
   const c = document.createElement('canvas');
@@ -73,7 +97,38 @@ export class Soldier {
     this.sync();
   }
 
-  hide() { this.active = false; this.group.visible = false; }
+  hide() { this.active = false; this.group.visible = false; if (this.vm) this.vm.visible = false; }
+
+  // ------------------------------------------------------------ Ego-Perspektive (Waffe vor der Kamera)
+  updateViewModel(dt, camera, on) {
+    if (!this.vm) {
+      this.vm = new THREE.Group();
+      this.vmGun = new THREE.Mesh(wgeo('m16'), vcMat);
+      this.vm.add(this.vmGun);
+      camera.add(this.vm);
+      this.adsT = 0; this.kick = 0;
+    }
+    this.vm.visible = on;
+    if (!on) return;
+    const w = this.weapon;
+    if (this.vmId !== w.id) {
+      this.vmId = w.id;
+      this.vmGun.geometry = wgeo(w.id);
+      if (this.vmSights) this.vmGun.remove(this.vmSights);
+      this.vmSights = sightMeshes(w);
+      this.vmGun.add(this.vmSights);
+    }
+    this.adsT += ((this.zoom && this.reloadT <= 0 ? 1 : 0) - this.adsT) * Math.min(1, dt * 10);
+    this.kick *= Math.exp(-dt * 14);
+    const [H, rz, , eye] = w.sight;
+    const a = this.adsT;
+    // Hüfte: rechts unten; Zielen: Visierlinie auf der Kameraachse
+    const hip = [0.17, -0.19, -0.42], ads = [0, -H, -eye - rz];
+    const bob = this.moving && this.onGround ? Math.sin(performance.now() / 120) * 0.012 * (1 - a * 0.8) : 0;
+    this.vm.position.set(hip[0] + (ads[0] - hip[0]) * a, hip[1] + (ads[1] - hip[1]) * a + bob, hip[2] + (ads[2] - hip[2]) * a + this.kick);
+    this.vm.rotation.set(this.kick * 1.5, (1 - a) * 0.05, 0);
+    if (this.reloadT > 0) this.vm.rotation.x -= 0.6;
+  }
 
   setWeapon(i) {
     i = (i + WEAPONS.length) % WEAPONS.length;
@@ -186,6 +241,10 @@ export class Soldier {
   }
 
   muzzlePos(out) {
+    if (this.vm && this.vm.visible) {
+      this.vm.updateMatrixWorld(true);
+      return this.vmGun.localToWorld(out.set(0, this.weapon.sight[0] - 0.05, this.weapon.sight[2] - 0.05));
+    }
     this.group.updateMatrixWorld(true);
     return this.gun.localToWorld(out.set(0, 0.02, -0.75));
   }
@@ -219,6 +278,7 @@ export class Soldier {
     g.effects.muzzle(muzzle.x + dir.x * 0.2, muzzle.y + dir.y * 0.2, muzzle.z + dir.z * 0.2, w.id === 'm60' || w.id === 'ithaca');
     g.audio.shot(w.sound, 3);
     this.pitch = Math.min(1.2, this.pitch + w.recoil * (this.crouch ? 0.6 : 1));
+    this.kick = Math.min(0.08, (this.kick || 0) + 0.02 + w.recoil * 0.4);
   }
 
   // Abschussgeschwindigkeit für einen Granatbogen auf den Zielpunkt
