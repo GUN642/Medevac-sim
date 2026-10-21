@@ -59,7 +59,7 @@ kurz vor dem Aufsetzen.
   als Passagier in der Kabine. Über CREW lassen sich auch Pilot- oder Schützenplätze übernehmen.
 - **Zum Einsatzort fliegen lassen:** Sitzt niemand am Steuer, fliegt der **KI-Pilot** den aktuellen Auftrag, nimmt die
   Truppe auf, bremst ab etwa 300 m vor der LZ ab und landet. Dort mit E aussteigen und mitkämpfen.
-- **Ego-Perspektive:** **V** (Controller ↑, Touch ANSICHT) schaltet zwischen Schulter- und Ego-Ansicht; mit Rechtsklick (ZL, Touch ZOOM)
+- **Ego-Perspektive:** In den Einstellungen („Ansicht zu Fuß“) oder mit **V** (Controller ↑, Touch ANSICHT) schaltet man zwischen Schulter- und Ego-Ansicht; mit Rechtsklick (ZL, Touch ZOOM)
   zielen Sie dann über **Kimme und Korn** der jeweiligen Waffe.
 - **Abholung:** Mit **G** (Controller Ⓧ oder ↓, Touch ABHOLUNG) fliegt ein freier Hubschrauber zur nächsten Lichtung und holt Sie ab.
 - **Waffen:** M16A1, M60, M79-Granatwerfer, Ithaca-37-Schrotflinte, M1911 (Tasten 1–5 / Mausrad, Controller L/R, Touch WAFFE).

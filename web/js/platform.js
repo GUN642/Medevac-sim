@@ -13,7 +13,7 @@ function write(key, v) {
 }
 
 export function loadSettings() {
-  const d = { quality: isMobile ? 'low' : 'high', volume: 0.8, sensitivity: 1, invertY: false, difficulty: 1, showFps: false, mouseFly: true, mouseFlyInvert: false };
+  const d = { quality: isMobile ? 'low' : 'high', volume: 0.8, sensitivity: 1, invertY: false, difficulty: 1, showFps: false, mouseFly: true, mouseFlyInvert: false, footView: 'third' };
   return Object.assign(d, read(SKEY) || {});
 }
 export const saveSettings = (s) => write(SKEY, s);

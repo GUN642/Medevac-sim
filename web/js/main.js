@@ -499,6 +499,7 @@ class Game {
     };
     bind('set-quality', 'quality', String, () => { $('quality-note').classList.remove('hidden'); });
     bind('set-volume', 'volume', Number, (v) => this.audio.setVolume(v));
+    bind('set-footview', 'footView', String);
     bind('set-sens', 'sensitivity', Number);
     bind('set-invert', 'invertY', Boolean);
     bind('set-invertx', 'invertX', Boolean);
@@ -830,6 +831,7 @@ class Game {
         if (a === 'view' || a === 'dpad-up') {
           this.settings.footView = this.settings.footView === 'first' ? 'third' : 'first';
           PF.saveSettings(this.settings);
+          $('set-footview').value = this.settings.footView;
           continue;
         }
         if (a === 'use' || a === 'confirm') { if (!this.hud.mapOpen) { this.useAction(); continue; } }
