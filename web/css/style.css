@@ -269,3 +269,5 @@ body.touch.foot-mode #radio { width: min(340px, 34vw); }
 body.fp-ads #crosshair { display: none !important; }
 body.fp-view #crosshair { width: 6px; height: 6px; border: none; }
 body.fp-view #crosshair::before, body.fp-view #crosshair::after { display: none; }
+#confirm { z-index: 40; background: rgba(8, 10, 5, 0.92); }
+#confirm-text { font-size: 20px; font-weight: bold; color: var(--sand); }

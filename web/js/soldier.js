@@ -158,6 +158,9 @@ export class Soldier {
     this.group.position.copy(this.pos);
     this.group.rotation.y = this.yaw;
     this.arm.rotation.x = this.pitch;
+    // Waffe beim Knien auf Schulterhöhe des geduckten Körpers
+    const kneel = this.crouch && !(this.moving && this.onGround && !this.remote) && !(this.remote && this.moving);
+    this.arm.position.y = kneel ? 0.9 : 1.3;
   }
 
   // Lokaler Spieler

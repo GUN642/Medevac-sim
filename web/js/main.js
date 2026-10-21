@@ -102,6 +102,7 @@ class Game {
     this.onResize();
     $('loading').classList.add('hidden');
     this.showMenu();
+    try { if (sessionStorage.getItem('dustoff.openLobby')) { sessionStorage.removeItem('dustoff.openLobby'); this.openLobby(); } } catch (e) { /* privat */ }
     this.last = performance.now();
     window.game = this; // für Debugging
     this.renderer.setAnimationLoop(() => this.frame());
@@ -442,7 +443,14 @@ class Game {
     on('btn-continue', () => this.startGame());
     on('btn-help', () => this.openPanel('help'));
     on('btn-settings', () => this.openPanel('settings'));
-    on('btn-mp', () => this.openLobby());
+    on('btn-mp', () => {
+      // Läuft schon ein Spiel, erst beenden (sauberer Neustart), dann direkt die Lobby öffnen
+      if (this.started) { this.quitGame(true); return; }
+      this.openLobby();
+    });
+    on('btn-quit', () => this.quitGame(false));
+    on('confirm-yes', () => { $('confirm').classList.add('hidden'); const f = this.confirmYes; this.confirmYes = null; if (f) f(); });
+    on('confirm-no', () => { $('confirm').classList.add('hidden'); this.confirmYes = null; this.focusFirst($('menu')); });
     on('btn-resume', () => this.pause(false));
     on('btn-pause-help', () => this.openPanel('help'));
     on('btn-pause-settings', () => this.openPanel('settings'));
@@ -546,10 +554,34 @@ class Game {
     $('btn-continue').classList.toggle('hidden', !this.started);
     $('btn-start').classList.toggle('hidden', !!this.started);
     $('btn-start-foot').classList.toggle('hidden', !!this.started);
-    $('btn-mp').classList.toggle('hidden', this.role !== 'solo');
+    $('btn-mp').classList.toggle('hidden', false);
+    $('btn-quit').classList.toggle('hidden', !this.started);
+    $('btn-quit').textContent = this.role === 'solo' ? 'SPIEL BEENDEN' : this.role === 'host' ? 'MEHRSPIELER BEENDEN' : 'MEHRSPIELER VERLASSEN';
     const st = this.stats;
     $('menu-stats').innerHTML = `<b>${PF.rankFor(st.score)}</b> · ${st.score} Punkte · ${st.missions} Einsätze · ${st.rescued} gerettet · ${st.transported} transportiert`;
     this.focusFirst($('menu'));
+  }
+
+  // Laufendes Spiel beenden: Verbindung trennen, Statistik sichern und frisch starten
+  quitGame(toLobby) {
+    const msg = this.role === 'host' ? 'Mehrspieler-Spiel beenden? Alle Mitspieler werden getrennt.' : this.role === 'client' ? 'Mehrspieler-Spiel verlassen?' : 'Laufendes Spiel beenden?';
+    this.askConfirm(msg, () => this.doQuit(toLobby));
+  }
+
+  doQuit(toLobby) {
+    this.saveStats();
+    if (this.net) this.net.stop();
+    try { if (toLobby) sessionStorage.setItem('dustoff.openLobby', '1'); } catch (e) { /* privat */ }
+    location.reload();
+  }
+
+  // Eigener Bestätigungsdialog (Controller- und Touch-tauglich)
+  askConfirm(text, onYes) {
+    $('confirm-text').textContent = text;
+    $('confirm').classList.remove('hidden');
+    this.confirmYes = onYes;
+    const yes = $('confirm-yes');
+    if (this.input.device !== 'touch') yes.focus();
   }
 
   startGame() {
@@ -767,7 +799,7 @@ class Game {
 
   handleActions(actions) {
     for (const a of actions) {
-      const blocking = this.state === 'menu' || this.state === 'paused' || this.hud.briefOpen || this.crashShown || this.hud.crewOpen || !$('lobby').classList.contains('hidden');
+      const blocking = !$('confirm').classList.contains('hidden') || this.state === 'menu' || this.state === 'paused' || this.hud.briefOpen || this.crashShown || this.hud.crewOpen || !$('lobby').classList.contains('hidden');
       if (blocking) {
         if (a === 'confirm') {
           // Hat Browser/WebView den Druck schon selbst als Klick ausgelöst, nicht noch einmal klicken
@@ -834,7 +866,7 @@ class Game {
   }
 
   topOverlay() {
-    const ids = ['netlost', 'crashscreen', 'crew', 'settings', 'help', 'lobby', 'pause', 'briefing', 'menu'];
+    const ids = ['confirm', 'netlost', 'crashscreen', 'crew', 'settings', 'help', 'lobby', 'pause', 'briefing', 'menu'];
     for (const id of ids) { const e = $(id); if (e && !e.classList.contains('hidden')) return e; }
     return null;
   }
