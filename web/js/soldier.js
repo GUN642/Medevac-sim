@@ -6,11 +6,11 @@ import { clamp, rand, dist2 } from './util.js';
 
 // Handwaffen der US-Infanterie in Vietnam
 export const WEAPONS = [
-  { id: 'm16', sight: [0.165, -0.0, -0.66, 0.26], name: 'M16A1', desc: 'Sturmgewehr', mag: 20, reserve: 200, rpm: 750, auto: true, vel: 990, spread: 0.012, fov: 30, reload: 2.2, sound: 'm16', tracer: 3, recoil: 0.006 },
-  { id: 'm60', sight: [0.1, 0.02, -0.93, 0.28], name: 'M60', desc: 'Maschinengewehr', mag: 100, reserve: 300, rpm: 550, auto: true, vel: 853, spread: 0.022, fov: 38, reload: 5.0, sound: 'm60', tracer: 2, recoil: 0.009, slow: 0.78 },
-  { id: 'm79', sight: [0.11, -0.06, -0.46, 0.3], name: 'M79', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 50, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.8, sound: 'thump', grenade: true, recoil: 0.05 },
-  { id: 'ithaca', sight: [0.06, 0.04, -0.71, 0.3], name: 'Ithaca 37', desc: 'Schrotflinte', mag: 5, reserve: 40, rpm: 80, auto: false, vel: 400, spread: 0.055, fov: 50, reload: 3.0, sound: 'shotgun', pellets: 9, recoil: 0.06 },
-  { id: 'm1911', sight: [0.06, 0.02, -0.17, 0.45], name: 'M1911', desc: 'Pistole', mag: 7, reserve: 56, rpm: 360, auto: false, vel: 253, spread: 0.018, fov: 45, reload: 1.6, sound: 'pistol', recoil: 0.03 },
+  { id: 'm16', sight: [0.165, -0.0, -0.66, 0.26, 0.05, 0.034], handle: 0.24, name: 'M16A1', desc: 'Sturmgewehr', mag: 20, reserve: 200, rpm: 750, auto: true, vel: 990, spread: 0.012, fov: 30, reload: 2.2, sound: 'm16', tracer: 3, recoil: 0.006 },
+  { id: 'm60', sight: [0.1, 0.02, -0.93, 0.28, 0.06, 0.03], name: 'M60', desc: 'Maschinengewehr', mag: 100, reserve: 300, rpm: 550, auto: true, vel: 853, spread: 0.022, fov: 38, reload: 5.0, sound: 'm60', tracer: 2, recoil: 0.009, slow: 0.78 },
+  { id: 'm79', sight: [0.11, -0.06, -0.46, 0.3, 0.045, 0.065], name: 'M79', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 50, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.8, sound: 'thump', grenade: true, recoil: 0.05 },
+  { id: 'ithaca', sight: [0.06, 0.04, -0.71, 0.3, 0.045, 0.036], name: 'Ithaca 37', desc: 'Schrotflinte', mag: 5, reserve: 40, rpm: 80, auto: false, vel: 400, spread: 0.055, fov: 50, reload: 3.0, sound: 'shotgun', pellets: 9, recoil: 0.06 },
+  { id: 'm1911', sight: [0.06, 0.02, -0.17, 0.45, 0.045, 0.045], name: 'M1911', desc: 'Pistole', mag: 7, reserve: 56, rpm: 360, auto: false, vel: 253, spread: 0.018, fov: 45, reload: 1.6, sound: 'pistol', recoil: 0.03 },
 ];
 
 const geoCache = {};
@@ -39,6 +39,20 @@ function sightMeshes(w) {
   const kornFuss = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.012, 0.012), sightMat);
   kornFuss.position.set(0, H - 0.03, fz);
   g.add(kornFuss);
+  // Halterungen bis auf die Waffe hinunter, damit Kimme und Korn nicht schweben
+  const [, , , , rb = H, fb = H] = w.sight;
+  const rh = H - 0.019 - rb, fh = H - 0.036 - fb;
+  if (rh > 0.002) {
+    const len = w.handle || 0.03; // M16: Tragegriff nach vorn
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.026, rh, len), sightMat);
+    m.position.set(0, rb + rh / 2, rz - len / 2 + 0.01);
+    g.add(m);
+  }
+  if (fh > 0.002) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.012, fh, 0.016), sightMat);
+    m.position.set(0, fb + fh / 2, fz);
+    g.add(m);
+  }
   return g;
 }
 

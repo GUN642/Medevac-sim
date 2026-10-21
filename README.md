@@ -55,6 +55,9 @@ wird getankt, repariert und Munition aufgefüllt. Bei leerem Tank fällt das Tri
 | Kamera · Karte · Pause | C · M · Esc | Ⓨ · Ⓧ · ⊕ | Tasten am Rand |
 | Auftrag annehmen | Enter | Ⓐ | Antippen |
 
+Mit Controller oder Touch hilft eine **leichte Zielhilfe** (Einstellungen: Aus / Leicht / Stark): Über einem Feind
+wird das Zielen gebremst, beim Zielen oder Feuern zieht das Visier sanft auf ihn. Mit der Maus ist sie aus.
+
 Für die Maussteuerung einmal ins Bild klicken (Esc gibt die Maus wieder frei). Mit gedrückter rechter Maustaste
 schwenkt die Kamera. Der **Flugassistent** hält bei losgelassenem Stick Höhe und Position und bremst die Sinkrate
 kurz vor dem Aufsetzen.

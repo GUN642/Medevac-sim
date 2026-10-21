@@ -12,7 +12,7 @@ import { AudioSys } from './audio.js';
 import { Net, netTransport, COLORS } from './net.js';
 import { Soldier, WEAPONS } from './soldier.js';
 import { FUEL, HELI, CALLSIGN, FOB_NAME, GUN } from './config.js';
-import { clamp, damp, dist2, rand } from './util.js';
+import { clamp, damp, dist2, rand, wrapAngle } from './util.js';
 import * as PF from './platform.js';
 
 const $ = (id) => document.getElementById(id);
@@ -136,6 +136,35 @@ class Game {
     h.apHoldY = h.pos.y;
     h.wasCrashed = false;
     h.aiPickup = null;
+  }
+
+  // Leichte Zielhilfe für Controller und Touch: bremst das Zielen über einem Feind ab
+  // und zieht das Visier sanft auf ihn, solange gezielt, bewegt oder gefeuert wird.
+  // angles(e) liefert {yaw, pitch, dist} des Feindes im Bezugssystem der Waffe, cur die aktuelle Ausrichtung.
+  aimAssist(dt, aim, cur, angles, zoom, range, gain = 1) {
+    const lvl = this.settings.aimAssist;
+    if (lvl === 'off' || (this.input.device !== 'gamepad' && this.input.device !== 'touch')) return;
+    const s = lvl === 'strong' ? 1.8 : 1;
+    const a = this._aa || (this._aa = {});
+    let best = null, bestK = 1, by = 0, bp = 0;
+    for (const e of this.units.enemies) {
+      if (!e.alive || !e.obj) continue;
+      if (!angles(e, a) || a.dist > range) continue;
+      if (!(e.reveal > 0 || a.dist < 120)) continue;
+      const dy = wrapAngle(a.yaw - cur.yaw), dp = a.pitch - cur.pitch;
+      const cone = (0.05 + 1.3 / Math.max(a.dist, 5)) * (zoom ? 1.3 : 1) * (0.8 + 0.2 * s);
+      const k = Math.hypot(dy * Math.cos(cur.pitch), dp) / cone;
+      if (k < bestK) { bestK = k; best = e; by = dy; bp = dp; }
+    }
+    if (!best) return;
+    // Abbremsen über dem Ziel
+    const fr = 1 - 0.45 * Math.min(1, s * 0.8) * (1 - bestK);
+    aim.dx *= fr; aim.dy *= fr;
+    // Sanftes Nachziehen nur bei aktiver Eingabe
+    const active = zoom || this.input.fire || Math.abs(aim.dx) + Math.abs(aim.dy) > 1e-4;
+    if (!active) return;
+    const pull = Math.min(1, dt * (zoom || this.input.fire ? 2.6 : 1.4) * s);
+    aim.dx -= by * pull / gain; aim.dy -= bp * pull / gain;
   }
 
   // Sitz eines Spielers: Besatzungsplatz, Passagier ('pax') oder zu Fuß (null)
@@ -501,6 +530,7 @@ class Game {
     bind('set-quality', 'quality', String, () => { $('quality-note').classList.remove('hidden'); });
     bind('set-volume', 'volume', Number, (v) => this.audio.setVolume(v));
     bind('set-footview', 'footView', String);
+    bind('set-aimassist', 'aimAssist', String);
     bind('set-sens', 'sensitivity', Number);
     bind('set-invert', 'invertY', Boolean);
     bind('set-invertx', 'invertX', Boolean);
@@ -965,6 +995,16 @@ class Game {
     if (onFoot) {
       const S = this.soldier;
       const zoom = !background && (this.input.zoomHeld || this.zoomToggle);
+      if (!background && S.alive) {
+        const cam = this.camera, cp = cam.position, d = cam.getWorldDirection(this._aaDir || (this._aaDir = new THREE.Vector3()));
+        const zf = zoom ? 0.45 : 1;
+        this.aimAssist(dt, aim, { yaw: Math.atan2(-d.x, -d.z), pitch: Math.asin(clamp(d.y, -1, 1)) }, (e, o) => {
+          const dx = e.x - cp.x, dz = e.z - cp.z, dy = e.y + (e.pose & 1 ? 0.75 : 1.15) - cp.y;
+          const h = Math.hypot(dx, dz);
+          o.yaw = Math.atan2(-dx, -dz); o.pitch = Math.atan2(dy, h); o.dist = Math.hypot(h, dy);
+          return true;
+        }, zoom, 260, zf);
+      }
       S.update(dt, background ? { move: { x: 0, y: 0 } } : this.input, background ? { dx: 0, dy: 0 } : aim, !background && this.input.fire, zoom);
       if (!S.alive && !this.deathShown && this.time - (this.deathAt ?? -10) > 3) {
         this.deathShown = true;
@@ -982,6 +1022,10 @@ class Game {
         const mine = i === this.myHeli && this.seat === side;
         const occupied = this.crews[i] && this.crews[i][side] != null;
         const mode = mine ? 'player' : occupied ? 'remote' : this.role === 'client' ? 'remote' : 'ai';
+        if (mine && !background) {
+          const gn = hh.gunners[side];
+          this.aimAssist(dt, aim, gn, (e, o) => { this._aaV = (this._aaV || new THREE.Vector3()).set(e.x, e.y + 1, e.z); gn.anglesTo(this._aaV, o); return gn.inArc(o); }, this.input.zoomHeld, GUN.range);
+        }
         hh.gunners[side].update(dt, this, mine && !background ? aim : { dx: 0, dy: 0 }, mine && !background && this.input.fire, mode);
       }
     });
