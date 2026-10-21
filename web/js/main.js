@@ -91,7 +91,8 @@ class Game {
     this.soldier = new Soldier(this);
     this.avatars = new Map();
     this.setLocalSeat(0, 'pilot');
-    this.units.spawnPatrols(12);
+    this.units.spawnPatrols(26);
+    this.units.spawnFobDefenders();
 
     window.addEventListener('resize', () => this.onResize());
     document.addEventListener('visibilitychange', () => {
@@ -985,7 +986,7 @@ class Game {
       }
     });
 
-    if (this.role === 'client') this.units.updateMirror(dt); else this.units.update(dt);
+    if (this.role === 'client') this.units.updateMirror(dt); else { this.units.update(dt); this.units.updateFobAttack(dt); this.fobAttack = !!this.units.attack; }
     this.combat.update(dt);
     const prevPhase = this.missions.phase;
     this.missions.update(dt);
@@ -1046,6 +1047,7 @@ class Game {
       if (!hint && this.missions.target(h) === 'from' && this.heliLoad(h) >= HELI.capacity) hint = 'Kabine voll!';
       if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)';
     }
+    if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });
     const critical = warnings.some((x) => x.level === 'crit');
 
     this.effects.update(dt, this.camera.position);

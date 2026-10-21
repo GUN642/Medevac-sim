@@ -208,7 +208,7 @@ export class Net {
     const P = [];
     if (g.seat === 'foot' && g.soldier.active) P.push([0, g.soldier.getState()]);
     for (const [pid, a] of g.avatars) if (a.active && a.isFoot && !g.seatOf(pid) && a.tgt) P.push([pid, a.tgt]);
-    const msg = { t: 's', T: Math.round(g.time * 10) / 10, H, E: this.ev, P };
+    const msg = { t: 's', T: Math.round(g.time * 10) / 10, H, E: this.ev, P, A: g.fobAttack ? 1 : 0 };
     if (this.snapN % 2 === 0) msg.U = g.units.snapshot();
     this.ev = [];
     this.send(msg);
@@ -338,6 +338,7 @@ export class Net {
       });
     });
     if (m.U) g.units.applySnapshot(m.U);
+    g.fobAttack = !!m.A;
     // Mitspieler zu Fuß
     const seen = new Set();
     for (const [pid, st] of m.P || []) {

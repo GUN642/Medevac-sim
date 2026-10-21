@@ -2,7 +2,7 @@
 import * as THREE from './lib/three.module.min.js';
 import { Figure, buildLitter, vcMat } from './models.js';
 import { HALF, HELI } from './config.js';
-import { rand, clamp, dist2 } from './util.js';
+import { rand, clamp, dist2, bearing, dirName } from './util.js';
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -123,7 +123,7 @@ export class Units {
       const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
       if (Math.abs(x) > HALF - 100 || Math.abs(z) > HALF - 100) continue;
       if (w.height(x, z) < 1) continue;
-      if (dist2(x, z, w.fob.x, w.fob.z) < 700) continue;
+      if (!opts.nearFob && dist2(x, z, w.fob.x, w.fob.z) < 700) continue;
       const heavy = opts.heavy && list.length === 0;
       const type = heavy || rand() < 0.4 ? 'nva' : 'vc';
       const e = this.makeVisual((heavy ? 'H:' : 'E:') + type);
@@ -151,19 +151,78 @@ export class Units {
       const x = rand.range(-HALF + 300, HALF - 300), z = rand.range(-HALF + 300, HALF - 300);
       if (dist2(x, z, w.fob.x, w.fob.z) < 1100) continue;
       if (w.inForest(x, z) < 0.3) continue;
-      if (w.sites.some((s) => dist2(s.x, s.z, x, z) < 350)) continue;
+      if (w.sites.some((s) => dist2(s.x, s.z, x, z) < 220)) continue;
       const p = { x, z, members: [] };
-      p.members = this.spawnEnemies(x, z, 2 + Math.floor(rand() * 3), { rMin: 0, rMax: 25, patrol: p, heavy: rand() < 0.15 });
+      p.members = this.spawnEnemies(x, z, 3 + Math.floor(rand() * 5), { rMin: 0, rMax: 35, patrol: p, heavy: rand() < 0.25 });
       for (const e of p.members) e.range = e.heavy ? 900 : 420;
       this.patrols.push(p);
     }
+  }
+
+  // Wachposten am Sandsackwall der FOB
+  spawnFobDefenders() {
+    const f = this.game.world.fob;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2 + 0.13;
+      const u = this.makeVisual('F:' + (rand() < 0.25 ? 'us2' : 'us'));
+      Object.assign(u, { id: uid++, kind: 'defender', missionId: 'fob', fireT: rand() * 3, burst: 0, shotT: 0, x: 0, z: 0, y: 0, engage: true });
+      this.place(u, f.x + Math.cos(a) * 199, f.z + Math.sin(a) * 199);
+      u.obj.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a));
+      this.setPose(u, P_KNEEL);
+      this.friendlies.push(u);
+    }
+  }
+
+  // Angriffswellen des Vietcong auf die FOB (Host / Einzelspieler)
+  updateFobAttack(dt) {
+    const g = this.game;
+    if (this.attackT === undefined) this.attackT = 150 + rand() * 90;
+    if (!this.attack) {
+      if (!g.started) return;
+      this.attackT -= dt;
+      if (this.attackT <= 0) this.startFobAttack();
+      return;
+    }
+    const alive = this.attack.members.filter((e) => e.alive).length;
+    if (alive === 0) {
+      g.radio('TOC: Angriff abgewehrt! Gute Arbeit – die FOB ist sicher.', 'TOC');
+      g.stats.score += 300;
+      g.hud.showResult({ title: 'FOB VERTEIDIGT', lines: [['Angreifer ausgeschaltet', `${this.attack.members.length}`], ['Gesamt', '300 Punkte']] });
+      this.attack = null;
+      this.attackT = 240 + rand() * 200;
+    } else if (alive <= 2 && !this.attack.fleeing) {
+      this.attack.fleeing = true;
+      g.radio('TOC: Der Feind zieht sich zurück – letzte Angreifer stellen!', 'TOC');
+    }
+  }
+
+  startFobAttack() {
+    const g = this.game, f = g.world.fob;
+    this.waves = (this.waves || 0) + 1;
+    let a = 0, cx = 0, cz = 0;
+    for (let k = 0; k < 20; k++) {
+      a = rand() * Math.PI * 2;
+      cx = f.x + Math.cos(a) * 440; cz = f.z + Math.sin(a) * 440;
+      if (g.world.height(cx, cz) > 1 && Math.abs(cx) < HALF - 150 && Math.abs(cz) < HALF - 150) break;
+    }
+    const n = Math.min(32, 12 + Math.floor(rand() * 8) + this.waves * 2);
+    const members = this.spawnEnemies(cx, cz, n, { rMin: 0, rMax: 70, nearFob: true, missionId: 'fob', heavy: this.waves > 1 });
+    for (const e of members) {
+      const aa = a + rand.range(-0.4, 0.4), rr = 228 + rand() * 40;
+      e.advance = { x: f.x + Math.cos(aa) * rr, z: f.z + Math.sin(aa) * rr };
+      e.range = e.heavy ? 900 : 520;
+      e.fireT = 6 + rand() * 6;
+      this.setPose(e, 0);
+    }
+    this.attack = { members, dir: dirName(bearing(f.x, f.z, cx, cz)) };
+    g.radio(`TOC: ALARM! Feindangriff auf die ${f.name} aus Richtung ${this.attack.dir}! Etwa ${n} Mann – alle verfügbaren Kräfte zur Verteidigung!`, 'TOC', true);
   }
 
   refreshPatrols() {
     // vernichtete Patrouillen werden irgendwo anders neu aufgestellt
     const helis = this.game.helis;
     this.patrols = this.patrols.filter((p) => p.members.some((e) => e.alive) || helis.some((h) => dist2(p.x, p.z, h.pos.x, h.pos.z) < 1500));
-    this.spawnPatrols(12);
+    this.spawnPatrols(26);
   }
 
   // ------------------------------------------------------------ Aufräumen
@@ -312,6 +371,11 @@ export class Units {
         if (e.deadT > 30) { this.removeUnit(e); this.enemies.splice(i, 1); }
         continue;
       }
+      e.moving = false;
+      if (e.advance && e.burst <= 0) {
+        e.speed = 2.6;
+        if (this.moveTo(e, e.advance.x, e.advance.z, dt, 1.5)) { e.advance = null; this.setPose(e, P_KNEEL); }
+      }
       e.reveal = Math.max(0, e.reveal - dt);
       e.suppress = Math.max(0, e.suppress - dt);
       let dmin = 1e9;
@@ -432,7 +496,7 @@ export class Units {
     for (const u of this.pax) add(u, (u.pose & (P_KNEEL | P_DOWN)) | (u.moving ? P_MOVE : 0));
     for (const u of this.walkers) add(u, u.moving ? P_MOVE : 0);
     for (const u of this.friendlies) add(u, u.pose & P_KNEEL);
-    for (const e of this.enemies) add(e, (e.pose & P_KNEEL) | (e.alive ? 0 : P_DEAD) | (e.reveal > 0 ? P_REVEAL : 0));
+    for (const e of this.enemies) add(e, (e.pose & P_KNEEL) | (e.alive ? 0 : P_DEAD) | (e.reveal > 0 ? P_REVEAL : 0) | (e.moving ? P_MOVE : 0));
     return out;
   }
 

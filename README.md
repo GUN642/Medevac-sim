@@ -19,6 +19,14 @@ automatischer Update-Funktion) und lässt sich per Touchscreen, Nintendo-Switch-
    der Kopilot hält dann die Maschine in der Schwebe.
 5. Zurück zur FOB: Verwundete auf Pad **MED** (rotes Kreuz) abliefern. Danach folgt der nächste Auftrag.
 
+### Feinde im Dschungel und Angriffe auf die FOB
+
+Im Wald sind zahlreiche Vietcong-Patrouillen (3–7 Mann) unterwegs, heiße LZs sind stark besetzt und auch an kalten
+LZs lauern Späher. Die KI-Bordschützen reagieren verzögert und streuen – den Großteil erledigen Sie selbst.
+In unregelmäßigen Abständen greift der Feind die **FOB** aus dem Wald an („ALARM – FOB wird angegriffen“ mit
+Himmelsrichtung). Verteidigen Sie die Basis zusammen mit der Wachmannschaft am Perimeter – zu Fuß oder aus der Luft.
+Ist der Angriff abgewehrt, gibt es Bonuspunkte.
+
 ### Auftragsarten
 
 | Auftrag | Beschreibung |

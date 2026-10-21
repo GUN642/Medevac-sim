@@ -18,11 +18,11 @@ export class Combat {
   clear() { this.bullets.length = 0; this.visual.length = 0; this.grenades = []; }
 
   // visual=true: Geschoss eines anderen Spielers (nur Darstellung, keine Trefferprüfung)
-  fire(p, dir, inherit, tracer, visual = false, speed = GUN.muzzleVel) {
+  fire(p, dir, inherit, tracer, visual = false, speed = GUN.muzzleVel, ai = false) {
     this.bullets.push({
       p: p.clone(),
       v: dir.clone().multiplyScalar(speed).add(inherit),
-      life: 0, tracer, visual,
+      life: 0, tracer, visual, ai,
     });
   }
 
@@ -73,7 +73,8 @@ export class Combat {
         const t = clamp((cx * sx + cy * sy + cz * sz) / (sl2 || 1), 0, 1);
         const dx = cx - sx * t, dy = cy - sy * t, dz = cz - sz * t;
         const d2 = dx * dx + dy * dy + dz * dz;
-        if (d2 < 0.85 * 0.85 && !(e.cover && rand() < e.cover)) {
+        // KI-Bordschützen treffen Feinde in Deckung deutlich seltener als Spieler
+        if (d2 < 0.85 * 0.85 && !(rand() < (e.cover || 0) + (b.ai ? 0.3 : 0))) {
           g.units.killEnemy(e);
           fx.puff(e.x, e.y + 1, e.z, 0.35, 0.12, 0.1, 2, 0.8, 1, 0.8);
           dead = true;
@@ -213,9 +214,9 @@ export class Gunner {
       }
       if (best !== this.target && best) {
         this.burst = 0;
-        this.pause = Math.max(this.pause, 0.6 + rand() * 0.8); // Reaktionszeit
+        this.pause = Math.max(this.pause, 1.2 + rand() * 1.5); // Reaktionszeit
         const dd = Math.hypot(best.x - h.pos.x, best.z - h.pos.z);
-        this.err = new THREE.Vector3(rand() - 0.5, (rand() - 0.5) * 0.4, rand() - 0.5).normalize().multiplyScalar(5 + dd * 0.04);
+        this.err = new THREE.Vector3(rand() - 0.5, (rand() - 0.5) * 0.4, rand() - 0.5).normalize().multiplyScalar(9 + dd * 0.08);
       }
       this.target = best;
     }
@@ -226,7 +227,7 @@ export class Gunner {
       const tt = d0 / GUN.muzzleVel;
       _v.set(t.x - h.vel.x * tt, t.y + 0.9 + 0.5 * G * tt * tt, t.z - h.vel.z * tt);
       _v.y -= h.vel.y * tt;
-      if (this.err) { _v.add(this.err); this.err.multiplyScalar(Math.exp(-dt * 0.9)); }
+      if (this.err) { _v.add(this.err); this.err.multiplyScalar(Math.exp(-dt * 0.35)); }
       this.anglesTo(_v, a);
       if (this.inArc(a)) {
         tyaw = a.yaw; tpitch = a.pitch;
@@ -239,9 +240,9 @@ export class Gunner {
     if (t && aligned) {
       if (this.burst <= 0) {
         this.pause -= dt;
-        if (this.pause <= 0) { this.burst = 8 + Math.floor(rand() * 10); this.pause = 0.35 + rand() * 0.6; }
+        if (this.pause <= 0) { this.burst = 6 + Math.floor(rand() * 8); this.pause = 0.8 + rand() * 1.2; }
       }
-      for (let n = 0; this.burst > 0 && this.cool <= 0 && n < 4; n++) if (this.tryFire(game, 0.014)) this.burst--; else break;
+      for (let n = 0; this.burst > 0 && this.cool <= 0 && n < 4; n++) if (this.tryFire(game, 0.03)) this.burst--; else break;
     }
   }
 
@@ -261,7 +262,7 @@ export class Gunner {
     dir.x += (rand() - 0.5) * spread * 2; dir.y += (rand() - 0.5) * spread * 2; dir.z += (rand() - 0.5) * spread * 2;
     dir.normalize();
     const tracer = this.shots % 2 === 0;
-    game.combat.fire(muzzle, dir, this.heli.vel, tracer);
+    game.combat.fire(muzzle, dir, this.heli.vel, tracer, false, undefined, this.mode === 'ai');
     if (tracer && game.net) game.net.gunFire(this.heli.index, this.side, muzzle, dir);
     game.effects.muzzle(muzzle.x + dir.x * 0.3, muzzle.y + dir.y * 0.3, muzzle.z + dir.z * 0.3, true);
     game.audio.shot('m60', game.camera.position.distanceTo(muzzle));

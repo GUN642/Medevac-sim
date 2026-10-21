@@ -204,11 +204,17 @@ export class Missions {
     // Feind
     if (m.hot) {
       const p = m[m.hotAt];
-      const n = 5 + Math.floor(rand() * 5) + Math.min(5, Math.floor(this.count / 3)) + (g.helis.length > 1 ? 3 : 0);
+      const n = 12 + Math.floor(rand() * 8) + Math.min(8, Math.floor(this.count / 2)) + (g.helis.length > 1 ? 5 : 0);
       const en = U.spawnEnemies(p.x, p.z, n, { missionId: m.id, heavy: rand() < 0.3 + this.count * 0.02 });
       let sx = 0, sz = 0;
       for (const e of en) { sx += e.x; sz += e.z; }
       m.enemyDir = dirName(bearing(p.x, p.z, sx / en.length, sz / en.length));
+    }
+    // Auch an „kalten“ LZs lauern ein paar Späher weiter draußen
+    for (const end of ['from', 'to']) {
+      const p = m[end];
+      if (p.kind !== 'site' || m.hotAt === end) continue;
+      U.spawnEnemies(p.x, p.z, 2 + Math.floor(rand() * 3), { missionId: m.id, rMin: 260, rMax: 420 });
     }
     // Wrack
     if (m.type === 'csar') {
