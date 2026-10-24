@@ -271,3 +271,17 @@ body.fp-view #crosshair { width: 6px; height: 6px; border: none; }
 body.fp-view #crosshair::before, body.fp-view #crosshair::after { display: none; }
 #confirm { z-index: 40; background: rgba(8, 10, 5, 0.92); }
 #confirm-text { font-size: 20px; font-weight: bold; color: var(--sand); }
+
+/* Hauptmenü auf niedrigen Bildschirmen (Handy quer): kompakt, zweispaltig, notfalls scrollbar */
+#menu { justify-content: flex-start; overflow-y: auto; }
+#menu > .logo { margin-top: auto; }
+#menu > #menu-stats { margin-bottom: auto; }
+@media (max-height: 640px) {
+  #menu { gap: 6px; padding: 10px 16px; }
+  #menu .logo { font-size: clamp(30px, 12vh, 72px); }
+  #menu .sub { font-size: 11px; margin-bottom: 4px; }
+  #menu .menu-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(640px, 92vw); }
+  #menu .menu-buttons button, #menu .menu-buttons .btn { font-size: 14px; padding: 9px 10px; letter-spacing: 1px; }
+  #menu-stats { font-size: 12px; margin-top: 2px; }
+  #version { bottom: 4px; right: 8px; font-size: 10px; }
+}
