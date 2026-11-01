@@ -139,6 +139,14 @@ export class Net {
     this.send({ t: 'f', i, s: side === 'left' ? 0 : 1, o: [r2(o.x), r2(o.y), r2(o.z)], d: [q(d.x), q(d.y), q(d.z)] });
   }
 
+  // Rakete (Apache) – andere sehen sie fliegen und einschlagen
+  rocketFire(o, v) {
+    this.send({ t: 'rk', o: [r2(o.x), r2(o.y), r2(o.z)], v: [r2(v.x), r2(v.y), r2(v.z)] });
+  }
+  renderRocket(m) {
+    this.game.combat.rocket(this._a.set(m.o[0], m.o[1], m.o[2]), this._b.set(m.v[0], m.v[1], m.v[2]), true);
+  }
+
   // Schuss / Granate eines Spielers zu Fuß
   footFire(o, d, wid, tracer) {
     const q = (v) => Math.round(v * 1e4) / 1e4;
@@ -211,7 +219,7 @@ export class Net {
     const P = [];
     if (g.seat === 'foot' && g.soldier.active) P.push([0, g.soldier.getState()]);
     for (const [pid, a] of g.avatars) if (a.active && a.isFoot && !g.seatOf(pid) && a.tgt) P.push([pid, a.tgt]);
-    const msg = { t: 's', T: Math.round(g.time * 10) / 10, H, E: this.ev, P, A: g.fobAttack ? 1 : 0 };
+    const msg = { t: 's', T: Math.round(g.time * 10) / 10, H, E: this.ev, P, A: g.fobAttack ? 1 : 0, X: g.air.snapshot() };
     if (this.snapN % 2 === 0) msg.U = g.units.snapshot();
     this.ev = [];
     this.send(msg);
@@ -264,6 +272,10 @@ export class Net {
         this.renderFire(m);
         for (const id of this.players.keys()) if (id !== 0 && id !== p) this.sendTo(id, m);
         break;
+      case 'rk':
+        this.renderRocket(m);
+        for (const id of this.players.keys()) if (id !== 0 && id !== p) this.sendTo(id, m);
+        break;
       case 'kill': {
         const e = g.units.enemies.find((x) => x.id === m.id);
         if (e && e.alive) g.units.killEnemy(e);
@@ -285,6 +297,7 @@ export class Net {
         for (const id of this.players.keys()) if (id !== 0 && id !== p) this.sendTo(id, m);
         break;
       case 'pickup': g.handlePickup(p); break;
+      case 'cas': g.air.request(m.k, { x: m.x, z: m.z }, p); break;
       case 'accept': if (g.missions.current && g.missions.current.id === m.id) g.missions.accept(); break;
       case 'respawn': g.respawnHeli(m.i); break;
     }
@@ -313,6 +326,8 @@ export class Net {
       case 's': this.applySnapshot(m); break;
       case 'm': g.missions.applyNet(m.d); break;
       case 'f': this.renderFire(m); break;
+      case 'rk': this.renderRocket(m); break;
+      case 'asx': g.air.playFx(m); break;
       case 'ff': this.renderFoot(m); break;
       case 'pdmg': g.damageSoldier(g.myId, m.a); break;
       case 'pickupAck': g.myPickup = { x: m.x, z: m.z, name: m.name }; break;
@@ -344,6 +359,7 @@ export class Net {
     });
     if (m.U) g.units.applySnapshot(m.U);
     g.fobAttack = !!m.A;
+    if (m.X) g.air.applyNet(m.X);
     // Mitspieler zu Fuß
     const seen = new Set();
     for (const [pid, st] of m.P || []) {
@@ -370,9 +386,10 @@ export class Net {
     if (!h) return;
     this._a.set(m.o[0], m.o[1], m.o[2]);
     this._b.set(m.d[0], m.d[1], m.d[2]);
-    g.combat.fire(this._a, this._b, h.vel, true, true);
+    const gun = h.spec.gun;
+    g.combat.fire(this._a, this._b, h.vel, true, true, gun.muzzleVel, false, !!gun.he);
     g.effects.muzzle(this._a.x + this._b.x * 0.3, this._a.y + this._b.y * 0.3, this._a.z + this._b.z * 0.3, true);
-    g.audio.shot('m60', g.camera.position.distanceTo(this._a));
+    g.audio.shot(gun.he ? 'dshk' : 'm60', g.camera.position.distanceTo(this._a));
   }
 }
 

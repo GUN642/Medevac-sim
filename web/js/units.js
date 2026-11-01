@@ -1,6 +1,7 @@
 // Bodeneinheiten: wartende Passagiere, Verteidiger, Krankenträger, Vietcong/NVA
 import * as THREE from './lib/three.module.min.js';
-import { Figure, buildLitter, vcMat } from './models.js';
+import { Figure, buildLitter, vcMat, merge } from './models.js';
+import { vehicleParts } from './afgModels.js';
 import { HALF, HELI } from './config.js';
 import { rand, clamp, dist2, bearing, dirName } from './util.js';
 import { T, figFor } from './theme.js';
@@ -10,6 +11,7 @@ const _b = new THREE.Vector3();
 const litterGeo = buildLitter();
 const mgGeo = new THREE.BoxGeometry(0.15, 0.15, 1.6);
 const mgMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+const vehGeo = {};
 
 let uid = 1;
 
@@ -32,6 +34,25 @@ export class Units {
   // vis: 'L' Trage mit Trägern, 'F:typ' Soldat, 'E:typ' Feind, 'H:typ' Feind mit schwerem MG
   makeVisual(vis) {
     const u = { vis, figs: [] };
+    if (vis[0] === 'V') {
+      // Fahrzeug mit Fahrer und MG-Schütze (eigenes Material zum Abdunkeln nach Zerstörung)
+      const kind = vis.slice(2);
+      const g = new THREE.Group();
+      const mat = vcMat.clone();
+      const body = new THREE.Mesh(vehGeo[kind] || (vehGeo[kind] = merge(vehicleParts(kind))), mat);
+      body.castShadow = true;
+      g.add(body);
+      const gunner = new Figure(T.enemy(true));
+      if (kind === 'truck') { gunner.group.position.set(0, 2.15, -1.7); gunner.sit(0, 0.86); }
+      else { gunner.group.position.set(0, 0.92, 1.5); }
+      g.add(gunner.group);
+      u.figs = [];
+      u.crew = [gunner];
+      u.mat = mat;
+      u.obj = g;
+      this.scene.add(g);
+      return u;
+    }
     if (vis === 'L') {
       const g = new THREE.Group();
       const litter = new THREE.Mesh(litterGeo, vcMat);
@@ -75,6 +96,7 @@ export class Units {
 
   removeUnit(u) {
     if (u.obj) this.scene.remove(u.obj);
+    if (u.fire) { this.game.effects.removeEmitter(u.fire); u.fire = null; }
   }
 
   place(u, x, z) {
@@ -142,6 +164,53 @@ export class Units {
       list.push(e);
     }
     return list;
+  }
+
+  // Feindfahrzeuge (Pickup mit DShK bzw. Lkw), fahren an und schießen mit schwerem MG
+  spawnVehicles(cx, cz, n, opts = {}) {
+    const w = this.game.world;
+    const kind = T.id === 'afghanistan' ? 'technical' : 'truck';
+    const list = [];
+    let tries = 0;
+    while (list.length < n && tries++ < n * 30) {
+      const a = rand() * Math.PI * 2, r = (opts.rMin ?? 380) + rand() * ((opts.rMax ?? 650) - (opts.rMin ?? 380));
+      const x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+      if (Math.abs(x) > HALF - 150 || Math.abs(z) > HALF - 150 || w.height(x, z) < 1) continue;
+      if (w.normal(x, z).y < 0.93 || w.inForest(x, z) > 0.3) continue;
+      if (!opts.nearFob && dist2(x, z, w.fob.x, w.fob.z) < 600) continue;
+      const e = this.makeVisual('V:' + kind);
+      Object.assign(e, {
+        id: uid++, kind: 'enemy', alive: true, heavy: true, vehicle: true, hp: 10,
+        fireT: 2 + rand() * 3, burst: 0, shotT: 0, reveal: 0, suppress: 0, deadT: 0,
+        x: 0, z: 0, y: 0, missionId: opts.missionId, range: 1200, speed: 9, cover: 0,
+      });
+      this.place(e, x, z);
+      // anfahren bis auf etwa 150–220 m an den Einsatzort
+      const to = opts.to || { x: cx, z: cz };
+      const aa = Math.atan2(z - to.z, x - to.x) + rand.range(-0.4, 0.4), rr = opts.stop ?? 150 + rand() * 70;
+      e.dest = opts.roam ? null : { x: to.x + Math.cos(aa) * rr, z: to.z + Math.sin(aa) * rr };
+      e.roam = !!opts.roam;
+      e.obj.rotation.y = Math.atan2(-(cx - x), -(cz - z));
+      this.enemies.push(e);
+      list.push(e);
+    }
+    return list;
+  }
+
+  // Herumfahrende Fahrzeuge zwischen Dörfern und Landezonen
+  spawnVehiclePatrols(n) {
+    const w = this.game.world;
+    for (let i = 0; i < n; i++) {
+      const v = rand.pick(w.villages.length ? w.villages : w.sites);
+      this.spawnVehicles(v.x, v.z, 1, { rMin: 60, rMax: 200, roam: true });
+    }
+  }
+
+  damageEnemy(e, n) {
+    if (!e.alive) return;
+    e.hp = (e.hp ?? 1) - n;
+    e.reveal = Math.max(e.reveal || 0, 5);
+    if (e.hp <= 0) this.killEnemy(e);
   }
 
   // Verstreute Feindpatrouillen im Dschungel (Gefahr beim Tiefflug)
@@ -215,6 +284,7 @@ export class Units {
       e.fireT = 6 + rand() * 6;
       this.setPose(e, 0);
     }
+    if (this.waves > 1) members.push(...this.spawnVehicles(cx, cz, 1 + Math.floor(rand() * 2), { rMin: 0, rMax: 80, nearFob: true, missionId: 'fob', stop: 280, to: f }));
     this.attack = { members, dir: dirName(bearing(f.x, f.z, cx, cz)) };
     g.radio(`TOC: ALARM! Feindangriff auf die ${f.name} aus Richtung ${this.attack.dir}! Etwa ${n} Mann – alle verfügbaren Kräfte zur Verteidigung!`, 'TOC', true);
   }
@@ -248,6 +318,7 @@ export class Units {
     if (!e.alive) return;
     e.alive = false;
     e.deadT = 0;
+    if (e.vehicle) this.wreckVehicle(e);
     this.game.stats.kills++;
     this.game.onEnemyKilled(e);
     if (this.game.role === 'client') this.game.net.send({ t: 'kill', id: e.id });
@@ -373,6 +444,22 @@ export class Units {
         continue;
       }
       e.moving = false;
+      if (e.vehicle) {
+        // Fahrzeug: zum Ziel fahren, unterwegs feuern; Streifenwagen suchen sich neue Ziele
+        if (!e.dest && e.roam) {
+          e.wait = (e.wait ?? 10 + rand() * 20) - dt;
+          if (e.wait <= 0) {
+            e.wait = null;
+            const c = rand.pick(w.villages.concat(w.sites).filter((v) => dist2(v.x, v.z, e.x, e.z) < 1800 && dist2(v.x, v.z, w.fob.x, w.fob.z) > 700));
+            if (c) e.dest = { x: c.x + rand.range(-80, 80), z: c.z + rand.range(-80, 80) };
+          }
+        }
+        if (e.dest) {
+          const nx = e.x + Math.sign(e.dest.x - e.x) * 4, nz = e.z + Math.sign(e.dest.z - e.z) * 4;
+          if (w.height(nx, nz) < 0.5) e.dest = null;   // nicht in den Fluss fahren
+          else if (this.moveTo(e, e.dest.x, e.dest.z, dt, 6)) e.dest = null;
+        }
+      }
       if (e.advance && e.burst <= 0) {
         e.speed = 2.6;
         if (this.moveTo(e, e.advance.x, e.advance.z, dt, 1.5)) { e.advance = null; this.setPose(e, P_KNEEL); }
@@ -432,8 +519,25 @@ export class Units {
     return best;
   }
 
+  // Fahrzeug zerstört: Explosion, ausgebranntes Wrack, Feuer
+  wreckVehicle(e) {
+    if (e.wrecked) return;
+    e.wrecked = true;
+    const g = this.game;
+    g.effects.explosion(e.x, e.y + 1.2, e.z, 1.3);
+    g.audio.boom(g.camera.position.distanceTo(_a.set(e.x, e.y, e.z)));
+    if (e.mat) e.mat.color.setRGB(0.22, 0.2, 0.18);
+    for (const f of e.crew || []) f.group.visible = false;
+    e.fire = g.effects.wreckFire(e.x, e.y, e.z);
+  }
+
   animateDead(e, dt) {
     e.deadT += dt;
+    if (e.vehicle) {
+      this.wreckVehicle(e);
+      if (e.deadT > 25 && e.fire) { this.game.effects.removeEmitter(e.fire); e.fire = null; }
+      return;
+    }
     const f = e.figs[0];
     f.group.rotation.x = -Math.min(Math.PI / 2, e.deadT * 5);
     f.group.position.y = e.y + 0.15 * Math.min(1, e.deadT * 5);
@@ -441,7 +545,7 @@ export class Units {
 
   enemyShot(e, near) {
     const g = this.game;
-    _a.set(e.x, e.y + (e.heavy ? 1.1 : 1.4), e.z);
+    _a.set(e.x, e.y + (e.vehicle ? (e.vis === 'V:truck' ? 3.2 : 1.9) : e.heavy ? 1.1 : 1.4), e.z);
     const h = e.tgt && e.tgt.pos ? e.tgt : null;
     if (e.tgt && e.tgt.s) {
       // Spieler zu Fuß
@@ -513,7 +617,9 @@ export class Units {
         u = this.makeVisual(vis);
         u.id = id;
         u.speed = 3;
-        u.isEnemy = vis[0] === 'E' || vis[0] === 'H';
+        u.isEnemy = vis[0] === 'E' || vis[0] === 'H' || vis[0] === 'V';
+        u.vehicle = vis[0] === 'V';
+        u.hp = 10;
         u.heavy = vis[0] === 'H';
         u.alive = true;
         u.deadT = 0;

@@ -45,6 +45,21 @@ Beim Schweben über Sand wirbelt der Rotor eine Staubwolke auf (**Brownout**, di
 schütteln den Hubschrauber. Zu Fuß stehen dort M4A1, M249, M320, Mossberg 590 und M9 zur Wahl. Im Mehrspieler gibt
 der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wechseln beim Beitreten automatisch die Karte.
 
+### Apache, Luftunterstützung, Fahrzeuge
+
+- **AH-64E Apache** (Afghanistan): Tandemcockpit, als Pilot (70-mm-Raketen: G, Controller R, Touch RAKETE) oder als
+  Waffensystemoffizier an der 30-mm-Kanone mit Sprenggeschossen und starkem Zoom. Ohne Kabine – stattdessen
+  Aufträge zur **Luftnahunterstützung**: eingeschlossene Truppen freikämpfen. Ohne menschlichen Piloten kreist der
+  KI-Pilot über dem Gefechtsfeld.
+- **Luftunterstützung anfordern** (Taste L oder im CREW-Menü): **AH-64E** kreist 75 s über Ihnen, **F-16C** wirft
+  eine GBU-12, **A-10C** fliegt zwei Tiefangriffe mit der 30-mm-Kanone (in Vietnam: **F-4 Phantom** mit Napalm).
+  Gewirkt wird auf Feindansammlungen im Umkreis von ca. 700 m – Vorsicht, wer zu nah dran ist, wird mitgetroffen.
+- **Feindfahrzeuge**: Pickups mit schwerem MG (Vietnam: Lkw) fahren zwischen Dörfern umher, rücken auf Landezonen
+  und die FOB vor und halten aus großer Entfernung auf Hubschrauber. Zerstörbar mit Raketen, 30 mm, Granaten oder
+  vielen Treffern.
+- **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller →, Touch 3x).
+- Alle modernen Hubschrauber erreichen mindestens **120 Knoten**, der Apache etwa 145.
+
 ### Auftragsarten
 
 | Auftrag | Beschreibung |

@@ -286,3 +286,13 @@ body.fp-view #crosshair::before, body.fp-view #crosshair::after { display: none;
   #menu-stats { font-size: 12px; margin-top: 2px; }
   #version { bottom: 4px; right: 8px; font-size: 10px; }
 }
+
+/* Apache: Raketen-Zielmarke und Tasten */
+#rkt-reticle { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border: 2px solid rgba(120, 255, 140, 0.9); display: none; }
+#rkt-reticle div { position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: #8cff96; }
+body:not(.rocket-mode) .rocket-only { display: none !important; }
+
+/* EOTech mit 3x-Vergrößerer: Tubus-Rand beim Zielen */
+#magvignette { position: fixed; inset: 0; pointer-events: none; display: none; background: radial-gradient(circle at 50% 50%, transparent 0, transparent 30vmin, rgba(0, 0, 0, 0.85) 34vmin, #000 42vmin); }
+body.fp-mag #magvignette { display: block; }
+body:not(.optic) .optic-only { display: none !important; }

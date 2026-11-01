@@ -18,12 +18,20 @@ export class Combat {
   clear() { this.bullets.length = 0; this.visual.length = 0; this.grenades = []; }
 
   // visual=true: Geschoss eines anderen Spielers (nur Darstellung, keine Trefferprüfung)
-  fire(p, dir, inherit, tracer, visual = false, speed = GUN.muzzleVel, ai = false) {
+  fire(p, dir, inherit, tracer, visual = false, speed = GUN.muzzleVel, ai = false, he = false) {
     this.bullets.push({
       p: p.clone(),
       v: dir.clone().multiplyScalar(speed).add(inherit),
-      life: 0, tracer, visual, ai,
+      life: 0, tracer, visual, ai, he,
     });
+  }
+
+  // 70-mm-Rakete (Hydra): fliegt fast gerade mit Rauchspur, große Sprengwirkung
+  rocket(p, v, visual = false) {
+    this.rockets = this.rockets || [];
+    this.rockets.push({ p: p.clone(), v: v.clone(), life: 0, visual });
+    const g = this.game;
+    g.audio.shot('thump', g.camera.position.distanceTo(p));
   }
 
   // 40-mm-Granate (M79): fliegt im Bogen und explodiert beim Aufschlag
@@ -32,16 +40,18 @@ export class Combat {
     this.grenades.push({ p: p.clone(), v: v.clone(), life: 0, visual });
   }
 
-  explode(x, y, z, visual) {
+  // scale: 1 = 40-mm-Granate, 0.6 = 30-mm-Geschoss, 1.6 = Rakete, 4 = Bombe
+  explode(x, y, z, visual, scale = 1) {
     const g = this.game;
-    g.effects.explosion(x, y + 0.5, z, 0.45);
-    g.audio.boom(g.camera.position.distanceTo(_v.set(x, y, z)) + 60);
+    g.effects.explosion(x, y + 0.5, z, 0.45 * Math.min(scale, 3));
+    if (scale >= 0.9 || rand() < 0.3) g.audio.boom(g.camera.position.distanceTo(_v.set(x, y, z)) + 60 / scale);
     if (visual) return;
     for (const e of g.units.enemies) {
       if (!e.alive) continue;
       const d = Math.hypot(e.x - x, e.y - y, e.z - z);
-      if (d < 4.5 || (d < 8 && rand() < 0.5)) g.units.killEnemy(e);
-      else if (d < 22) e.suppress = Math.max(e.suppress || 0, 4);
+      if (e.vehicle) { if (d < 3 * scale) g.units.damageEnemy(e, scale >= 1.5 ? 10 : scale * 3); continue; }
+      if (d < 4.5 * scale || (d < 8 * scale && rand() < 0.5)) g.units.killEnemy(e);
+      else if (d < 22 * scale) e.suppress = Math.max(e.suppress || 0, 4);
     }
     g.onExplosion && g.onExplosion(x, y, z);
   }
@@ -74,7 +84,10 @@ export class Combat {
         const dx = cx - sx * t, dy = cy - sy * t, dz = cz - sz * t;
         const d2 = dx * dx + dy * dy + dz * dz;
         // KI-Bordschützen treffen Feinde in Deckung deutlich seltener als Spieler
-        if (d2 < 0.85 * 0.85 && !(rand() < (e.cover || 0) + (b.ai ? 0.3 : 0))) {
+        const hr = e.vehicle ? 2.2 : 0.85;
+        if (d2 < hr * hr && (e.vehicle || !(rand() < (e.cover || 0) + (b.ai ? 0.3 : 0)))) {
+          if (b.he) { this.explode(b.p.x, b.p.y, b.p.z, false, 0.6); dead = true; break; }
+          if (e.vehicle) { g.units.damageEnemy(e, 1); fx.sparks(b.p.x, b.p.y, b.p.z); dead = true; break; }
           g.units.killEnemy(e);
           fx.puff(e.x, e.y + 1, e.z, 0.35, 0.12, 0.1, 2, 0.8, 1, 0.8);
           dead = true;
@@ -89,6 +102,7 @@ export class Combat {
           if (world.height(b.p.x, b.p.z) < 0) fx.dust(b.p.x, 0.2, b.p.z, 0, 0, 0.85, 0.88, 0.85, 0.6);
           else fx.puff(b.p.x, gh + 0.3, b.p.z, 0.45, 0.38, 0.27, 2, 0.9, 1.5, 0.9);
           for (const e of enemies) if (e.alive && Math.abs(e.x - b.p.x) < 9 && Math.abs(e.z - b.p.z) < 9) e.suppress = Math.max(e.suppress, 2.5);
+          if (b.he) this.explode(b.p.x, gh, b.p.z, b.visual, 0.6);
           dead = true;
         }
       }
@@ -115,6 +129,25 @@ export class Combat {
       fx.glow.spawn(n.p.x, n.p.y, n.p.z, 0, 0, 0, 0.05, 0.25, 0.2, 0.9, 0.8, 0.5, 0.5, 0, 0);
     }
 
+    const rk = this.rockets || [];
+    for (let i = rk.length - 1; i >= 0; i--) {
+      const n = rk[i];
+      n.v.y -= G * 0.25 * dt;
+      const ox = n.p.x, oy = n.p.y, oz = n.p.z;
+      n.p.addScaledVector(n.v, dt);
+      n.life += dt;
+      let boom = n.life > 6;
+      const gh = world.groundHeight(n.p.x, n.p.z);
+      if (n.p.y <= gh + 0.2) { n.p.y = gh; boom = true; }
+      if (!boom && !n.visual) {
+        for (const e of enemies) if (e.alive && Math.hypot(e.x - n.p.x, e.y + 1 - n.p.y, e.z - n.p.z) < (e.vehicle ? 3 : 1.5)) { boom = true; break; }
+      }
+      if (boom) { rk.splice(i, 1); this.explode(n.p.x, n.p.y, n.p.z, n.visual, 1.6); continue; }
+      // Rauchspur und Triebwerksglühen
+      fx.glow.spawn(n.p.x, n.p.y, n.p.z, 0, 0, 0, 0.06, 0.9, 0.4, 1, 0.75, 0.4, 0.9, 0, 0);
+      fx.smoke.spawn(ox, oy, oz, 0, 0.3, 0, 1.4, 0.5, 2.6, 0.75, 0.75, 0.72, 0.45, 1.5, 0.2);
+    }
+
     for (let i = this.visual.length - 1; i >= 0; i--) {
       const s = this.visual[i];
       s.t += dt;
@@ -138,6 +171,9 @@ export class Gunner {
     this.heli = heli;
     this.rig = heli.model.guns[side];
     this.baseYaw = this.rig.mount.userData.baseYaw;
+    // nicht vorhandener Platz (z. B. rechter Schütze im Apache)
+    this.disabled = !!(heli.spec.seats && !heli.spec.seats.includes(side));
+    this.arc = heli.spec.gun.arc || { yaw: 1.35, pmin: -1.2, pmax: 0.35 };
     this.yaw = 0;
     this.pitch = -0.3;
     this.reset();
@@ -168,14 +204,14 @@ export class Gunner {
     return out;
   }
 
-  inArc(a) { return Math.abs(a.yaw) < 1.35 && a.pitch > -1.2 && a.pitch < 0.35; }
+  inArc(a) { const r = this.arc; return Math.abs(a.yaw) < r.yaw && a.pitch > r.pmin && a.pitch < r.pmax; }
 
   // mode: 'player' (lokaler Spieler), 'ai' (KI auf dem Host), 'remote' (Winkel kommen übers Netz)
   update(dt, game, aimInput, fireInput, mode) {
     const h = this.heli;
     this.firing = false;
     this.mode = mode;
-    if (h.crashed) return;
+    if (h.crashed || this.disabled) return;
     this.cool = Math.max(-0.2, this.cool - dt);
     if (mode === 'remote') {
       if (this.netYaw !== undefined) {
@@ -183,8 +219,8 @@ export class Gunner {
         this.pitch += (this.netPitch - this.pitch) * Math.min(1, dt * 12);
       }
     } else if (mode === 'player') {
-      this.yaw = clamp(this.yaw - aimInput.dx, -1.35, 1.35);
-      this.pitch = clamp(this.pitch - aimInput.dy, -1.2, 0.35);
+      this.yaw = clamp(this.yaw - aimInput.dx, -this.arc.yaw, this.arc.yaw);
+      this.pitch = clamp(this.pitch - aimInput.dy, this.arc.pmin, this.arc.pmax);
       for (let n = 0; fireInput && this.cool <= 0 && n < 4; n++) this.tryFire(game, 0.0035);
     } else {
       this.ai(dt, game);
@@ -263,10 +299,10 @@ export class Gunner {
     dir.x += (rand() - 0.5) * spread * 2; dir.y += (rand() - 0.5) * spread * 2; dir.z += (rand() - 0.5) * spread * 2;
     dir.normalize();
     const tracer = this.shots % 2 === 0;
-    game.combat.fire(muzzle, dir, this.heli.vel, tracer, false, this.gun.muzzleVel, this.mode === 'ai');
+    game.combat.fire(muzzle, dir, this.heli.vel, tracer, false, this.gun.muzzleVel, this.mode === 'ai', !!this.gun.he);
     if (tracer && game.net) game.net.gunFire(this.heli.index, this.side, muzzle, dir);
     game.effects.muzzle(muzzle.x + dir.x * 0.3, muzzle.y + dir.y * 0.3, muzzle.z + dir.z * 0.3, true);
-    game.audio.shot('m60', game.camera.position.distanceTo(muzzle));
+    game.audio.shot(this.gun.he ? 'dshk' : 'm60', game.camera.position.distanceTo(muzzle));
     return true;
   }
 }

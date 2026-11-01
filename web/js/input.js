@@ -78,7 +78,7 @@ export class Input {
       if (!this.keys.has(k)) {
         const map = {
           Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'view', KeyM: 'map',
-          Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'crew',
+          Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'magnifier', KeyL: 'airsupport',
           KeyE: 'use', KeyR: 'reload', Digit4: 'num4', Digit5: 'num5', KeyG: 'pickup',
         };
         if (map[k]) { this.actions.push(map[k]); if (k === 'Tab') e.preventDefault(); }

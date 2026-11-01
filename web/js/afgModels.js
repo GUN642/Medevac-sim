@@ -246,3 +246,45 @@ export function wreckAfg(kind) {
   }
   return p;
 }
+
+// ---------------------------------------------------------------- Feindfahrzeuge
+// 'technical': Pickup mit schwerem MG (DShK) auf der Ladefläche; 'truck': Lkw (Vietnam) mit MG über dem Fahrerhaus
+export function vehicleParts(kind) {
+  const p = [];
+  const wheelAt = (x, z, r = 0.42, w = 0.3) => {
+    p.push(P(cyl(r, r, w, 14), 0x151515, [x, r, z], [0, 0, HALFPI]));
+    p.push(P(cyl(r * 0.5, r * 0.5, w + 0.02, 10), 0x777777, [x, r, z], [0, 0, HALFPI]));
+  };
+  if (kind === 'truck') {
+    const c = 0x3e4a2c, d = 0x2c3420;
+    p.push(P(box(2.3, 0.35, 6.4), 0x222222, [0, 0.9, 0.2]));
+    p.push(P(box(2.3, 1.5, 1.9), c, [0, 1.85, -2.2]));
+    p.push(P(box(2.1, 0.7, 1.1), c, [0, 1.35, -3.6]));
+    p.push(P(box(2.0, 0.55, 0.05), 0x2b3a40, [0, 2.2, -3.17]));
+    p.push(P(box(2.4, 0.6, 3.9), d, [0, 1.4, 1.2]));
+    p.push(P(new THREE.CylinderGeometry(1.2, 1.2, 3.9, 10, 1, false, 0, Math.PI), 0x5a5a3a, [0, 1.7, 1.2], [HALFPI, 0, 0], [1, 1, 0.75]));
+    for (const z of [-3.2, 0.6, 2.2]) for (const sx of [-1, 1]) wheelAt(sx * 1.05, z, 0.5, 0.34);
+    // DShK auf dem Fahrerhaus
+    p.push(P(cyl(0.04, 0.05, 0.5, 6), 0x2a2a28, [0, 2.85, -2.2]));
+    p.push(P(box(0.14, 0.16, 0.6), 0x2a2a28, [0, 3.15, -2.2]));
+    p.push(P(cyl(0.035, 0.035, 1.3, 8), 0x2a2a28, [0, 3.18, -3.0], [HALFPI, 0, 0]));
+  } else {
+    const c = [0xd8d4c4, 0xb8a988, 0x8c8c86][Math.floor(Math.random() * 3)], d = 0x2a2a28;
+    p.push(P(box(1.8, 0.3, 5.0), 0x222222, [0, 0.62, 0]));
+    p.push(P(box(1.85, 0.65, 1.7), c, [0, 1.05, -1.75]));                      // Motorhaube
+    p.push(P(box(1.85, 0.9, 1.5), c, [0, 1.55, -0.35]));                       // Kabine
+    p.push(P(box(1.7, 0.6, 0.05), 0x2b3a40, [0, 1.72, -1.12], [-0.35, 0, 0]));
+    p.push(P(box(1.9, 0.12, 2.3), c, [0, 0.85, 1.4]));                         // Ladefläche
+    for (const sx of [-1, 1]) p.push(P(box(0.08, 0.55, 2.3), c, [sx * 0.92, 1.18, 1.4]));
+    p.push(P(box(1.9, 0.55, 0.08), c, [0, 1.18, 2.52]));
+    p.push(P(box(1.9, 0.18, 0.2), 0x333333, [0, 0.7, -2.6]));                  // Stoßstange
+    for (const z of [-1.6, 1.5]) for (const sx of [-1, 1]) wheelAt(sx * 0.88, z);
+    // DShK auf Dreibein
+    p.push(P(cyl(0.05, 0.06, 0.9, 6), d, [0, 1.35, 1.2]));
+    p.push(P(box(0.14, 0.16, 0.6), d, [0, 1.85, 1.15]));
+    p.push(P(cyl(0.035, 0.035, 1.3, 8), d, [0, 1.88, 0.35], [HALFPI, 0, 0]));
+    p.push(P(cyl(0.06, 0.06, 0.25, 8), d, [0, 1.88, -0.32], [HALFPI, 0, 0]));
+    p.push(P(box(0.4, 0.3, 0.05), d, [0, 1.9, 0.9]));                          // Schutzschild
+  }
+  return p;
+}

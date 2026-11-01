@@ -52,6 +52,10 @@ export class Helicopter {
     // eigene Materialkopien (zum Abdunkeln nach einem Absturz)
     this.model.tint = [this.model.body, this.model.detail].filter(Boolean).map((m) => (m.material = m.material.clone()));
     this.model.rotorHome = this.model.mainRotor.position.clone();
+    // Luftwiderstand so, dass bei voll nach vorn gedrücktem Stick die Höchstgeschwindigkeit erreicht wird
+    const S = this.spec;
+    if (S.vmax) { const v = S.vmax * 0.5144 * 1.2; this.kDrag = Math.max(0.0001, (G * Math.tan(S.maxPitch) - 0.05 * v) / (v * v)); }
+    else this.kDrag = 0.0009 * S.drag;
     this.model.rotorCenters = this.model.spin.filter((r) => r[1] === 'y').map((r) => r[0].position.clone());
     this.model.group.traverse((o) => { if (o.isMesh && !o.material.transparent) { o.castShadow = true; o.receiveShadow = true; } });
     this.scene.add(this.model.group);
@@ -131,6 +135,7 @@ export class Helicopter {
 
   takeDamage(n, kind = 'bullet') {
     if (this.crashed) return;
+    if (kind === 'bullet') n *= this.spec.armor || 1;   // Kampfhubschrauber sind gepanzert
     this.hp -= n;
     this.damageTaken += n;
     this.lastHit = performance.now() / 1000;
@@ -215,7 +220,7 @@ export class Helicopter {
     // Kräfte
     const a = this._v.copy(this.up).multiplyScalar(this.thrust / mass);
     a.y -= G;
-    const df = -(0.0009 * S.drag * Math.abs(vf) * vf + 0.05 * vf);
+    const df = -(this.kDrag * Math.abs(vf) * vf + 0.05 * vf);
     const dr = -(0.006 * Math.abs(vr) * vr + 0.3 * vr);
     a.x += this.fwd.x * df + this.right.x * dr;
     a.z += this.fwd.z * df + this.right.z * dr;

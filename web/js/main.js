@@ -2,6 +2,7 @@
 import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
 import { AfghanWorld } from './worldAfg.js';
+import { AirSupport, SUPPORT } from './airsupport.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
 import { Effects } from './effects.js';
 import { Helicopter } from './helicopter.js';
@@ -103,6 +104,7 @@ class Game {
     await this.step('Effekte …', 60);
     this.effects = new Effects(this.scene, q);
     this.combat = new Combat(this);
+    this.air = new AirSupport(this);
     this.units = new Units(this);
     this.missions = new Missions(this);
     this.hud = new HUD(this);
@@ -119,6 +121,7 @@ class Game {
     this.setLocalSeat(0, 'pilot');
     this.units.spawnPatrols(26);
     this.units.spawnFobDefenders();
+    this.units.spawnVehiclePatrols(T.id === 'afghanistan' ? 5 : 3);
 
     window.addEventListener('resize', () => this.onResize());
     document.addEventListener('visibilitychange', () => {
@@ -179,6 +182,7 @@ class Game {
     h.reset(p.x, this.world.height(p.x, p.z) + 0.12, p.z, i === 0 ? Math.PI * 0.1 : 0.3);
     h.gunners.left.reset();
     h.gunners.right.reset();
+    h.rockets = h.spec.rockets || 0;
     h.apHoldY = h.pos.y;
     h.wasCrashed = false;
     h.aiPickup = null;
@@ -260,7 +264,8 @@ class Game {
     if (seat === 'left' || seat === 'right') {
       const pilot = this.crews[i] && this.crews[i].pilot;
       const who = pilot != null && pilot !== this.myId ? this.playerName(pilot) + ' fliegt' : 'Der KI-Pilot fliegt den Auftrag';
-      this.radioOnce('ap' + seat, 3, `Sie bedienen das ${seat === 'left' ? 'linke' : 'rechte'} ${this.helis[i].spec.gun.name}. ${who}.`, 'Crew', false, true);
+      const gs = this.helis[i].spec.gun;
+      this.radioOnce('ap' + seat, 3, gs.turret ? `Sie sind Waffensystemoffizier: ${gs.name}-Kanone, Zoom mit Rechtsklick / ZL. ${who}.` : `Sie bedienen das ${seat === 'left' ? 'linke' : 'rechte'} ${gs.name}. ${who}.`, 'Crew', false, true);
     } else if (seat === 'pax') {
       const pilot = this.crews[i] && this.crews[i].pilot;
       this.radioOnce('pax', 3, `Sie sitzen in der Kabine von ${this.helis[i].spec.short} #${i + 1}. ${pilot != null && pilot !== this.myId ? this.playerName(pilot) + ' fliegt.' : 'Der KI-Pilot fliegt den Auftrag.'} Aussteigen: E / Ⓐ – nur am Boden.`, 'Crew', false, true);
@@ -312,6 +317,8 @@ class Game {
     if (!c) return 'Diesen Hubschrauber gibt es nicht.';
     const cur = this.seatOf(pid);
     const h = this.helis[i];
+    if (h.spec.seats && SEATS.includes(seat) && !h.spec.seats.includes(seat)) return `Diesen Platz gibt es im ${h.spec.short} nicht.`;
+    if (seat === 'pax' && h.spec.capacity === 0) return `Der ${h.spec.short} hat keine Kabine – nur Pilot und Waffensystemoffizier.`;
     if (seat === 'foot') {
       if (!cur) return null;
       const a = this.helis[cur.i];
@@ -341,6 +348,8 @@ class Game {
   assignSeat(pid) {
     const order = [[1, 'pilot'], [0, 'left'], [0, 'right'], [1, 'left'], [1, 'right'], [0, 'pilot']];
     for (const [i, s] of order) {
+      const hs = this.helis[i] && this.helis[i].spec.seats;
+      if (hs && !hs.includes(s)) continue;
       if (this.crews[i] && this.crews[i][s] == null) { this.crews[i][s] = pid; return; }
     }
     if (this.heliLoad(this.helis[0]) < this.helis[0].spec.capacity) this.crews[0].pax.push(pid);
@@ -372,6 +381,8 @@ class Game {
     for (let n = 0; n < 3; n++) {
       k = (k + dir + 3) % 3;
       const s = SEATS[k];
+      const hs = this.helis[this.myHeli].spec.seats;
+      if (hs && !hs.includes(s)) continue;
       if (c[s] == null || c[s] === this.myId) { if (s !== this.seat) this.wantSeat(this.myHeli, s); return; }
     }
   }
@@ -388,6 +399,32 @@ class Game {
       if (!best) { this.radioOnce('nouse', 2, 'Kein Hubschrauber in der Nähe.', 'Crew', false, true); return; }
       this.wantSeat(best.index, 'pax');
     } else if (this.seat !== 'pilot') this.wantSeat(this.myHeli, 'foot');
+  }
+
+  // Apache: 70-mm-Rakete in Flugrichtung abfeuern (abwechselnd linker und rechter Werfer)
+  fireRocket() {
+    const h = this.heli;
+    if (h.crashed || !h.model.rocketPods) return;
+    if (!(h.rockets > 0)) { this.radioOnce('norkt', 3, 'Raketen leer – auf Pad POL nachladen.', 'Crew', false, true); return; }
+    if (this.time - (h.lastRocket || -9) < 0.25) return;
+    h.lastRocket = this.time;
+    h.rockets--;
+    h.rocketSide = 1 - (h.rocketSide || 0);
+    const p = h.model.rocketPods[h.rocketSide].clone().applyQuaternion(h.quat).add(h.pos);
+    const v = this.rocketDir(h).multiplyScalar(310).add(h.vel);
+    this.combat.rocket(p, v, false);
+    this.effects.muzzle(p.x, p.y, p.z, true);
+    if (this.net) this.net.rocketFire(p, v);
+  }
+  rocketDir(h) { return new THREE.Vector3(0, -0.06, -1).normalize().applyQuaternion(h.quat); }
+
+  // Luftunterstützung für die eigene Position anfordern (zu Fuß oder im Hubschrauber)
+  requestSupport(kind) {
+    const p = this.playerPos(this.myId);
+    if (!p) return;
+    this.hud.toggleCrew(false);
+    if (this.role === 'client') { this.net.send({ t: 'cas', k: kind, x: Math.round(p.x), z: Math.round(p.z) }); this.radio(`Anforderung ${SUPPORT[kind].name} gesendet …`, this.callsign, false, true); return; }
+    this.air.request(kind, { x: p.x, z: p.z }, this.myId);
   }
 
   // Abholung per Funk anfordern (zu Fuß)
@@ -421,7 +458,17 @@ class Game {
     const humans = (c.left != null ? 1 : 0) + (c.right != null ? 1 : 0) + c.pax.length;
     if (h.aiPickup && this.time - h.aiPickup.t > 240) h.aiPickup = null;
     let goal = null;
-    if (h.aiPickup) goal = h.aiPickup;
+    if (h.spec.capacity === 0 && !h.aiPickup) {
+      // Kampfhubschrauber: über dem Gefechtsfeld kreisen, damit der Waffensystemoffizier wirken kann
+      const m = M.current;
+      if (m && M.phase === 'active' && m.type === 'cas' && h.fuel > 20) {
+        const cx = m.from.x, cz = m.from.z;
+        const a = Math.atan2(h.pos.z - cz, h.pos.x - cx) + 0.45;
+        const far = dist2(h.pos.x, h.pos.z, cx, cz) > 700;
+        return this.flyTo(h, { x: cx + Math.cos(a) * 320, z: cz + Math.sin(a) * 320, hover: 85, fast: far, face: far ? null : { x: cx, z: cz } }, dt);
+      }
+      if (humans > 0) goal = h.fuel < 22 || (h.refueling && h.fuel < 95) ? w.fob.pads.pol : null;
+    } else if (h.aiPickup) goal = h.aiPickup;
     else if (humans > 0 || M.paxOf(h) > 0) {
       if (h.fuel < 22 || (h.refueling && h.fuel < 95)) goal = w.fob.pads.pol;
       else goal = M.waypoint(h);
@@ -433,6 +480,24 @@ class Game {
   flyTo(h, goal, dt) {
     const w = this.world;
     const idle = { pitch: 0, roll: 0, yaw: 0, collective: -0.3 };
+    if (goal.hover) {
+      // Kreisflug in Höhe: Geschwindigkeitsvektor auf das Ziel regeln, Nase zum Gefechtsfeld
+      const dx = goal.x - h.pos.x, dz = goal.z - h.pos.z, d = Math.hypot(dx, dz) || 1;
+      const sp = goal.fast ? 50 : 26;
+      const vf = h.vel.dot(h.fwd), vr = h.vel.dot(h.right);
+      const ux = dx / d, uz = dz / d;
+      const df = (ux * h.fwd.x + uz * h.fwd.z) * sp, dr = (ux * h.right.x + uz * h.right.z) * sp;
+      const fp = goal.face || goal;
+      const e = Math.atan2(-(fp.x - h.pos.x), -(fp.z - h.pos.z)) - h.yaw;
+      const err = Math.atan2(Math.sin(e), Math.cos(e));
+      let gmax = w.groundHeight(h.pos.x, h.pos.z);
+      for (const t of [0.3, 0.7, 1]) gmax = Math.max(gmax, w.groundHeight(h.pos.x + h.vel.x * 6 * t, h.pos.z + h.vel.z * 6 * t));
+      const ty = gmax + goal.hover;
+      return {
+        pitch: clamp((df - vf) * 0.07, -1, 1), roll: clamp((dr - vr) * 0.07, -1, 1), yaw: clamp(-err * 2, -1, 1),
+        collective: clamp((ty - h.pos.y) * 0.08 - h.vel.y * 0.12, -1, 1),
+      };
+    }
     h.aiGroundT = h.contact ? (h.aiGroundT || 0) + dt : 0;
     const dx = goal.x - h.pos.x, dz = goal.z - h.pos.z, d = Math.hypot(dx, dz);
     const gy = w.groundHeight(goal.x, goal.z);
@@ -454,9 +519,11 @@ class Game {
     let targetY = Math.min(hmax + 60, glide);
     if (d > 60) targetY = Math.max(targetY, hnear + 26);
     // Geschwindigkeit: ab 300 m gleichmäßig abbremsen (ca. 1,5 m/s²)
-    const targetSpeed = d > 300 ? 50 : Math.min(45, Math.sqrt(2 * 1.5 * Math.max(0, d - 8)));
+    const cruise = h.spec.vmax ? h.spec.vmax * 0.5144 * 0.9 : 50;
+    const brakeD = Math.max(300, cruise * cruise / 3 * 0.75);
+    const targetSpeed = d > brakeD ? cruise : Math.min(cruise * 0.9, Math.sqrt(2 * 1.5 * Math.max(0, d - 8)));
     let pitch, roll = 0, yaw = clamp(-err * 2.2, -1, 1);
-    if (d > 300) {
+    if (d > brakeD) {
       pitch = Math.abs(err) > 0.5 ? clamp(-vf * 0.05, -1, 1) : clamp((targetSpeed - vf) * 0.07, -1, 1);
     } else {
       // Anflug: Geschwindigkeitsvektor direkt auf die LZ regeln (verhindert Überschießen und Abdrift)
@@ -551,6 +618,8 @@ class Game {
     on('btn-netlost', () => location.reload());
     on('crew-close', () => this.hud.toggleCrew(false));
     $('crew-list').addEventListener('click', (e) => {
+      const cas = e.target.closest('[data-cas]');
+      if (cas) { this.audio.init(); this.requestSupport(cas.dataset.cas); return; }
       const b = e.target.closest('[data-heli]');
       if (!b) return;
       this.audio.init();
@@ -970,6 +1039,10 @@ class Game {
         if (a === 'use' || a === 'confirm') { if (!this.hud.mapOpen) { this.useAction(); continue; } }
         if (a === 'radio' || a === 'pickup' || a === 'dpad-down') { this.requestPickup(); continue; }
         if (a === 'dpad-left') { S.setWeapon(S.w - 1); continue; }
+        if (a === 'magnifier' || (a === 'dpad-right' && S.weapon.optic)) {
+          if (S.toggleMagnifier()) this.radioOnce('mag', 0.5, S.magOn ? '3x-Vergrößerer aufgeklappt' : '3x-Vergrößerer weggeklappt', 'Waffe', false, true);
+          continue;
+        }
         if (a === 'dpad-right') { S.setWeapon(S.w + 1); continue; }
       } else if (a === 'use' || (a === 'confirm' && this.seat === 'pax' && !this.hud.mapOpen)) {
         if (this.seat !== 'pilot') this.useAction();
@@ -980,6 +1053,7 @@ class Game {
         case 'map': this.hud.toggleMap(); break;
         case 'help': this.pause(true); this.openPanel('help'); break;
         case 'crew': this.hud.toggleCrew(); break;
+        case 'airsupport': this.hud.toggleCrew(true); break;
         case 'camera': case 'view':
           if (this.seat === 'pilot') this.camMode = this.camMode === 'chase' ? 'cockpit' : 'chase';
           break;
@@ -987,7 +1061,8 @@ class Game {
         case 'seat-pilot': case 'dpad-up': this.wantSeat(this.myHeli, 'pilot'); break;
         case 'seat-left': case 'dpad-left': this.wantSeat(this.myHeli, 'left'); break;
         case 'seat-right': case 'dpad-right': this.wantSeat(this.myHeli, 'right'); break;
-        case 'seat-next': this.cycleSeat(1); break;
+        case 'seat-next': if (this.seat === 'pilot' && this.heli.spec.rockets) this.fireRocket(); else this.cycleSeat(1); break;
+        case 'pickup': case 'rocket': if (this.seat === 'pilot' && this.heli.spec.rockets) this.fireRocket(); break;
         case 'seat-prev': this.cycleSeat(-1); break;
         case 'dpad-down': case 'radio': {
           const m = this.missions.current;
@@ -1135,7 +1210,8 @@ class Game {
       }
     });
 
-    if (this.role === 'client') this.units.updateMirror(dt); else { this.units.update(dt); this.units.updateFobAttack(dt); this.fobAttack = !!this.units.attack; }
+    if (this.role === 'client') { this.units.updateMirror(dt); this.air.updateMirror(dt); }
+    else { this.units.update(dt); this.units.updateFobAttack(dt); this.fobAttack = !!this.units.attack; this.air.update(dt); }
     this.combat.update(dt);
     const prevPhase = this.missions.phase;
     this.missions.update(dt);
@@ -1155,6 +1231,7 @@ class Game {
       for (const side of ['left', 'right']) {
         const gu = hh.gunners[side];
         if (gu.mode === 'player' || gu.mode === 'ai') gu.ammo = Math.min(gu.gun.ammo, gu.ammo + Math.ceil(400 * dt));
+        if (hh.spec.rockets && hh.rockets < hh.spec.rockets && rand() < dt * 4) hh.rockets++;
       }
       if (hh === h) {
         const full = h.fuel >= 99.9 && h.hp >= 99.9;
@@ -1193,7 +1270,8 @@ class Game {
       if (!h.contact && h.agl < 25 && h.vel.y < -5) warnings.push({ text: 'SINKRATE – ZIEHEN!', level: 'crit' });
       if (h.boundaryWarn) warnings.push({ text: 'EINSATZGEBIET VERLASSEN – UMKEHREN', level: 'warn' });
       if (!hint && h.fuel < 35 && dF < 600) hint = 'Zum Tanken auf Pad POL (gelber Rand, neben dem Tankwagen) landen';
-      if (!hint && this.missions.target(h) === 'from' && this.heliLoad(h) >= h.spec.capacity) hint = 'Kabine voll!';
+      if (!hint && h.spec.capacity > 0 && this.missions.target(h) === 'from' && this.heliLoad(h) >= h.spec.capacity) hint = 'Kabine voll!';
+      if (!hint && this.seat === 'pilot' && h.spec.rockets && this.time < 90) hint = this.input.device === 'gamepad' ? 'Raketen: R · Kanone: KI-Waffensystemoffizier' : this.input.device === 'touch' ? 'Raketen: Taste RAKETE' : 'Raketen: G · Kanone schießt der Waffensystemoffizier';
       if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)';
     }
     if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });
@@ -1288,10 +1366,12 @@ class Game {
       S.updateViewModel(dt, cam, first);
       document.body.classList.toggle('fp-view', first);
       document.body.classList.toggle('fp-ads', first && S.adsT > 0.6);
+      document.body.classList.toggle('fp-mag', first && S.adsT > 0.8 && S.magFactor() > 1);
+      document.body.classList.toggle('optic', !!S.weapon.optic);
       if (first) {
         cam.position.set(S.pos.x, S.pos.y + (S.crouch ? 1.05 : 1.6), S.pos.z);
         cam.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
-        fov = zoom ? S.weapon.fov * 1.25 : 75;
+        fov = zoom ? (S.weapon.fov * 1.25) / S.magFactor() : 75;
         this.camInit = false;
       } else {
       if (!S.alive) { this.deadOrbit = (this.deadOrbit || 0) + dt * 0.3; yaw += this.deadOrbit; pitch = -0.5; }
@@ -1304,14 +1384,15 @@ class Game {
       cam.position.set(px - fx * dist, py - fy * dist, pz - fz * dist);
       cam.position.y = Math.max(cam.position.y, this.world.groundHeight(cam.position.x, cam.position.z) + 0.4);
       cam.lookAt(px + fx * 50, py + fy * 50, pz + fz * 50);
-      fov = zoom ? S.weapon.fov : 70;
+      fov = zoom ? S.weapon.fov / S.magFactor() : 70;
       this.camInit = false;
       }
     } else if ((this.seat === 'left' || this.seat === 'right') && !h.crashed) {
       const rig = m.guns[this.seat];
       rig.eye.getWorldPosition(cam.position);
       rig.pitch.getWorldQuaternion(cam.quaternion);
-      fov = this.input.zoomHeld ? 28 : 62;
+      const tur = h.spec.gun.turret;
+      fov = this.input.zoomHeld ? (tur ? 9 : 28) : tur ? 48 : 62;
     } else if (this.camMode === 'cockpit' && !h.crashed) {
       this.cockpitLook.yaw = clamp(this.cockpitLook.yaw - look.dx, -2.2, 2.2);
       this.cockpitLook.pitch = clamp(this.cockpitLook.pitch - look.dy, -0.9, 0.6);
@@ -1340,6 +1421,18 @@ class Game {
       cam.lookAt(h.pos.x + h.fwd.x * 6, h.pos.y + 1.5, h.pos.z + h.fwd.z * 6);
     }
     this.updateShadow(this.seat === 'foot' && this.soldier.active ? this.soldier.pos : h.pos);
+    // Apache-Pilot: Zielmarke für die Raketen (Treffpunkt auf 400 m)
+    const rk = this.seat === 'pilot' && h.spec.rockets && !h.crashed && this.state === 'playing';
+    document.body.classList.toggle('rocket-mode', !!rk);
+    const rel = $('rkt-reticle');
+    if (rk) {
+      const d = this.rocketDir(h);
+      const t = Math.min(600, this.world.raycast(h.pos, d, 600));
+      const p = new THREE.Vector3().copy(h.pos).addScaledVector(d, Math.max(60, t)).project(cam);
+      const on = p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1;
+      rel.style.display = on ? 'block' : 'none';
+      if (on) { rel.style.left = ((p.x + 1) / 2) * 100 + '%'; rel.style.top = ((1 - p.y) / 2) * 100 + '%'; }
+    } else rel.style.display = 'none';
     if (Math.abs(cam.fov - fov) > 0.1) {
       cam.fov += (fov - cam.fov) * damp(10, dt);
       cam.updateProjectionMatrix();

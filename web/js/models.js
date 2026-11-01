@@ -459,7 +459,24 @@ export function wreckParts(kind) {
 // ---------------------------------------------------------------- Handwaffen (Ursprung = Griff, Lauf zeigt nach -Z)
 // Afghanistan-Waffen nutzen die Grundformen der Vietnam-Waffen mit Kunststoff statt Holz
 const WEAPON_ALIAS = { m4: 'm16', m249: 'm60', m320: 'm79', m590: 'ithaca', m9: 'm1911' };
+// Holografisches Visier (EOTech 552): Fenster mittig auf der Visierlinie H, Mitte bei z = zc
+export const OPTICS = { m4: { H: 0.165, zc: -0.07, base: 0.075 }, m249: { H: 0.155, zc: -0.05, base: 0.06 } };
+export function eotechParts(H, zc, base) {
+  const c = 0x1d1e1d;
+  return [
+    P(box(0.04, H - 0.03 - base, 0.11), c, [0, (base + H - 0.03) / 2, zc]),
+    P(box(0.052, 0.012, 0.13), c, [0, H - 0.034, zc]),
+    P(box(0.006, 0.058, 0.085), c, [0.026, H - 0.002, zc - 0.005]),
+    P(box(0.006, 0.058, 0.085), c, [-0.026, H - 0.002, zc - 0.005]),
+    P(box(0.058, 0.007, 0.085), c, [0, H + 0.03, zc - 0.005]),
+    P(box(0.044, 0.03, 0.04), c, [0, H - 0.05, zc + 0.065]),
+    P(box(0.01, 0.01, 0.012), 0x3a3a3a, [0.018, H - 0.03, zc + 0.088]),
+  ];
+}
+
 export function weaponGeo(id) {
+  const optic = OPTICS[id];
+  const flatTop = id === 'm4';
   const modern = !!WEAPON_ALIAS[id];
   if (modern) id = WEAPON_ALIAS[id];
   const blk = 0x1b1c1c, wood = modern ? 0x2c2c2a : 0x6e4a2a, od = modern ? 0x6b6450 : 0x4b5330;
@@ -479,7 +496,7 @@ export function weaponGeo(id) {
     P(box(0.06, 0.1, 0.5), blk, [0, 0, -0.1]),
     P(cyl(0.014, 0.014, 0.45, 6), blk, [0, 0.02, -0.55], [HALFPI, 0, 0]),
     P(box(0.05, 0.06, 0.3), blk, [0, -0.02, 0.28]),
-    P(box(0.04, 0.12, 0.05), blk, [0, 0.09, -0.22]),
+    flatTop ? P(box(0.034, 0.025, 0.34), blk, [0, 0.062, -0.14]) : P(box(0.04, 0.12, 0.05), blk, [0, 0.09, -0.22]),
     P(box(0.05, 0.13, 0.05), blk, [0, -0.09, -0.12], [0.2, 0, 0]),
     P(box(0.035, 0.08, 0.05), blk, [0, -0.07, 0.02], [-0.3, 0, 0]),
   ];
@@ -506,5 +523,6 @@ export function weaponGeo(id) {
     P(box(0.035, 0.05, 0.2), blk, [0, 0.02, -0.08]),
     P(box(0.03, 0.11, 0.05), wood, [0, -0.05, 0.0], [-0.2, 0, 0]),
   ];
+  if (optic) parts.push(...eotechParts(optic.H, optic.zc, optic.base));
   return merge(parts);
 }

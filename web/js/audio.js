@@ -32,7 +32,9 @@ export class AudioSys {
       boom: this.makeBoom(),
       squelch: this.makeSquelch(),
       noise: this.makeNoise(2),
+      brrt: this.makeBrrt(),
     };
+    this.loops = {};
 
     // Rotor
     this.rotorSrc = ctx.createBufferSource();
@@ -118,6 +120,44 @@ export class AudioSys {
       d[i] = (lp * 2.2 * env + thump * 0.8 * env) * 0.55 + lp * 0.12;
     }
     return b;
+  }
+
+  // A-10 GAU-8: 70 Schuss pro Sekunde verschmelzen zu einem tiefen Brummen ("BRRRT")
+  makeBrrt() {
+    const sr = this.ctx.sampleRate, len = Math.floor(sr * 1.6);
+    const b = this.ctx.createBuffer(1, len, sr);
+    const d = b.getChannelData(0);
+    let lp = 0;
+    for (let i = 0; i < len; i++) {
+      const t = i / sr, ph = (t * 65) % 1;
+      const env = Math.min(1, t * 30) * Math.min(1, (1.6 - t) * 6);
+      lp += ((Math.random() * 2 - 1) - lp) * 0.15;
+      d[i] = (Math.exp(-ph * 6) * (lp * 1.6 + Math.sin(ph * 40) * 0.5)) * env * 0.9;
+    }
+    return b;
+  }
+
+  // Dauerton (Jet-Triebwerk, fremder Hubschrauber) mit Lautstärke/Tonhöhe pro Bild
+  setLoop(key, gain, rate = 1, freq = 1200) {
+    if (!this.ctx) return;
+    let L = this.loops[key];
+    if (!L) {
+      if (gain < 0.005) return;
+      const src = this.ctx.createBufferSource();
+      src.buffer = key === 'rotor2' ? this.buffers.rotor : this.buffers.noise;
+      src.loop = true;
+      const f = this.ctx.createBiquadFilter();
+      f.type = key === 'rotor2' ? 'lowpass' : 'bandpass';
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      src.connect(f).connect(g).connect(this.sfx);
+      src.start();
+      L = this.loops[key] = { src, f, g };
+    }
+    const t = this.ctx.currentTime;
+    L.g.gain.setTargetAtTime(gain, t, 0.08);
+    L.src.playbackRate.setTargetAtTime(rate, t, 0.1);
+    L.f.frequency.setTargetAtTime(freq, t, 0.1);
   }
 
   makeShot(dur, cutoff, decay, thumpAmt) {
@@ -213,7 +253,8 @@ export class AudioSys {
     const far = Math.min(1, 30 / Math.max(30, dist));
     const rpm = h.rpm;
     const load = h.thrustFrac;
-    this.rotorSrc.playbackRate.setTargetAtTime(Math.max(0.2, rpm * (0.96 + load * 0.08)), t, 0.1);
+    const ra = (h.spec && h.spec.rotorAudio) || 1;
+    this.rotorSrc.playbackRate.setTargetAtTime(Math.max(0.2, rpm * (0.96 + load * 0.08) * ra), t, 0.1);
     this.rotorGain.gain.setTargetAtTime(h.crashed ? 0 : rpm * (0.35 + load * 0.5) * (inside ? 0.8 : 1) * far, t, 0.1);
     this.rotorFilter.frequency.setTargetAtTime(inside ? 700 : 1200 + load * 1500, t, 0.1);
     const eng = h.engineOn && !h.crashed ? 1 : 0;

@@ -1,6 +1,7 @@
 // HUD, Kompass, Minikarte, Funk, Overlays
 import * as THREE from './lib/three.module.min.js';
 import { HALF, WORLD_SIZE, HELI } from './config.js';
+import { SUPPORT, supportKinds } from './airsupport.js';
 import { clamp, bearing, headingFromYaw, fmtDist, fmtBearing, dist2, dirShort, fmtTime } from './util.js';
 
 const $ = (id) => document.getElementById(id);
@@ -143,9 +144,9 @@ export class HUD {
     this.el['vs-bar'].className = vsn < -0.45 && h.agl < 30 ? 'danger' : '';
     // Passagiere
     const pc = h.passengers.length;
-    this.el.pax.innerHTML = `<span class="lbl">KABINE</span> ${pc}/${h.spec.capacity}`;
+    this.el.pax.innerHTML = h.spec.capacity ? `<span class="lbl">KABINE</span> ${pc}/${h.spec.capacity}` : `<span class="lbl">RAKETEN</span> ${h.rockets ?? 0}`;
     const L = h.gunners.left, R = h.gunners.right;
-    this.el.ammo.innerHTML = `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammo} · R ${R.ammo}`;
+    this.el.ammo.innerHTML = R.disabled ? `<span class="lbl">${h.spec.gun.name}</span> ${L.ammo}` : `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammo} · R ${R.ammo}`;
     // Infanterie
     const fh = document.getElementById('foot-hud');
     if (g.seat === 'foot') {
@@ -163,7 +164,8 @@ export class HUD {
     const seatNames = { pilot: 'PILOT', left: 'SCHÜTZE LINKS', right: 'SCHÜTZE RECHTS', pax: 'PASSAGIER', foot: 'INFANTERIE' };
     const c = g.crews[g.myHeli];
     const pilotTxt = g.seat === 'pilot' || g.seat === 'foot' ? '' : c.pilot == null ? ' · KI-Pilot fliegt' : c.pilot !== g.myId ? ' · Pilot: ' + g.playerName(c.pilot) : '';
-    this.el['seat-label'].textContent = (g.helis.length > 1 && g.seat !== 'foot' ? `#${g.myHeli + 1} ` : '') + seatNames[g.seat] + pilotTxt + (info.cameraLabel ? ' · ' + info.cameraLabel : '');
+    const sn = g.heli.spec.seatNames && g.heli.spec.seatNames[g.seat];
+    this.el['seat-label'].textContent = (g.helis.length > 1 && g.seat !== 'foot' ? `#${g.myHeli + 1} ` : '') + (sn ? sn.toUpperCase() : seatNames[g.seat]) + pilotTxt + (info.cameraLabel ? ' · ' + info.cameraLabel : '');
     if (this.crewOpen) this.updateCrew();
     this.el.crosshair.style.display = g.seat === 'pilot' || g.seat === 'pax' ? 'none' : 'block';
     const ms = document.getElementById('mouse-stick');
@@ -340,19 +342,28 @@ export class HUD {
       const h = g.helis[i];
       const st = h.crashed ? 'abgestürzt' : h.contact ? 'gelandet' : 'in der Luft';
       html += `<div class="crew-heli"><h3>${h.spec.short} #${i + 1} <small>${st} · ${Math.round(h.fuel)} % Treibstoff · Kabine ${h.passengers.length}/${h.spec.capacity}</small></h3>`;
-      for (const s of ['pilot', 'left', 'right']) {
+      for (const s of h.spec.seats || ['pilot', 'left', 'right']) {
         const occ = c[s];
         const mine = occ === g.myId;
         const label = occ == null ? (s === 'pilot' ? 'frei (KI-Pilot)' : 'frei (KI-Schütze)') : esc(name(occ));
-        html += `<button data-heli="${i}" data-seat="${s}" class="${mine ? 'mine' : ''} ${occ != null && !mine ? 'taken' : ''}">${labels[s]}<small>${label}</small></button>`;
+        html += `<button data-heli="${i}" data-seat="${s}" class="${mine ? 'mine' : ''} ${occ != null && !mine ? 'taken' : ''}">${(h.spec.seatNames && h.spec.seatNames[s]) || labels[s]}<small>${label}</small></button>`;
       }
       const paxMine = c.pax.includes(g.myId);
       const paxNames = c.pax.map((x) => esc(name(x))).join(', ');
-      html += `<button data-heli="${i}" data-seat="pax" class="${paxMine ? 'mine' : ''}">Passagier<small>${paxNames || 'Kabine'} · ${g.heliLoad(h)}/${h.spec.capacity}</small></button>`;
+      if (h.spec.capacity) html += `<button data-heli="${i}" data-seat="pax" class="${paxMine ? 'mine' : ''}">Passagier<small>${paxNames || 'Kabine'} · ${g.heliLoad(h)}/${h.spec.capacity}</small></button>`;
       const me = g.seatOf(g.myId);
       if (me && me.i === i) html += `<button data-heli="${i}" data-seat="foot">Aussteigen<small>zu Fuß (nur am Boden)</small></button>`;
       html += '</div>';
     });
+    // Luftunterstützung
+    const kinds = supportKinds();
+    html += `<div class="crew-heli cas"><h3>Luftunterstützung <small>wirkt auf Feinde im Umkreis von ca. 700 m um Ihre Position · Taste L</small></h3>`;
+    for (const k of kinds) {
+      const left = Math.ceil(g.air.remaining(k));
+      const busy = g.air.list.some((a) => a.kind === k) || [...g.air.mirror.values()].some((a) => a.kind === k);
+      html += `<button data-cas="${k}" class="${left > 0 || busy ? 'taken' : ''}">${SUPPORT[k].name}<small>${busy ? 'im Einsatz' : left > 0 ? `wieder bereit in ${left} s` : SUPPORT[k].desc}</small></button>`;
+    }
+    html += '</div>';
     if (g.seat === 'foot') html += '<p class="note">Sie sind zu Fuß unterwegs. Einsteigen: an einen gelandeten Hubschrauber herangehen und E / Ⓐ drücken oder hier einen Platz wählen.</p>';
     if (g.helis.length > 1) html += '<p class="note">Umsteigen in den anderen Hubschrauber: beide Maschinen nebeneinander landen (unter 150 m).</p>';
     if (html === this.lastCrewHtml) return;

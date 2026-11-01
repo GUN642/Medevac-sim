@@ -1,6 +1,6 @@
 // Infanterie: spielbarer Soldat mit Handwaffen (und Avatare der Mitspieler)
 import * as THREE from './lib/three.module.min.js';
-import { Figure, weaponGeo, vcMat } from './models.js';
+import { Figure, weaponGeo, vcMat, OPTICS } from './models.js';
 import { HALF, G } from './config.js';
 import { clamp, rand, dist2 } from './util.js';
 import { T } from './theme.js';
@@ -14,8 +14,8 @@ const WEAPONS_VN = [
   { id: 'm1911', sight: [0.06, 0.02, -0.17, 0.45, 0.045, 0.045], name: 'M1911', desc: 'Pistole', mag: 7, reserve: 56, rpm: 360, auto: false, vel: 253, spread: 0.018, fov: 45, reload: 1.6, sound: 'pistol', recoil: 0.03 },
 ];
 const WEAPONS_AFG = [
-  { id: 'm4', sight: [0.165, -0.0, -0.66, 0.26, 0.05, 0.034], handle: 0.24, name: 'M4A1', desc: 'Sturmgewehr', mag: 30, reserve: 240, rpm: 800, auto: true, vel: 910, spread: 0.011, fov: 26, reload: 2.3, sound: 'm16', tracer: 4, recoil: 0.005 },
-  { id: 'm249', sight: [0.1, 0.02, -0.93, 0.28, 0.06, 0.03], name: 'M249 SAW', desc: 'leichtes MG', mag: 200, reserve: 400, rpm: 800, auto: true, vel: 915, spread: 0.02, fov: 36, reload: 5.5, sound: 'm60', tracer: 3, recoil: 0.007, slow: 0.8 },
+  { id: 'm4', optic: true, sight: [0.165, 0.0, -0.66, 0.26], name: 'M4A1', desc: 'Sturmgewehr', mag: 30, reserve: 240, rpm: 800, auto: true, vel: 910, spread: 0.011, fov: 26, reload: 2.3, sound: 'm16', tracer: 4, recoil: 0.005 },
+  { id: 'm249', optic: true, sight: [0.155, 0.02, -0.93, 0.3], name: 'M249 SAW', desc: 'leichtes MG', mag: 200, reserve: 400, rpm: 800, auto: true, vel: 915, spread: 0.02, fov: 36, reload: 5.5, sound: 'm60', tracer: 3, recoil: 0.007, slow: 0.8 },
   { id: 'm320', sight: [0.11, -0.06, -0.46, 0.3, 0.045, 0.065], name: 'M320', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 55, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.7, sound: 'thump', grenade: true, recoil: 0.05 },
   { id: 'm590', sight: [0.06, 0.04, -0.71, 0.3, 0.045, 0.036], name: 'Mossberg 590', desc: 'Schrotflinte', mag: 8, reserve: 48, rpm: 85, auto: false, vel: 400, spread: 0.05, fov: 50, reload: 3.4, sound: 'shotgun', pellets: 9, recoil: 0.06 },
   { id: 'm9', sight: [0.06, 0.02, -0.17, 0.45, 0.045, 0.045], name: 'M9', desc: 'Pistole', mag: 15, reserve: 60, rpm: 400, auto: false, vel: 375, spread: 0.016, fov: 45, reload: 1.5, sound: 'pistol', recoil: 0.025 },
@@ -70,6 +70,48 @@ function sightMeshes(w) {
   return g;
 }
 
+// EOTech: Absehen (65-MOA-Ring mit Punkt) im Fenster und klappbarer 3x-Vergrößerer (G33) dahinter
+let reticleTex = null;
+function reticleTexture() {
+  if (reticleTex) return reticleTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const x = c.getContext('2d');
+  x.strokeStyle = '#ff3a2a'; x.fillStyle = '#ff3a2a'; x.lineWidth = 4;
+  x.shadowColor = '#ff2010'; x.shadowBlur = 6;
+  x.beginPath(); x.arc(64, 64, 50, 0, Math.PI * 2); x.stroke();
+  x.beginPath(); x.arc(64, 64, 4, 0, Math.PI * 2); x.fill();
+  for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) { x.beginPath(); x.moveTo(64 + dx * 50, 64 + dy * 50); x.lineTo(64 + dx * 58, 64 + dy * 58); x.stroke(); }
+  reticleTex = new THREE.CanvasTexture(c);
+  reticleTex.colorSpace = THREE.SRGBColorSpace;
+  return reticleTex;
+}
+function opticMeshes(w) {
+  const o = OPTICS[w.id], eye = w.sight[3];
+  const g = new THREE.Group();
+  const dist = eye + w.sight[1] - o.zc;
+  const size = (0.019 * dist) / 0.39 * 2 * 0.5;
+  const ret = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({
+    map: reticleTexture(), transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending,
+  }));
+  ret.position.set(0, o.H, o.zc);
+  ret.renderOrder = 20;
+  g.add(ret);
+  // Vergrößerer auf Klappmontage (Scharnier rechts unten, klappt zur Seite weg)
+  const mag = new THREE.Group();
+  mag.position.set(0.03, o.H - 0.04, o.zc + 0.115);
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.1, 16, 1, true), new THREE.MeshLambertMaterial({ color: 0x1d1e1d, side: THREE.DoubleSide }));
+  tube.rotation.x = Math.PI / 2;
+  tube.position.set(-0.03, 0.04, 0);
+  const mount = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.05), new THREE.MeshLambertMaterial({ color: 0x1d1e1d }));
+  mount.position.set(-0.012, 0.0, 0);
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.019, 16), new THREE.MeshPhongMaterial({ color: 0x5a6a80, transparent: true, opacity: 0.15, shininess: 100 }));
+  lens.position.set(-0.03, 0.04, -0.049);
+  mag.add(tube, mount, lens);
+  g.add(mag);
+  return { g, ret, mag };
+}
+
 function nameSprite(name) {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 64;
@@ -113,6 +155,13 @@ export class Soldier {
   }
 
   get weapon() { return WEAPONS[this.w]; }
+  // 3x-Vergrößerer nur bei Waffen mit Rotpunktvisier
+  magFactor() { return this.weapon.optic && this.magOn ? 3 : 1; }
+  toggleMagnifier() {
+    if (!this.weapon.optic) return false;
+    this.magOn = !this.magOn;
+    return true;
+  }
 
   spawn(x, z, yaw = 0) {
     const w = this.game.world;
@@ -143,8 +192,16 @@ export class Soldier {
       this.vmId = w.id;
       this.vmGun.geometry = wgeo(w.id);
       if (this.vmSights) this.vmGun.remove(this.vmSights);
-      this.vmSights = sightMeshes(w);
+      this.vmOptic = w.optic ? opticMeshes(w) : null;
+      this.vmSights = this.vmOptic ? this.vmOptic.g : sightMeshes(w);
       this.vmGun.add(this.vmSights);
+    }
+    if (this.vmOptic) {
+      // Vergrößerer: aufgeklappt hinter dem Visier oder zur Seite weggeklappt
+      const tgt = this.magOn ? 0 : -1.6;
+      const m = this.vmOptic.mag;
+      m.rotation.z += (tgt - m.rotation.z) * Math.min(1, dt * 14);
+      this.vmOptic.ret.visible = this.adsT > 0.35;
     }
     this.adsT += ((this.zoom && this.reloadT <= 0 ? 1 : 0) - this.adsT) * Math.min(1, dt * 10);
     this.kick *= Math.exp(-dt * 14);
@@ -197,7 +254,7 @@ export class Soldier {
     if (!this.active) return;
     if (!this.alive) { this.animateDead(dt); return; }
     this.zoom = zoom;
-    const zf = zoom ? 0.45 : 1;
+    const zf = zoom ? (this.magFactor() > 1 ? 0.18 : 0.45) : 1;
     this.yaw -= look.dx * zf;
     this.pitch = clamp(this.pitch - look.dy * zf, -1.25, 1.2);
 
