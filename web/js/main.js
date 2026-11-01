@@ -64,6 +64,10 @@ class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.pixelCap));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    // Echte Schatten ab mittlerer Qualität (Schattenkarte folgt dem Spieler)
+    this.shadows = q !== 'low';
+    this.renderer.shadowMap.enabled = this.shadows;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // Einsatzgebiet (Karte) festlegen, bevor die Welt entsteht
     const theme = themeOf(this.settings.map);
@@ -80,6 +84,19 @@ class Game {
     const sun = new THREE.DirectionalLight(sky.sun, sky.sunI);
     sun.position.set(-0.5, 1, 0.35).multiplyScalar(1000);
     this.scene.add(sun);
+    this.sun = sun;
+    this.sunDir = new THREE.Vector3(-0.5, 1, 0.35).normalize();
+    if (this.shadows) {
+      sun.castShadow = true;
+      const n = q === 'high' ? 2048 : 1024;
+      sun.shadow.mapSize.set(n, n);
+      const c = sun.shadow.camera;
+      this.shadowR = q === 'high' ? 90 : 60;
+      c.left = -this.shadowR; c.right = this.shadowR; c.top = this.shadowR; c.bottom = -this.shadowR; c.near = 10; c.far = 900;
+      sun.shadow.bias = -0.0004;
+      sun.shadow.normalBias = 0.04;
+      this.scene.add(sun.target);
+    }
 
     await this.step('Erzeuge Gelände …', 10);
     this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : new World(this.scene, q);
@@ -135,6 +152,7 @@ class Game {
     if (!type) type = (this.netTypes && this.netTypes[i]) || T.helis[Math.min(i, T.helis.length - 1)];
     const h = new Helicopter(this.scene, this.effects, i, heliTypeFor(T.id, type));
     h.gunners = { left: new Gunner('left', h), right: new Gunner('right', h) };
+    h.realShadows = this.shadows;
     this.helis.push(h);
     if (i === 0) this.orbit.dist = h.spec.camDist;
     if (i === 1) this.world.parked[0].visible = false;
@@ -1033,6 +1051,7 @@ class Game {
     const r = h.spec.camDist * 1.1;
     this.camera.position.set(h.pos.x + Math.sin(t) * r, h.pos.y + 6 + Math.sin(t * 0.7) * 2 + r * 0.05, h.pos.z + Math.cos(t) * r);
     this.camera.lookAt(h.pos.x, h.pos.y + 1, h.pos.z);
+    this.updateShadow(h.pos);
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time + this.attractT, this.camera);
   }
@@ -1240,6 +1259,16 @@ class Game {
     this.ring.visible = !wp.approx;
   }
 
+  // Schattenkarte um Spieler bzw. Hubschrauber zentrieren (in Texelschritten gegen Flimmern)
+  updateShadow(f) {
+    if (!this.shadows) return;
+    const st = (this.shadowR * 2) / this.sun.shadow.mapSize.x;
+    const fx = Math.round(f.x / st) * st, fz = Math.round(f.z / st) * st;
+    this.sun.target.position.set(fx, f.y, fz);
+    this.sun.position.set(fx + this.sunDir.x * 400, f.y + this.sunDir.y * 400, fz + this.sunDir.z * 400);
+    this.sun.target.updateMatrixWorld();
+  }
+
   updateCamera(dt) {
     const h = this.heli, cam = this.camera, m = h.model;
     const look = this.input.consumeLook();
@@ -1310,6 +1339,7 @@ class Game {
       cam.position.y = Math.max(cam.position.y, this.world.groundHeight(cam.position.x, cam.position.z) + 1.5);
       cam.lookAt(h.pos.x + h.fwd.x * 6, h.pos.y + 1.5, h.pos.z + h.fwd.z * 6);
     }
+    this.updateShadow(this.seat === 'foot' && this.soldier.active ? this.soldier.pos : h.pos);
     if (Math.abs(cam.fov - fov) > 0.1) {
       cam.fov += (fov - cam.fov) * damp(10, dt);
       cam.updateProjectionMatrix();

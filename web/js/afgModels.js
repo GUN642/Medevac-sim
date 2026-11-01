@@ -184,14 +184,29 @@ export function fuelTruckAfg() {
 }
 
 // ---------------------------------------------------------------- Vegetation und Gelände
-export function poplarParts() {
+export function poplarParts(detail = false) {
+  if (detail) return [
+    P(cyl(0.16, 0.3, 7, 7), 0x6e6250, [0, 3.5, 0]),
+    P(new THREE.ConeGeometry(1.35, 7, 9), 0x5d7a34, [0, 11.2, 0]),
+    P(new THREE.IcosahedronGeometry(1, 1), 0x58742f, [0, 7.6, 0], [0, 0, 0], [1.55, 2.6, 1.55]),
+    P(new THREE.IcosahedronGeometry(1, 0), 0x4f6c2a, [0.4, 5.4, 0.2], [0.3, 0.2, 0], [1.4, 1.6, 1.4]),
+    P(new THREE.IcosahedronGeometry(1, 0), 0x66843a, [-0.3, 9.6, -0.2], [0.6, 0.8, 0], [1.2, 1.8, 1.2]),
+  ];
   return [
     P(cyl(0.18, 0.3, 6, 5), 0x6e6250, [0, 3, 0]),
     P(new THREE.ConeGeometry(1.5, 11, 7), 0x5d7a34, [0, 9.5, 0]),
     P(sph(1.45, 7, 5), 0x58742f, [0, 5.6, 0], [0, 0, 0], [1, 1.2, 1]),
   ];
 }
-export function fruitTreeParts() {
+export function fruitTreeParts(detail = false) {
+  if (detail) return [
+    P(cyl(0.16, 0.3, 2.8, 7), 0x5a4a35, [0, 1.4, 0], [0.1, 0, 0.05]),
+    P(cyl(0.07, 0.12, 1.8, 5), 0x5a4a35, [0.6, 2.9, 0], [0, 0, -0.7]),
+    P(cyl(0.07, 0.12, 1.8, 5), 0x5a4a35, [-0.5, 3.0, 0.3], [0.4, 0, 0.6]),
+    P(new THREE.IcosahedronGeometry(1, 1), 0x4f6e2a, [0, 4.3, 0], [0, 0, 0], [2.6, 1.8, 2.6]),
+    P(new THREE.IcosahedronGeometry(1, 0), 0x5a7a30, [1.3, 3.9, 0.6], [0.3, 0.5, 0], [1.6, 1.2, 1.6]),
+    P(new THREE.IcosahedronGeometry(1, 0), 0x46632a, [-1.2, 4.1, -0.7], [0.1, 1.1, 0], [1.7, 1.3, 1.6]),
+  ];
   return [
     P(cyl(0.2, 0.3, 2.8, 5), 0x5a4a35, [0, 1.4, 0]),
     P(new THREE.IcosahedronGeometry(1, 0), 0x4f6e2a, [0, 4.2, 0], [0, 0, 0], [3.0, 2.2, 3.0]),

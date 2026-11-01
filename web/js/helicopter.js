@@ -1,7 +1,7 @@
 // Hubschrauber: Flugmodell (arcade-nah mit Flugassistent), Treibstoff, Schaden, Kabine – Werte je nach Typ
 import * as THREE from './lib/three.module.min.js';
 import { FUEL, G, HALF } from './config.js';
-import { Figure, vcMatDouble } from './models.js';
+import { Figure } from './models.js';
 import { buildHeliModel } from './heliModels.js';
 import { HELI_TYPES, T, figFor } from './theme.js';
 import { clamp, damp, rand } from './util.js';
@@ -49,9 +49,11 @@ export class Helicopter {
     this.spec = HELI_TYPES[this.type];
     if (this.model) this.scene.remove(this.model.group);
     this.model = buildHeliModel(this.spec, { number: this.spec.numbers[this.index % this.spec.numbers.length] });
-    this.model.body.material = vcMatDouble.clone();
+    // eigene Materialkopien (zum Abdunkeln nach einem Absturz)
+    this.model.tint = [this.model.body, this.model.detail].filter(Boolean).map((m) => (m.material = m.material.clone()));
     this.model.rotorHome = this.model.mainRotor.position.clone();
     this.model.rotorCenters = this.model.spin.filter((r) => r[1] === 'y').map((r) => r[0].position.clone());
+    this.model.group.traverse((o) => { if (o.isMesh && !o.material.transparent) { o.castShadow = true; o.receiveShadow = true; } });
     this.scene.add(this.model.group);
     this.seatFigs = [];
     if (this.passengers) this.updatePassengerDisplay();
@@ -79,7 +81,7 @@ export class Helicopter {
     this.boundaryWarn = false;
     this.damageTaken = 0;
     this.lastHit = -10;
-    this.model.body.material.color.setRGB(1, 1, 1);
+    for (const m of this.model.tint) m.color.setRGB(1, 1, 1);
     this.model.group.visible = true;
     this.model.mainRotor.rotation.set(0, 0, 0);
     this.model.mainRotor.position.copy(this.model.rotorHome);
@@ -143,7 +145,7 @@ export class Helicopter {
     this.engineOn = false;
     this.events.push('crash');
     this.effects.explosion(this.pos.x, this.pos.y, this.pos.z, 1.2);
-    this.model.body.material.color.setRGB(0.3, 0.28, 0.26);
+    for (const m of this.model.tint) m.color.setRGB(0.3, 0.28, 0.26);
     this.crashTimer = 0;
     this.yawRate = 2.5 + rand() * 2;
   }
@@ -428,7 +430,7 @@ export class Helicopter {
     // Schatten
     const gnd = this.agl;
     const s = this.spec.shadow + Math.min(gnd, 60) * 0.1;
-    this.shadow.visible = gnd < 120;
+    this.shadow.visible = gnd < 120 && !(this.realShadows && gnd < 30);
     this.shadow.position.set(this.pos.x + 0, this.pos.y - this.spec.skidH - gnd + 0.25, this.pos.z);
     this.shadow.scale.set(s, s * (this.spec.door === 'ramp' ? 1.8 : 1.25), 1);
     this.shadow.rotation.z = this.yaw;

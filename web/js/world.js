@@ -258,6 +258,7 @@ export class World {
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true, map: this.detailTexture() });
     this.terrain = new THREE.Mesh(geo, mat);
+    this.terrain.receiveShadow = true;
     this.scene.add(this.terrain);
 
     // Umland außerhalb der Karte
@@ -397,7 +398,8 @@ export class World {
       const a = (i / segs) * Math.PI * 2;
       add(M.sandbagWall((2 * Math.PI * R) / segs + 0.4, 1.3), Math.cos(a) * R, Math.sin(a) * R, -a + Math.PI / 2);
     }
-    this.fobMesh = new THREE.Mesh(M.merge(parts), M.vcMat);
+    this.fobMesh = new THREE.Mesh(M.worldUV(M.merge(parts)), M.vcGrainMat);
+    this.fobMesh.castShadow = this.fobMesh.receiveShadow = true;
     this.scene.add(this.fobMesh);
 
     this.buildFlag(f.x + 12, f.z - 5, drawUSFlag);
@@ -446,6 +448,7 @@ export class World {
     spots.forEach(([x, z, r], k) => {
       const spec = HELI_TYPES[types[k % types.length]];
       const h = buildHeliModel(spec, { static: true, number: spec.numbers[1] || spec.numbers[0] });
+      h.group.traverse((o) => { if (o.isMesh && !o.material.transparent) { o.castShadow = true; o.receiveShadow = true; } });
       h.group.position.set(f.x + x, f.y + spec.skidH + 0.12, f.z + z);
       h.group.rotation.y = r;
       h.mainRotor.rotation.y = 0.6;
@@ -472,7 +475,8 @@ export class World {
       }
     }
     if (parts.length) {
-      this.villageMesh = new THREE.Mesh(M.merge(parts), M.vcMat);
+      this.villageMesh = new THREE.Mesh(M.worldUV(M.merge(parts)), M.vcGrainMat);
+      this.villageMesh.castShadow = this.villageMesh.receiveShadow = true;
       this.scene.add(this.villageMesh);
     }
   }
@@ -512,8 +516,9 @@ export class World {
     const cellsIn = Math.ceil((Math.PI * (this.nearR + this.TC) ** 2) / (this.TC * this.TC));
     const cap = cellsIn * this.perCell;
     this.nearMeshes = this.treeTypes.map((t) => {
-      const im = new THREE.InstancedMesh(t.geo, mat, Math.ceil(cap * Math.min(1, t.w + 0.15)));
+      const im = new THREE.InstancedMesh(t.near || t.geo, mat, Math.ceil(cap * Math.min(1, t.w + 0.15)));
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      im.castShadow = q === 'high';
       im.count = 0;
       im.frustumCulled = false;
       this.scene.add(im);
@@ -533,9 +538,26 @@ export class World {
       M.P(new THREE.IcosahedronGeometry(1, 0), 0x3b6328, [0, 16, 0], [0, 0, 0], [4.8, 2.4, 4.8]),
     ]);
     const palm = M.merge(M.palmParts());
+    // Nahbereich: mehr Laubballen, Äste
+    const ico = (d) => new THREE.IcosahedronGeometry(1, d);
+    const broadNear = M.merge([
+      M.P(new THREE.CylinderGeometry(0.3, 0.6, 9.5, 7), 0x4e3d2a, [0, 4.6, 0]),
+      M.P(new THREE.CylinderGeometry(0.1, 0.22, 4, 5), 0x4e3d2a, [1.4, 9.2, 0.4], [0, 0, -0.7]),
+      M.P(new THREE.CylinderGeometry(0.1, 0.22, 4, 5), 0x4e3d2a, [-1.2, 9.4, -0.6], [0.3, 0, 0.7]),
+      M.P(ico(1), 0x2f5a22, [0, 11.2, 0], [0, 0, 0], [5.2, 3.0, 5.2]),
+      M.P(ico(0), 0x36652a, [2.8, 12.0, 1.2], [0.5, 0.3, 0], [3.2, 2.4, 3.2]),
+      M.P(ico(0), 0x2b5220, [-2.6, 11.6, -1.4], [0.2, 1.3, 0], [3.4, 2.2, 3.0]),
+      M.P(ico(0), 0x3a6a2c, [0.4, 13.2, -0.3], [0.9, 0.4, 0], [3.0, 2.0, 3.0]),
+    ]);
+    const tallNear = M.merge([
+      M.P(new THREE.CylinderGeometry(0.28, 0.55, 14.5, 7), 0x5a4a35, [0, 7.2, 0]),
+      M.P(ico(1), 0x3b6328, [0, 16.0, 0], [0, 0, 0], [4.2, 2.2, 4.2]),
+      M.P(ico(0), 0x33592a, [1.8, 15.2, 0.8], [0.4, 0.2, 0], [2.6, 1.6, 2.6]),
+      M.P(ico(0), 0x416b2e, [-1.5, 15.6, -1.0], [0.2, 0.9, 0], [2.4, 1.6, 2.4]),
+    ]);
     return [
-      { geo: broad, top: 14.4, r: 6.4, w: 0.64 },
-      { geo: tall, top: 18.4, r: 4.8, w: 0.24 },
+      { geo: broad, near: broadNear, top: 14.4, r: 6.4, w: 0.64 },
+      { geo: tall, near: tallNear, top: 18.4, r: 4.8, w: 0.24 },
       { geo: palm, top: 9.5, r: 3.5, w: 0.12 },
     ];
   }

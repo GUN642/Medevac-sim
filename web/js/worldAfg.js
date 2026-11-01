@@ -227,7 +227,8 @@ export class AfghanWorld extends World {
       const a = (i / segs) * Math.PI * 2;
       add(A.hescoWall((2 * Math.PI * R) / segs + 0.4, 2.3), Math.cos(a) * R, Math.sin(a) * R, -a + Math.PI / 2);
     }
-    this.fobMesh = new THREE.Mesh(M.merge(parts), M.vcMat);
+    this.fobMesh = new THREE.Mesh(M.worldUV(M.merge(parts)), M.vcGrainMat);
+    this.fobMesh.castShadow = this.fobMesh.receiveShadow = true;
     this.scene.add(this.fobMesh);
     this.buildFlag(f.x + 12, f.z - 5, drawGermanFlag);
     this.buildFlag(f.x + 18, f.z - 5, drawISAFFlag);
@@ -286,7 +287,8 @@ export class AfghanWorld extends World {
       parts.push(...M.placeParts(A.guardTowerAfg(), s.x + 30 * Math.cos(0.3) + 30 * Math.sin(0.3), y, s.z - 30 * Math.sin(0.3) + 30 * Math.cos(0.3), 0.3));
     }
     if (parts.length) {
-      this.villageMesh = new THREE.Mesh(M.merge(parts), M.vcMat);
+      this.villageMesh = new THREE.Mesh(M.worldUV(M.merge(parts)), M.vcGrainMat);
+      this.villageMesh.castShadow = this.villageMesh.receiveShadow = true;
       this.scene.add(this.villageMesh);
     }
   }
@@ -294,8 +296,8 @@ export class AfghanWorld extends World {
   // ------------------------------------------------------------ Vegetation
   get treeDefs() {
     return [
-      { geo: M.merge(A.poplarParts()), top: 15.0, r: 1.9, w: 0.5 },
-      { geo: M.merge(A.fruitTreeParts()), top: 6.4, r: 3.0, w: 0.5 },
+      { geo: M.merge(A.poplarParts()), near: M.merge(A.poplarParts(true)), top: 15.0, r: 1.9, w: 0.5 },
+      { geo: M.merge(A.fruitTreeParts()), near: M.merge(A.fruitTreeParts(true)), top: 6.4, r: 3.0, w: 0.5 },
       { geo: M.merge(A.shrubParts()), top: 1.0, r: 0.9, w: 0 },
     ];
   }

@@ -1,5 +1,6 @@
 // Prozedurale Low-Poly-Modelle (UH-1D, Figuren, Fahrzeuge, Gebäude, Wracks)
 import * as THREE from './lib/three.module.min.js';
+import { loft, grainTexture } from './loft.js';
 
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -58,11 +59,30 @@ export function placeParts(parts, x, y, z, rotY = 0) {
 
 export const vcMat = new THREE.MeshLambertMaterial({ vertexColors: true });
 export const vcMatDouble = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+// Bauten mit feiner Putz-/Sandstruktur (UV aus Weltkoordinaten, siehe worldUV)
+export const vcGrainMat = new THREE.MeshLambertMaterial({ vertexColors: true, map: grainTexture() });
+
+// UV-Koordinaten aus der Position je nach Flächenausrichtung (für Mauern, Wälle, Dächer)
+export function worldUV(geo, scale = 0.35) {
+  const p = geo.attributes.position, n = geo.attributes.normal;
+  const uv = new Float32Array(p.count * 2);
+  for (let i = 0; i < p.count; i++) {
+    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
+    let u, v;
+    if (ay >= ax && ay >= az) { u = p.getX(i); v = p.getZ(i); }
+    else if (ax >= az) { u = p.getZ(i); v = p.getY(i); }
+    else { u = p.getX(i); v = p.getY(i); }
+    uv[i * 2] = u * scale; uv[i * 2 + 1] = v * scale;
+  }
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return geo;
+}
 
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const cyl = (rt, rb, h, s = 8) => new THREE.CylinderGeometry(rt, rb, h, s);
 const sph = (r, ws = 10, hs = 8, ts = 0, tl = Math.PI) => new THREE.SphereGeometry(r, ws, hs, 0, Math.PI * 2, ts, tl);
 const cone = (r, h, s = 8) => new THREE.ConeGeometry(r, h, s);
+const tor = (r, t, s = 12) => new THREE.TorusGeometry(r, t, 6, s);
 const HALFPI = Math.PI / 2;
 
 // ---------------------------------------------------------------- Farben
@@ -79,58 +99,130 @@ const FIG_TYPES = {
   us2:     { uni: 0x4f5c37, skin: 0x6b4630, hat: 'm1', hatCol: 0x58623b, pack: 0x3f4a2b, gun: 0x1d1d1d },
   wounded: { uni: 0x4f5c37, skin: 0xd2a07a, hat: 'band', hatCol: 0xeeeeee, pack: null, gun: null, blood: true },
   pilot:   { uni: 0x66705e, skin: 0xd8a882, hat: 'flight', hatCol: 0xcfd0c8, pack: 0x55604a, gun: null },
-  player:  { uni: 0x4f5c37, skin: 0xd2a07a, hat: 'm1', hatCol: 0x58623b, pack: 0x3f4a2b, gun: null },
+  player:  { uni: 0x4f5c37, skin: 0xd2a07a, hat: 'm1', hatCol: 0x58623b, pack: 0x3f4a2b, gun: null, armsAim: true },
   crew:    { uni: 0x535d3d, skin: 0xd2a07a, hat: 'flight', hatCol: 0x3d4630, pack: null, gun: null },
   vc:      { uni: 0x1c1c22, skin: 0xc9956a, hat: 'conical', hatCol: 0xc9b27a, pack: null, gun: 0x3b2a1b },
   nva:     { uni: 0x6f6b45, skin: 0xc9956a, hat: 'pith', hatCol: 0x7d7749, pack: 0x5a5638, gun: 0x3b2a1b },
   // Afghanistan
-  isaf:     { uni: 0x857d5e, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649 },
-  isaf2:    { uni: 0x857d5e, skin: 0x6b4630, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649 },
-  bw:       { uni: 0x9a8c66, skin: 0xd8a882, hat: 'helmet', hatCol: 0x8a7d5a, pack: 0x6e6446, gun: 0x222222, vest: 0x7d7252 },
+  isaf:     { uni: 0x857d5e, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649, rifle: 'm4' },
+  isaf2:    { uni: 0x857d5e, skin: 0x6b4630, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649, rifle: 'm4' },
+  bw:       { uni: 0x9a8c66, skin: 0xd8a882, hat: 'helmet', hatCol: 0x8a7d5a, pack: 0x6e6446, gun: 0x222222, vest: 0x7d7252, rifle: 'm4' },
   woundedA: { uni: 0x857d5e, skin: 0xd2a07a, hat: 'band', hatCol: 0xeeeeee, pack: null, gun: null, blood: true },
   crewA:    { uni: 0x6b6d55, skin: 0xd2a07a, hat: 'flight', hatCol: 0x4a4c3c, pack: null, gun: null },
   pilotA:   { uni: 0x6b6d55, skin: 0xd8a882, hat: 'flight', hatCol: 0x3f4133, pack: 0x55604a, gun: null },
-  playerA:  { uni: 0x857d5e, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: null, vest: 0x6f6649 },
+  playerA:  { uni: 0x857d5e, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: null, vest: 0x6f6649, armsAim: true },
   tal:      { uni: 0x8d887c, skin: 0xb98560, hat: 'turban', hatCol: 0x1f1f1f, pack: null, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
   tal2:     { uni: 0x6e5f4a, skin: 0xb07a55, hat: 'turban', hatCol: 0xd8d2c0, pack: 0x3d3a30, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
 };
 
 const figGeoCache = {};
+const _fq = new THREE.Quaternion(), _fm = new THREE.Matrix4(), _fa = new THREE.Vector3(), _fb = new THREE.Vector3(), _fy = new THREE.Vector3(0, 1, 0);
+
+// Gliedmaße als Zylinder zwischen zwei Punkten (mit Gelenkkugel am Ende)
+function limb(parts, a, b, r0, r1, color, seg = 7) {
+  _fa.set(...a); _fb.set(...b);
+  const d = _fb.clone().sub(_fa), L = d.length();
+  const g = new THREE.CylinderGeometry(r1, r0, L, seg, 1);
+  _fq.setFromUnitVectors(_fy, d.normalize());
+  _fm.compose(_fa.clone().add(_fb).multiplyScalar(0.5), _fq, new THREE.Vector3(1, 1, 1));
+  g.applyMatrix4(_fm);
+  parts.push(P(g, color));
+  parts.push(P(sph(r1 * 1.02, seg, 5), color, b));
+}
+
+// Vorgefärbte Geometrie (z. B. Waffe) verschoben/gedreht übernehmen
+function Pc(geo, pos, rot) {
+  const g = geo.clone();
+  _fq.setFromEuler(new THREE.Euler(rot[0], rot[1], rot[2], 'YXZ'));
+  _fm.compose(new THREE.Vector3(...pos), _fq, new THREE.Vector3(1, 1, 1));
+  g.applyMatrix4(_fm);
+  return g;
+}
+
+// Rumpf als runde Form (Hüfte -> Schultern), Höhe entlang y
+function torsoGeo(keys, seg) {
+  const g = loft(keys, { radial: seg, steps: 2, dz: 0.2, capStart: true, capEnd: true });
+  g.rotateX(-HALFPI);
+  return g;
+}
+
 function figureGeos(type) {
   if (figGeoCache[type]) return figGeoCache[type];
   const t = FIG_TYPES[type];
-  const parts = [
-    P(box(0.42, 0.56, 0.26), t.uni, [0, 1.16, 0]),
-    P(box(0.44, 0.07, 0.28), 0x2a2a20, [0, 0.9, 0]),
-    P(box(0.4, 0.1, 0.24), t.uni, [0, 0.86, 0]),
-    P(sph(0.12, 8, 6), t.skin, [0, 1.58, 0]),
-    P(box(0.11, 0.5, 0.12), t.uni, [-0.27, 1.2, -0.1], [0.6, 0, 0.1]),
-    P(box(0.11, 0.5, 0.12), t.uni, [0.27, 1.18, -0.08], [0.75, 0, -0.1]),
-  ];
-  if (t.hat === 'm1') parts.push(P(sph(0.16, 10, 5, 0, HALFPI), t.hatCol, [0, 1.6, 0], [0, 0, 0], [1, 0.85, 1.08]));
-  if (t.hat === 'band') parts.push(P(cyl(0.13, 0.13, 0.07, 10), t.hatCol, [0, 1.62, 0]));
-  if (t.hat === 'flight') parts.push(P(sph(0.16, 10, 6, 0, Math.PI * 0.6), t.hatCol, [0, 1.6, 0], [0, 0, 0], [1, 1, 1.05]));
-  if (t.hat === 'conical') parts.push(P(cone(0.33, 0.2, 12), t.hatCol, [0, 1.76, 0]));
+  const parts = [];
+  const seg = 10;
+  // Oberkörper mit Gürtel
+  parts.push(P(torsoGeo([
+    { z: 0.84, w: 0.34, top: 0.1, bot: -0.11 }, { z: 1.0, w: 0.35, top: 0.11, bot: -0.12 },
+    { z: 1.25, w: 0.4, top: 0.13, bot: -0.12 }, { z: 1.4, w: 0.44, top: 0.12, bot: -0.11 },
+    { z: 1.47, w: 0.3, top: 0.08, bot: -0.08 },
+  ], seg), t.uni));
+  parts.push(P(cyl(0.18, 0.18, 0.06, 12), 0x2a2a20, [0, 0.92, 0], [0, 0, 0], [1, 1, 0.68]));
+  // Hals, Kopf, Nase, Ohren
+  parts.push(P(cyl(0.05, 0.055, 0.1, 8), t.skin, [0, 1.5, 0]));
+  parts.push(P(sph(0.105, 12, 10), t.skin, [0, 1.6, -0.005], [0, 0, 0], [0.92, 1.08, 1]));
+  parts.push(P(box(0.025, 0.04, 0.03), t.skin, [0, 1.585, -0.105]));
+  for (const sx of [-1, 1]) parts.push(P(sph(0.025, 6, 4), t.skin, [sx * 0.097, 1.6, 0.0]));
+  // Kopfbedeckung
+  if (t.hat === 'm1') { parts.push(P(sph(0.15, 12, 6, 0, HALFPI), t.hatCol, [0, 1.62, 0], [0, 0, 0], [1, 0.9, 1.08])); parts.push(P(cyl(0.165, 0.165, 0.015, 14), t.hatCol, [0, 1.625, 0], [0, 0, 0], [1, 1, 1.1])); }
+  if (t.hat === 'helmet') {
+    parts.push(P(sph(0.135, 12, 6, 0, HALFPI * 1.1), t.hatCol, [0, 1.62, 0.005], [0, 0, 0], [1.02, 0.95, 1.1]));
+    parts.push(P(box(0.05, 0.04, 0.04), 0x222222, [0, 1.72, -0.13]));                     // NVG-Halter
+    parts.push(P(box(0.08, 0.05, 0.03), 0x3a3a30, [0, 1.68, 0.13]));                      // Batteriepack
+  }
+  if (t.hat === 'band') parts.push(P(cyl(0.112, 0.112, 0.06, 12), t.hatCol, [0, 1.64, 0]));
+  if (t.hat === 'flight') { parts.push(P(sph(0.135, 12, 7, 0, Math.PI * 0.62), t.hatCol, [0, 1.61, 0], [0, 0, 0], [1, 1, 1.08])); parts.push(P(box(0.18, 0.05, 0.03), 0x1a1d1f, [0, 1.66, -0.13])); }
+  if (t.hat === 'conical') parts.push(P(cone(0.32, 0.2, 14), t.hatCol, [0, 1.77, 0]));
   if (t.hat === 'pith') {
-    parts.push(P(sph(0.16, 10, 5, 0, HALFPI), t.hatCol, [0, 1.62, 0], [0, 0, 0], [1.1, 0.8, 1.2]));
-    parts.push(P(cyl(0.25, 0.25, 0.02, 12), t.hatCol, [0, 1.63, 0]));
+    parts.push(P(sph(0.14, 12, 6, 0, HALFPI), t.hatCol, [0, 1.63, 0], [0, 0, 0], [1.1, 0.85, 1.2]));
+    parts.push(P(cyl(0.23, 0.23, 0.02, 14), t.hatCol, [0, 1.64, 0]));
   }
-  if (t.hat === 'helmet') parts.push(P(sph(0.165, 10, 5, 0, HALFPI), t.hatCol, [0, 1.6, 0], [0, 0, 0], [1.05, 0.82, 1.1]));
   if (t.hat === 'turban') {
-    parts.push(P(cyl(0.15, 0.14, 0.14, 10), t.hatCol, [0, 1.69, 0], [0.1, 0, 0]));
-    parts.push(P(box(0.36, 0.22, 0.05), t.hatCol, [0, 1.42, 0.12], [0.2, 0, 0]));
+    parts.push(P(tor(0.095, 0.045, 12), t.hatCol, [0, 1.68, 0], [HALFPI + 0.15, 0, 0]));
+    parts.push(P(sph(0.1, 10, 6, 0, HALFPI), t.hatCol, [0, 1.69, 0.01]));
+    parts.push(P(box(0.3, 0.2, 0.04), t.hatCol, [0, 1.42, 0.13], [0.15, 0, 0]));
   }
-  if (t.beard) parts.push(P(box(0.17, 0.12, 0.08), t.beard, [0, 1.5, -0.09]));
-  if (t.vest) parts.push(P(box(0.46, 0.4, 0.31), t.vest, [0, 1.2, 0]));
-  if (t.robe) parts.push(P(box(0.46, 0.38, 0.3), t.uni, [0, 0.72, 0]));
-  if (t.pack) parts.push(P(box(0.34, 0.4, 0.17), t.pack, [0, 1.2, 0.21]));
-  if (t.gun) parts.push(P(box(0.05, 0.08, 0.9), t.gun, [0.06, 1.1, -0.36], [0.2, 0, 0]));
-  if (t.blood) parts.push(P(box(0.3, 0.2, 0.27), 0x7a1612, [0.04, 1.1, 0]));
+  if (t.beard) parts.push(P(sph(0.075, 8, 6), t.beard, [0, 1.52, -0.06], [0, 0, 0], [1.1, 1.2, 0.8]));
+  // Ausrüstung: Plattenträger mit Magazintaschen, Koppel, Rucksack
+  if (t.vest) {
+    parts.push(P(torsoGeo([
+      { z: 1.02, w: 0.42, top: 0.15, bot: -0.15 }, { z: 1.2, w: 0.45, top: 0.16, bot: -0.15 }, { z: 1.4, w: 0.46, top: 0.14, bot: -0.13 },
+    ], seg), t.vest));
+    for (let i = 0; i < 3; i++) parts.push(P(box(0.08, 0.12, 0.05), t.vest, [-0.1 + i * 0.1, 1.1, -0.165]));
+    parts.push(P(box(0.07, 0.09, 0.04), 0x222222, [0.14, 1.3, -0.15]));                    // Funkgerät
+  } else if (t.gun) {
+    for (const sx of [-1, 1]) parts.push(P(box(0.08, 0.1, 0.06), 0x3a3a2a, [sx * 0.1, 0.96, -0.12]));
+  }
+  if (t.robe) parts.push(P(torsoGeo([{ z: 0.55, w: 0.42, top: 0.16, bot: -0.16 }, { z: 0.75, w: 0.4, top: 0.14, bot: -0.14 }, { z: 0.92, w: 0.36, top: 0.12, bot: -0.12 }], seg), t.uni));
+  if (t.pack) { parts.push(P(box(0.32, 0.4, 0.16), t.pack, [0, 1.2, 0.2])); parts.push(P(cyl(0.06, 0.06, 0.3, 8), t.pack, [0, 1.43, 0.2], [0, 0, HALFPI])); }
+  if (t.blood) { parts.push(P(box(0.25, 0.16, 0.26), 0x7a1612, [0.04, 1.1, -0.01])); parts.push(P(box(0.3, 0.06, 0.27), 0xe8e6de, [0.02, 1.2, 0])); }
+  // Arme: mit Waffe im Anschlag, ohne Waffe entspannt nach vorn
+  const sh = 0.205, sy = 1.4;
+  if (t.gun || t.armsAim) {
+    // Spielerfigur: Waffe sitzt separat (schwenkbar) etwas höher und weiter vorn
+    const oy = t.armsAim ? 0.13 : 0, oz = t.armsAim ? -0.1 : 0;
+    limb(parts, [sh, sy, 0], [0.2, 1.16 + oy * 0.5, -0.1 + oz * 0.5], 0.055, 0.048, t.uni);
+    limb(parts, [0.2, 1.16 + oy * 0.5, -0.1 + oz * 0.5], [0.11, 1.12 + oy, -0.2 + oz], 0.046, 0.04, t.uni);
+    limb(parts, [-sh, sy, 0], [-0.2, 1.2 + oy * 0.5, -0.22 + oz * 0.5], 0.055, 0.048, t.uni);
+    limb(parts, [-0.2, 1.2 + oy * 0.5, -0.22 + oz * 0.5], [-0.02, 1.15 + oy, -0.46 + oz], 0.046, 0.04, t.uni);
+    parts.push(P(sph(0.04, 6, 5), t.skin, [0.11, 1.11 + oy, -0.22 + oz]), P(sph(0.04, 6, 5), t.skin, [-0.01, 1.14 + oy, -0.48 + oz]));
+    const id = t.rifle || (t.gun === 0x3b2a1b ? 'ak' : 'm16');
+    if (t.gun) parts.push(Pc(weaponGeo(id), [0.08, 1.13, -0.2], [0.12, 0.08, 0]));
+  } else {
+    for (const sx of [-1, 1]) {
+      limb(parts, [sx * sh, sy, 0], [sx * 0.24, 1.15, -0.08], 0.055, 0.048, t.uni);
+      limb(parts, [sx * 0.24, 1.15, -0.08], [sx * 0.2, 1.02, -0.3], 0.046, 0.04, t.uni);
+      parts.push(P(sph(0.042, 6, 5), t.skin, [sx * 0.2, 1.0, -0.33]));
+    }
+  }
   const body = merge(parts);
-  const leg = merge([
-    P(box(0.16, 0.74, 0.19), t.uni, [0, -0.37, 0]),
-    P(box(0.17, 0.12, 0.26), 0x1a1a18, [0, -0.8, -0.03]),
-  ]);
+  // Bein: Oberschenkel, Knie, Unterschenkel, Stiefel (Drehpunkt an der Hüfte)
+  const lp = [];
+  limb(lp, [0, 0.02, 0], [0, -0.42, -0.02], 0.085, 0.07, t.uni);
+  limb(lp, [0, -0.42, -0.02], [0, -0.78, 0.01], 0.068, 0.055, t.uni);
+  if (t.vest || t.hat === 'helmet') lp.push(P(box(0.11, 0.1, 0.05), 0x2a2a24, [0, -0.42, -0.08]));       // Knieschoner
+  lp.push(P(box(0.13, 0.11, 0.26), t.robe ? 0x3a2c1e : 0x2a2420, [0, -0.81, -0.04]));
+  const leg = merge(lp);
   figGeoCache[type] = { body, leg };
   return figGeoCache[type];
 }
@@ -145,6 +237,7 @@ export class Figure {
     this.legR = new THREE.Mesh(g.leg, vcMat);
     this.legL.position.set(-0.11, 0.86, 0);
     this.legR.position.set(0.11, 0.86, 0);
+    this.body.castShadow = this.legL.castShadow = this.legR.castShadow = true;
     this.group.add(this.body, this.legL, this.legR);
     this.phase = Math.random() * 6;
   }
@@ -197,202 +290,6 @@ export function m60Geo() {
     P(box(0.08, 0.08, 0.04), COL.gun, [0, 0.1, -0.05]),
     P(box(0.16, 0.16, 0.22), 0x45502c, [-0.14, -0.06, 0.02]),
   ]);
-}
-
-export function buildHuey({ static: isStatic = false, number = '66-16024' } = {}) {
-  const od = COL.od, dk = COL.odDark;
-  const parts = [
-    // Rumpfunterteil, Boden, Dach
-    P(box(2.3, 0.45, 4.6), od, [0, -0.93, 0.3]),
-    P(box(2.36, 0.08, 4.2), 0x2d3022, [0, -0.69, 0.25]),
-    P(box(2.42, 0.1, 4.6), od, [0, 1.2, 0.4]),
-    // Heckteil hinter dem Schützenstand
-    P(box(2.3, 1.9, 0.8), od, [0, 0.25, 2.3]),
-    P(box(1.6, 1.4, 0.06), 0x2d3022, [0, 0.3, 1.88]),
-    // Säulen
-    P(box(0.08, 1.9, 0.12), od, [-1.18, 0.25, -0.95]),
-    P(box(0.08, 1.9, 0.12), od, [1.18, 0.25, -0.95]),
-    // Bug (untere Hälfte des Ellipsoids)
-    P(new THREE.SphereGeometry(1, 16, 8, Math.PI * 1.78, Math.PI * 1.44, HALFPI, HALFPI), od, [0, 0.1, -1.7], [0, 0, 0], [1.2, 1.15, 1.55]),
-    P(new THREE.SphereGeometry(1, 8, 4, Math.PI * 1.22, Math.PI * 0.56, HALFPI * 1.55, HALFPI * 0.45), od, [0, 0.1, -1.7], [0, 0, 0], [1.2, 1.15, 1.55]),
-    // Instrumentenbrett
-    P(box(1.9, 0.42, 0.12), 0x2a2d2a, [0, -0.2, -2.5], [-0.25, 0, 0]),
-    P(box(1.95, 0.05, 0.3), 0x1c1f1d, [0, 0.03, -2.42]),
-    P(box(0.25, 0.45, 0.5), 0x2a2d2a, [0, -0.55, -2.1]),
-    // Sitze Cockpit
-    P(box(0.55, 0.1, 0.55), 0x3a3a32, [-0.55, -0.38, -1.65]),
-    P(box(0.55, 0.7, 0.12), 0x3a3a32, [-0.55, 0.0, -1.32]),
-    P(box(0.55, 0.1, 0.55), 0x3a3a32, [0.55, -0.38, -1.65]),
-    P(box(0.55, 0.7, 0.12), 0x3a3a32, [0.55, 0.0, -1.32]),
-    // Sitzbank hinten, Schützensitze
-    P(box(0.9, 0.08, 0.45), 0x5a5a3c, [0, -0.27, 1.62]),
-    P(box(0.4, 0.08, 0.4), 0x5a5a3c, [-0.6, -0.25, 1.4]),
-    P(box(0.4, 0.08, 0.4), 0x5a5a3c, [0.6, -0.25, 1.4]),
-    // Heckkonus und Leitwerksträger
-    P(cyl(0.62, 1.0, 1.1, 10), od, [0, 0.55, 3.25], [HALFPI, 0, 0]),
-    P(cyl(0.24, 0.6, 5.6, 10), od, [0, 0.75, 6.5], [HALFPI + 0.04, 0, 0]),
-    P(box(0.16, 1.9, 0.95), od, [0, 1.55, 9.15], [0.45, 0, 0]),
-    P(box(0.12, 0.4, 0.5), dk, [0, 0.55, 9.3], [0.3, 0, 0]),
-    P(box(2.6, 0.06, 0.55), od, [0, 0.72, 6.6]),
-    P(cyl(0.06, 0.06, 0.25, 6), COL.gun, [-0.12, 2.15, 9.45], [0, 0, HALFPI]),
-    // Triebwerksverkleidung, Abgasrohr, Mast
-    P(box(1.4, 0.75, 3.2), od, [0, 1.62, 1.2]),
-    P(box(1.0, 0.35, 0.5), dk, [0, 1.6, -0.55]),
-    P(cyl(0.32, 0.28, 0.7, 10), 0x2b2a27, [0, 1.62, 3.05], [HALFPI, 0, 0]),
-    P(cyl(0.13, 0.15, 0.7, 8), COL.metal, [0, 2.25, 0.25]),
-    // Kufen
-    P(cyl(0.055, 0.055, 4.6, 6), COL.metal, [-1.25, -1.55, 0.2], [HALFPI, 0, 0]),
-    P(cyl(0.055, 0.055, 4.6, 6), COL.metal, [1.25, -1.55, 0.2], [HALFPI, 0, 0]),
-    P(cyl(0.055, 0.055, 0.6, 6), COL.metal, [-1.25, -1.43, -2.3], [HALFPI + 0.8, 0, 0]),
-    P(cyl(0.055, 0.055, 0.6, 6), COL.metal, [1.25, -1.43, -2.3], [HALFPI + 0.8, 0, 0]),
-  ];
-  for (const z of [-0.8, 1.1]) {
-    parts.push(P(cyl(0.06, 0.06, 2.0, 6), COL.metal, [0, -1.2, z], [0, 0, HALFPI]));
-    parts.push(P(cyl(0.06, 0.06, 0.45, 6), COL.metal, [1.125, -1.375, z], [0, 0, 0.62]));
-    parts.push(P(cyl(0.06, 0.06, 0.45, 6), COL.metal, [-1.125, -1.375, z], [0, 0, -0.62]));
-  }
-  // Instrumente
-  for (let i = 0; i < 6; i++) for (let r = 0; r < 2; r++) {
-    const x = -0.8 + i * 0.32 + (i > 2 ? 0.02 : 0), y = -0.1 - r * 0.17;
-    parts.push(P(cyl(0.065, 0.065, 0.02, 10), 0xd8d8cc, [x, y, -2.43 - r * 0.045], [HALFPI - 0.25, 0, 0]));
-    parts.push(P(cyl(0.055, 0.055, 0.022, 10), 0x111111, [x, y, -2.428 - r * 0.045], [HALFPI - 0.25, 0, 0]));
-  }
-  // MG-Lafetten
-  for (const sx of [-1, 1]) parts.push(P(cyl(0.03, 0.03, 0.85, 6), COL.gun, [sx * 1.2, -0.25, 1.2]));
-  const group = new THREE.Group();
-  const body = new THREE.Mesh(merge(parts), vcMatDouble);
-  group.add(body);
-
-  const glassMat = new THREE.MeshPhongMaterial({
-    color: 0x6f8a90, transparent: true, opacity: 0.32, shininess: 90, specular: 0xffffff,
-    side: THREE.DoubleSide, depthWrite: false,
-  });
-  const glassGeo = merge([
-    P(new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, HALFPI), 0xffffff),
-    P(new THREE.SphereGeometry(1, 8, 4, Math.PI * 1.22, Math.PI * 0.56, HALFPI, HALFPI * 0.55), 0xffffff),
-  ]);
-  const glass = new THREE.Mesh(glassGeo, glassMat);
-  glass.position.set(0, 0.1, -1.7);
-  glass.scale.set(1.2, 1.15, 1.55);
-  glass.renderOrder = 2;
-  group.add(glass);
-
-  // Beschriftung
-  const txt = textTexture('U.S. ARMY', 512, 96, 'bold 72px Arial', '#151511');
-  const txtMat = new THREE.MeshBasicMaterial({ map: txt, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  for (const sx of [-1, 1]) {
-    const pl = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.45), txtMat);
-    pl.position.set(sx * 0.47, 0.82, 5.6);
-    pl.rotation.y = sx * HALFPI;
-    pl.rotation.x = 0;
-    group.add(pl);
-  }
-  const numTex = textTexture(number, 512, 128, 'bold 80px Arial', '#151511');
-  const numMat = new THREE.MeshBasicMaterial({ map: numTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  for (const sx of [-1, 1]) {
-    const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.25), numMat);
-    pl.position.set(sx * 0.09, 1.25, 9.0);
-    pl.rotation.y = sx * HALFPI;
-    group.add(pl);
-  }
-
-  // Hauptrotor
-  const mainRotor = new THREE.Group();
-  mainRotor.position.set(0, 2.62, 0.25);
-  const rotorGeo = merge([
-    P(box(7.15, 0.05, 0.53), COL.rotor, [3.72, 0, 0]),
-    P(box(7.15, 0.05, 0.53), COL.rotor, [-3.72, 0, 0]),
-    P(box(0.35, 0.052, 0.53), 0xd4b020, [7.12, 0.001, 0]),
-    P(box(0.35, 0.052, 0.53), 0xd4b020, [-7.12, 0.001, 0]),
-    P(box(0.7, 0.25, 0.4), COL.gun, [0, 0, 0]),
-    P(box(0.06, 0.06, 2.4), COL.gun, [0, 0.18, 0]),
-    P(cyl(0.07, 0.07, 0.3, 6), COL.gun, [0, 0.18, 1.25], [HALFPI, 0, 0]),
-    P(cyl(0.07, 0.07, 0.3, 6), COL.gun, [0, 0.18, -1.25], [HALFPI, 0, 0]),
-  ]);
-  const rotorMesh = new THREE.Mesh(rotorGeo, vcMat);
-  mainRotor.add(rotorMesh);
-  group.add(mainRotor);
-  const discMat = new THREE.MeshBasicMaterial({ color: 0x202020, transparent: true, opacity: 0.0, depthWrite: false, side: THREE.DoubleSide });
-  const rotorDisc = new THREE.Mesh(new THREE.CircleGeometry(7.3, 40), discMat);
-  rotorDisc.rotation.x = -HALFPI;
-  rotorDisc.position.copy(mainRotor.position);
-  group.add(rotorDisc);
-
-  // Heckrotor (links)
-  const tailRotor = new THREE.Group();
-  tailRotor.position.set(-0.27, 2.15, 9.45);
-  tailRotor.add(new THREE.Mesh(merge([
-    P(box(0.04, 2.6, 0.2), COL.rotor, [0, 0, 0]),
-    P(box(0.045, 0.3, 0.205), 0xd4b020, [0, 1.15, 0]),
-    P(box(0.045, 0.3, 0.205), 0xd4b020, [0, -1.15, 0]),
-  ]), vcMat));
-  group.add(tailRotor);
-  const tailDisc = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), discMat);
-  tailDisc.rotation.y = HALFPI;
-  tailDisc.position.copy(tailRotor.position);
-  group.add(tailDisc);
-
-  // Positionslicht / Antikollisionslicht
-  const beaconMat = new THREE.MeshBasicMaterial({ color: 0x550000 });
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), beaconMat);
-  beacon.position.set(0, 2.05, 2.5);
-  group.add(beacon);
-
-  // Bordschützen + M60
-  const gunGeo = m60Geo();
-  const guns = {};
-  for (const side of ['left', 'right']) {
-    const sx = side === 'left' ? -1 : 1;
-    const mount = new THREE.Group();
-    mount.position.set(sx * 1.2, 0.2, 1.2);
-    mount.userData.baseYaw = side === 'left' ? HALFPI : -HALFPI;
-    mount.rotation.y = mount.userData.baseYaw;
-    const pitch = new THREE.Group();
-    mount.add(pitch);
-    const gun = new THREE.Mesh(gunGeo, vcMat);
-    pitch.add(gun);
-    const muzzle = new THREE.Object3D();
-    muzzle.position.set(0, 0.01, -0.9);
-    pitch.add(muzzle);
-    const eye = new THREE.Object3D();
-    eye.position.set(0, 0.3, 0.5);
-    pitch.add(eye);
-    group.add(mount);
-    const gunner = new Figure('crew');
-    gunner.group.position.set(sx * 0.6, 0, 1.4);
-    gunner.group.rotation.y = mount.userData.baseYaw;
-    gunner.sit(1.0, -0.23);
-    group.add(gunner.group);
-    guns[side] = { mount, pitch, muzzle, eye, gunner };
-  }
-  // Piloten
-  const pilots = [];
-  for (const sx of [-1, 1]) {
-    const f = new Figure('crew');
-    f.group.position.set(sx * 0.55, 0, -1.68);
-    f.sit(1.35, -0.33);
-    group.add(f.group);
-    pilots.push(f);
-  }
-  // Passagiersitze
-  const seats = [
-    { p: [-0.35, 1.6], r: 0, sit: [1.2, -0.25] },
-    { p: [0.0, 1.6], r: 0, sit: [1.2, -0.25] },
-    { p: [0.35, 1.6], r: 0, sit: [1.2, -0.25] },
-    { p: [-1.1, -0.65], r: HALFPI, sit: [0.35, -0.67] },
-    { p: [1.1, -0.65], r: -HALFPI, sit: [0.35, -0.67] },
-    { p: [-1.1, -0.05], r: HALFPI, sit: [0.35, -0.67] },
-    { p: [1.1, -0.05], r: -HALFPI, sit: [0.35, -0.67] },
-    { p: [-1.1, 0.55], r: HALFPI, sit: [0.35, -0.67] },
-    { p: [1.1, 0.55], r: -HALFPI, sit: [0.35, -0.67] },
-    { p: [0.0, 0.5], r: 0, sit: [1.5, -0.67] },
-  ];
-
-  return {
-    group, body, glass, mainRotor, tailRotor, rotorDisc, tailDisc, discMat, beacon, beaconMat,
-    guns, pilots, seats, isStatic,
-    eyePilot: new THREE.Vector3(0.55, 0.47, -1.78),
-  };
 }
 
 // ---------------------------------------------------------------- FOB-Objekte (Teilelisten)
@@ -567,7 +464,18 @@ export function weaponGeo(id) {
   if (modern) id = WEAPON_ALIAS[id];
   const blk = 0x1b1c1c, wood = modern ? 0x2c2c2a : 0x6e4a2a, od = modern ? 0x6b6450 : 0x4b5330;
   let parts;
-  if (id === 'm16') parts = [
+  if (id === 'ak') parts = [
+    P(box(0.055, 0.09, 0.4), 0x2a2a28, [0, 0, -0.08]),
+    P(cyl(0.013, 0.013, 0.42, 6), 0x2a2a28, [0, 0.02, -0.5], [HALFPI, 0, 0]),
+    P(box(0.06, 0.07, 0.24), 0x7a4a26, [0, -0.005, -0.38]),
+    P(box(0.03, 0.03, 0.26), 0x2a2a28, [0, 0.05, -0.38]),
+    P(box(0.045, 0.1, 0.32), 0x7a4a26, [0, -0.04, 0.28], [-0.12, 0, 0]),
+    P(box(0.035, 0.09, 0.045), 0x5a3a1e, [0, -0.08, 0.04], [-0.3, 0, 0]),
+    P(box(0.04, 0.14, 0.07), 0x2a2a28, [0, -0.11, -0.16], [0.25, 0, 0]),
+    P(box(0.04, 0.1, 0.07), 0x2a2a28, [0, -0.21, -0.12], [0.55, 0, 0]),
+    P(box(0.012, 0.05, 0.012), 0x2a2a28, [0, 0.055, -0.68]),
+  ];
+  else if (id === 'm16') parts = [
     P(box(0.06, 0.1, 0.5), blk, [0, 0, -0.1]),
     P(cyl(0.014, 0.014, 0.45, 6), blk, [0, 0.02, -0.55], [HALFPI, 0, 0]),
     P(box(0.05, 0.06, 0.3), blk, [0, -0.02, 0.28]),
