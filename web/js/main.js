@@ -396,7 +396,14 @@ class Game {
         const d = dist2(this.soldier.pos.x, this.soldier.pos.z, h.pos.x, h.pos.z);
         if (d < bd && !h.crashed) { bd = d; best = h; }
       }
-      if (!best) { this.radioOnce('nouse', 2, 'Kein Hubschrauber in der Nähe.', 'Crew', false, true); return; }
+      // Kein Hubschrauber daneben: per Funk einen rufen
+      if (!best) { this.requestPickup(); return; }
+      // Apache (keine Kabine): freien Besatzungsplatz nehmen
+      if (best.spec.capacity === 0) {
+        const c = this.crews[best.index];
+        this.wantSeat(best.index, c.left == null ? 'left' : 'pilot');
+        return;
+      }
       this.wantSeat(best.index, 'pax');
     } else if (this.seat !== 'pilot') this.wantSeat(this.myHeli, 'foot');
   }
@@ -441,11 +448,27 @@ class Game {
     // nächster Landeplatz: Lichtung oder FOB
     let spot = { x: w.fob.pads.troop.x, z: w.fob.pads.troop.z, name: 'FOB Pad H1' }, bd = dist2(p.x, p.z, spot.x, spot.z);
     for (const s of w.sites) { const d = dist2(p.x, p.z, s.x, s.z); if (d < bd) { bd = d; spot = { x: s.x, z: s.z, name: s.name }; } }
-    let heli = null;
-    for (const h of this.helis) if (!h.crashed && this.crews[h.index].pilot == null && (!heli || dist2(h.pos.x, h.pos.z, p.x, p.z) < dist2(heli.pos.x, heli.pos.z, p.x, p.z))) heli = h;
+    // Hubschrauber ohne menschlichen Piloten; Maschinen mit Kabine bevorzugt, dann die nächste
+    const free = this.helis.filter((h) => this.crews[h.index].pilot == null);
+    const score = (h) => dist2(h.pos.x, h.pos.z, p.x, p.z) + (h.spec.capacity === 0 ? 1e5 : 0) + (h.crashed ? 5e4 : 0);
+    let heli = free.sort((a, b) => score(a) - score(b))[0] || null;
     const cs = this.callsign;
     const reply = (x) => { if (pid === this.myId) this.radio(x, cs, false, true); else this.net.sendTo(pid, { t: 'radio', x, f: cs }); };
-    if (!heli) { reply('Kein freier Hubschrauber – ein Mitspieler muss Sie abholen.'); return; }
+    if (heli && heli.crashed) {
+      // abgestürzte Maschine: Ersatz startet von der FOB
+      if (this.owns(heli.index)) this.resetHeli(heli.index); else if (this.role === 'host') this.net.sendTo(this.owner(heli.index), { t: 'reset', i: heli.index });
+      reply(`Ersatzmaschine startet von der ${T.fobName}.`);
+    }
+    if (!heli) {
+      // alle Hubschrauber haben menschliche Piloten: die Piloten per Funk beauftragen
+      const name = pid === this.myId ? 'Ihr Mitspieler' : this.playerName(pid);
+      const tgt = this.helis.slice().sort((a, b) => dist2(a.pos.x, a.pos.z, p.x, p.z) - dist2(b.pos.x, b.pos.z, p.x, p.z))[0];
+      reply(`Alle Hubschrauber sind bemannt – ${tgt.spec.short} #${tgt.index + 1} wurde angefunkt und holt Sie bei ${spot.name} ab.`);
+      this.radio(`TOC: ${name} braucht Abholung bei ${spot.name} (Planquadrat ${w.gridRef(spot.x, spot.z)}).`, 'TOC', true);
+      if (pid === this.myId) this.myPickup = { x: spot.x, z: spot.z, name: spot.name, manual: this.time };
+      else this.net.sendTo(pid, { t: 'pickupAck', x: spot.x, z: spot.z, name: spot.name });
+      return;
+    }
     heli.aiPickup = { x: spot.x, z: spot.z, pid, t: this.time, name: spot.name };
     reply(`Verstanden – ${heli.spec.short} #${heli.index + 1} holt Sie bei ${spot.name} ab (${Math.round(bd)} m von Ihnen).`);
     if (pid === this.myId) this.myPickup = { x: spot.x, z: spot.z, name: spot.name };
@@ -456,7 +479,7 @@ class Game {
   aiPilot(h, dt) {
     const c = this.crews[h.index], M = this.missions, w = this.world;
     const humans = (c.left != null ? 1 : 0) + (c.right != null ? 1 : 0) + c.pax.length;
-    if (h.aiPickup && this.time - h.aiPickup.t > 240) h.aiPickup = null;
+    if (h.aiPickup && this.time - h.aiPickup.t > 600) h.aiPickup = null;
     let goal = null;
     if (h.spec.capacity === 0 && !h.aiPickup) {
       // Kampfhubschrauber: über dem Gefechtsfeld kreisen, damit der Waffensystemoffizier wirken kann
@@ -1280,7 +1303,7 @@ class Game {
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time, this.camera);
     this.updateCamera(dt);
-    if (this.myPickup && (this.seat !== 'foot' || this.helis.every((x) => !x.aiPickup))) this.myPickup = null;
+    if (this.myPickup && (this.seat !== 'foot' || (this.helis.every((x) => !x.aiPickup) && !(this.time - (this.myPickup.manual ?? -1e9) < 300)))) this.myPickup = null;
     this.hud.update(dt, {
       waypoint: this.myPickup ? { x: this.myPickup.x, z: this.myPickup.z, y: this.world.height(this.myPickup.x, this.myPickup.z), label: 'Abholung ' + this.myPickup.name, radius: 45 } : this.missions.waypoint(),
       warnings, hint,
