@@ -3,6 +3,7 @@ import * as THREE from './lib/three.module.min.js';
 import { Figure, buildLitter, vcMat } from './models.js';
 import { HALF, HELI } from './config.js';
 import { rand, clamp, dist2, bearing, dirName } from './util.js';
+import { T, figFor } from './theme.js';
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -34,10 +35,10 @@ export class Units {
     if (vis === 'L') {
       const g = new THREE.Group();
       const litter = new THREE.Mesh(litterGeo, vcMat);
-      const pat = new Figure('wounded');
+      const pat = new Figure(T.wounded);
       pat.group.rotation.x = Math.PI / 2;
       pat.group.position.set(0, 0.8, -0.85);
-      const b1 = new Figure(rand() < 0.3 ? 'us2' : 'us'), b2 = new Figure('us');
+      const b1 = new Figure(T.friend()), b2 = new Figure(T.friend());
       b1.group.position.set(0, 0, -1.35);
       b2.group.position.set(0, 0, 1.35);
       g.add(litter, pat.group, b1.group, b2.group);
@@ -84,7 +85,7 @@ export class Units {
 
   // Wartender Passagier (Soldat, Verwundeter auf Trage, Pilot)
   spawnPassenger(kind, x, z, missionId) {
-    const type = kind === 'walking' ? 'wounded' : kind === 'pilot' ? 'pilot' : rand() < 0.25 ? 'us2' : 'us';
+    const type = kind === 'walking' ? T.wounded : kind === 'pilot' ? T.pilot : T.friend();
     const u = this.makeVisual(kind === 'litter' ? 'L' : 'F:' + type);
     Object.assign(u, { id: uid++, kind, missionId, state: 'wait', x, z, y: 0 });
     u.speed = kind === 'litter' ? 1.7 : kind === 'walking' ? 1.4 : kind === 'pilot' ? 3.0 : 3.6;
@@ -101,7 +102,7 @@ export class Units {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + rand() * 0.4;
       const r = 24 + rand() * 14;
-      const u = this.makeVisual('F:' + (rand() < 0.25 ? 'us2' : 'us'));
+      const u = this.makeVisual('F:' + T.friend());
       Object.assign(u, { id: uid++, kind: 'defender', missionId, fireT: rand() * 3, burst: 0, shotT: 0, x: 0, z: 0, y: 0, site });
       this.place(u, site.x + Math.cos(a) * r, site.z + Math.sin(a) * r);
       u.obj.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a)); // nach außen schauen
@@ -125,7 +126,7 @@ export class Units {
       if (w.height(x, z) < 1) continue;
       if (!opts.nearFob && dist2(x, z, w.fob.x, w.fob.z) < 700) continue;
       const heavy = opts.heavy && list.length === 0;
-      const type = heavy || rand() < 0.4 ? 'nva' : 'vc';
+      const type = T.enemy(heavy);
       const e = this.makeVisual((heavy ? 'H:' : 'E:') + type);
       Object.assign(e, {
         id: uid++, kind: 'enemy', alive: true, heavy,
@@ -134,7 +135,7 @@ export class Units {
         range: heavy ? 1100 : 480,
       });
       this.place(e, x, z);
-      e.cover = w.inForest(x, z) > 0.4 ? 0.45 : 0.1;
+      e.cover = w.coverAt(x, z);
       e.obj.rotation.y = Math.atan2(-(cx - x), -(cz - z));
       this.setPose(e, heavy || rand() < 0.5 ? P_KNEEL : 0);
       this.enemies.push(e);
@@ -150,7 +151,7 @@ export class Units {
     while (this.patrols.length < count && tries++ < 400) {
       const x = rand.range(-HALF + 300, HALF - 300), z = rand.range(-HALF + 300, HALF - 300);
       if (dist2(x, z, w.fob.x, w.fob.z) < 1100) continue;
-      if (w.inForest(x, z) < 0.3) continue;
+      if (!w.ambushSpot(x, z)) continue;
       if (w.sites.some((s) => dist2(s.x, s.z, x, z) < 220)) continue;
       const p = { x, z, members: [] };
       p.members = this.spawnEnemies(x, z, 3 + Math.floor(rand() * 5), { rMin: 0, rMax: 35, patrol: p, heavy: rand() < 0.25 });
@@ -164,7 +165,7 @@ export class Units {
     const f = this.game.world.fob;
     for (let i = 0; i < 12; i++) {
       const a = (i / 12) * Math.PI * 2 + 0.13;
-      const u = this.makeVisual('F:' + (rand() < 0.25 ? 'us2' : 'us'));
+      const u = this.makeVisual('F:' + T.friend());
       Object.assign(u, { id: uid++, kind: 'defender', missionId: 'fob', fireT: rand() * 3, burst: 0, shotT: 0, x: 0, z: 0, y: 0, engage: true });
       this.place(u, f.x + Math.cos(a) * 199, f.z + Math.sin(a) * 199);
       u.obj.rotation.y = Math.atan2(-Math.cos(a), -Math.sin(a));
@@ -255,7 +256,7 @@ export class Units {
   // ------------------------------------------------------------ Aussteigen
   // Passagier verlässt den Hubschrauber und läuft zu einem Ziel
   spawnWalker(paxType, from, to, onArrive) {
-    const type = paxType === 'wounded' ? 'wounded' : paxType === 'pilot' ? 'pilot' : 'us';
+    const type = figFor(paxType);
     const u = this.makeVisual(paxType === 'wounded' && rand() < 0.6 ? 'L' : 'F:' + type);
     u.id = uid++;
     u.speed = u.vis === 'L' ? 1.7 : paxType === 'wounded' ? 1.4 : 3.4;

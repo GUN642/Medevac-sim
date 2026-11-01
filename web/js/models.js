@@ -83,6 +83,16 @@ const FIG_TYPES = {
   crew:    { uni: 0x535d3d, skin: 0xd2a07a, hat: 'flight', hatCol: 0x3d4630, pack: null, gun: null },
   vc:      { uni: 0x1c1c22, skin: 0xc9956a, hat: 'conical', hatCol: 0xc9b27a, pack: null, gun: 0x3b2a1b },
   nva:     { uni: 0x6f6b45, skin: 0xc9956a, hat: 'pith', hatCol: 0x7d7749, pack: 0x5a5638, gun: 0x3b2a1b },
+  // Afghanistan
+  isaf:     { uni: 0x857d5e, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649 },
+  isaf2:    { uni: 0x857d5e, skin: 0x6b4630, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649 },
+  bw:       { uni: 0x9a8c66, skin: 0xd8a882, hat: 'helmet', hatCol: 0x8a7d5a, pack: 0x6e6446, gun: 0x222222, vest: 0x7d7252 },
+  woundedA: { uni: 0x857d5e, skin: 0xd2a07a, hat: 'band', hatCol: 0xeeeeee, pack: null, gun: null, blood: true },
+  crewA:    { uni: 0x6b6d55, skin: 0xd2a07a, hat: 'flight', hatCol: 0x4a4c3c, pack: null, gun: null },
+  pilotA:   { uni: 0x6b6d55, skin: 0xd8a882, hat: 'flight', hatCol: 0x3f4133, pack: 0x55604a, gun: null },
+  playerA:  { uni: 0x857d5e, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: null, vest: 0x6f6649 },
+  tal:      { uni: 0x8d887c, skin: 0xb98560, hat: 'turban', hatCol: 0x1f1f1f, pack: null, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
+  tal2:     { uni: 0x6e5f4a, skin: 0xb07a55, hat: 'turban', hatCol: 0xd8d2c0, pack: 0x3d3a30, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
 };
 
 const figGeoCache = {};
@@ -105,6 +115,14 @@ function figureGeos(type) {
     parts.push(P(sph(0.16, 10, 5, 0, HALFPI), t.hatCol, [0, 1.62, 0], [0, 0, 0], [1.1, 0.8, 1.2]));
     parts.push(P(cyl(0.25, 0.25, 0.02, 12), t.hatCol, [0, 1.63, 0]));
   }
+  if (t.hat === 'helmet') parts.push(P(sph(0.165, 10, 5, 0, HALFPI), t.hatCol, [0, 1.6, 0], [0, 0, 0], [1.05, 0.82, 1.1]));
+  if (t.hat === 'turban') {
+    parts.push(P(cyl(0.15, 0.14, 0.14, 10), t.hatCol, [0, 1.69, 0], [0.1, 0, 0]));
+    parts.push(P(box(0.36, 0.22, 0.05), t.hatCol, [0, 1.42, 0.12], [0.2, 0, 0]));
+  }
+  if (t.beard) parts.push(P(box(0.17, 0.12, 0.08), t.beard, [0, 1.5, -0.09]));
+  if (t.vest) parts.push(P(box(0.46, 0.4, 0.31), t.vest, [0, 1.2, 0]));
+  if (t.robe) parts.push(P(box(0.46, 0.38, 0.3), t.uni, [0, 0.72, 0]));
   if (t.pack) parts.push(P(box(0.34, 0.4, 0.17), t.pack, [0, 1.2, 0.21]));
   if (t.gun) parts.push(P(box(0.05, 0.08, 0.9), t.gun, [0.06, 1.1, -0.36], [0.2, 0, 0]));
   if (t.blood) parts.push(P(box(0.3, 0.2, 0.27), 0x7a1612, [0.04, 1.1, 0]));
@@ -154,7 +172,7 @@ export function buildLitter() {
 }
 
 // ---------------------------------------------------------------- UH-1D
-function textTexture(text, w, h, font, color) {
+export function textTexture(text, w, h, font, color) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   const x = c.getContext('2d');
@@ -169,7 +187,7 @@ function textTexture(text, w, h, font, color) {
   return t;
 }
 
-function m60Geo() {
+export function m60Geo() {
   return merge([
     P(box(0.1, 0.13, 0.46), COL.gun, [0, 0, 0]),
     P(cyl(0.022, 0.022, 0.62, 6), COL.gun, [0, 0.01, -0.52], [HALFPI, 0, 0]),
@@ -542,8 +560,12 @@ export function wreckParts(kind) {
 }
 
 // ---------------------------------------------------------------- Handwaffen (Ursprung = Griff, Lauf zeigt nach -Z)
+// Afghanistan-Waffen nutzen die Grundformen der Vietnam-Waffen mit Kunststoff statt Holz
+const WEAPON_ALIAS = { m4: 'm16', m249: 'm60', m320: 'm79', m590: 'ithaca', m9: 'm1911' };
 export function weaponGeo(id) {
-  const blk = 0x1b1c1c, wood = 0x6e4a2a, od = 0x4b5330;
+  const modern = !!WEAPON_ALIAS[id];
+  if (modern) id = WEAPON_ALIAS[id];
+  const blk = 0x1b1c1c, wood = modern ? 0x2c2c2a : 0x6e4a2a, od = modern ? 0x6b6450 : 0x4b5330;
   let parts;
   if (id === 'm16') parts = [
     P(box(0.06, 0.1, 0.5), blk, [0, 0, -0.1]),

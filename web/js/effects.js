@@ -1,5 +1,6 @@
 // Partikel (Rauch, Staub, Feuer, Mündungsfeuer) und Leuchtspurgeschosse
 import * as THREE from './lib/three.module.min.js';
+import { T } from './theme.js';
 import { rand } from './util.js';
 
 const VERT = `
@@ -61,7 +62,7 @@ class ParticlePool {
       vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
       blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
       uniforms: {
-        scale: { value: 500 }, fogDensity: { value: 0.0004 }, fogColor: { value: new THREE.Color(0xc4cbbd) },
+        scale: { value: 500 }, fogDensity: { value: 0.0004 }, fogColor: { value: new THREE.Color(T.sky.fog) },
         additive: { value: additive ? 1 : 0 },
       },
     });
@@ -178,8 +179,8 @@ export class Effects {
     for (let i = 0; i < 30 * this.mul * scale; i++)
       this.smoke.spawn(x, y, z, rand.range(-6, 6) * scale, rand.range(1, 9) * scale, rand.range(-6, 6) * scale, rand.range(3, 7), 4 * scale, 22 * scale, 0.12, 0.11, 0.1, 0.85, 0.8, 1.5);
   }
-  dust(x, y, z, vx, vz, r, g, b, size) {
-    this.smoke.spawn(x, y, z, vx, rand.range(0.5, 2.5), vz, rand.range(1.2, 2.4), size, size * 3.5, r, g, b, 0.45, 1.0, 0.4);
+  dust(x, y, z, vx, vz, r, g, b, size, life = 1, alpha = 0.45, up = 1) {
+    this.smoke.spawn(x, y, z, vx, rand.range(0.5, 2.5) * up, vz, rand.range(1.2, 2.4) * life, size, size * 3.5, r, g, b, alpha, 1.0, 0.4);
   }
 
   // Leuchtspur zeichnen: Position, Richtung (normiert), Länge, Farbe

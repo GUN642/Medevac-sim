@@ -3,15 +3,29 @@ import * as THREE from './lib/three.module.min.js';
 import { Figure, weaponGeo, vcMat } from './models.js';
 import { HALF, G } from './config.js';
 import { clamp, rand, dist2 } from './util.js';
+import { T } from './theme.js';
 
-// Handwaffen der US-Infanterie in Vietnam
-export const WEAPONS = [
+// Handwaffen der Infanterie (Vietnam 1968 / Afghanistan 2010)
+const WEAPONS_VN = [
   { id: 'm16', sight: [0.165, -0.0, -0.66, 0.26, 0.05, 0.034], handle: 0.24, name: 'M16A1', desc: 'Sturmgewehr', mag: 20, reserve: 200, rpm: 750, auto: true, vel: 990, spread: 0.012, fov: 30, reload: 2.2, sound: 'm16', tracer: 3, recoil: 0.006 },
   { id: 'm60', sight: [0.1, 0.02, -0.93, 0.28, 0.06, 0.03], name: 'M60', desc: 'Maschinengewehr', mag: 100, reserve: 300, rpm: 550, auto: true, vel: 853, spread: 0.022, fov: 38, reload: 5.0, sound: 'm60', tracer: 2, recoil: 0.009, slow: 0.78 },
   { id: 'm79', sight: [0.11, -0.06, -0.46, 0.3, 0.045, 0.065], name: 'M79', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 50, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.8, sound: 'thump', grenade: true, recoil: 0.05 },
   { id: 'ithaca', sight: [0.06, 0.04, -0.71, 0.3, 0.045, 0.036], name: 'Ithaca 37', desc: 'Schrotflinte', mag: 5, reserve: 40, rpm: 80, auto: false, vel: 400, spread: 0.055, fov: 50, reload: 3.0, sound: 'shotgun', pellets: 9, recoil: 0.06 },
   { id: 'm1911', sight: [0.06, 0.02, -0.17, 0.45, 0.045, 0.045], name: 'M1911', desc: 'Pistole', mag: 7, reserve: 56, rpm: 360, auto: false, vel: 253, spread: 0.018, fov: 45, reload: 1.6, sound: 'pistol', recoil: 0.03 },
 ];
+const WEAPONS_AFG = [
+  { id: 'm4', sight: [0.165, -0.0, -0.66, 0.26, 0.05, 0.034], handle: 0.24, name: 'M4A1', desc: 'Sturmgewehr', mag: 30, reserve: 240, rpm: 800, auto: true, vel: 910, spread: 0.011, fov: 26, reload: 2.3, sound: 'm16', tracer: 4, recoil: 0.005 },
+  { id: 'm249', sight: [0.1, 0.02, -0.93, 0.28, 0.06, 0.03], name: 'M249 SAW', desc: 'leichtes MG', mag: 200, reserve: 400, rpm: 800, auto: true, vel: 915, spread: 0.02, fov: 36, reload: 5.5, sound: 'm60', tracer: 3, recoil: 0.007, slow: 0.8 },
+  { id: 'm320', sight: [0.11, -0.06, -0.46, 0.3, 0.045, 0.065], name: 'M320', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 55, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.7, sound: 'thump', grenade: true, recoil: 0.05 },
+  { id: 'm590', sight: [0.06, 0.04, -0.71, 0.3, 0.045, 0.036], name: 'Mossberg 590', desc: 'Schrotflinte', mag: 8, reserve: 48, rpm: 85, auto: false, vel: 400, spread: 0.05, fov: 50, reload: 3.4, sound: 'shotgun', pellets: 9, recoil: 0.06 },
+  { id: 'm9', sight: [0.06, 0.02, -0.17, 0.45, 0.045, 0.045], name: 'M9', desc: 'Pistole', mag: 15, reserve: 60, rpm: 400, auto: false, vel: 375, spread: 0.016, fov: 45, reload: 1.5, sound: 'pistol', recoil: 0.025 },
+];
+// Wird beim Start passend zum Einsatzgebiet befüllt (gleiche Array-Instanz für alle Importe)
+export const WEAPONS = WEAPONS_VN.slice();
+export function setWeaponSet(theme) {
+  WEAPONS.length = 0;
+  WEAPONS.push(...(theme === 'afghanistan' ? WEAPONS_AFG : WEAPONS_VN));
+}
 
 const geoCache = {};
 const wgeo = (id) => geoCache[id] || (geoCache[id] = weaponGeo(id));
@@ -78,12 +92,12 @@ export class Soldier {
   constructor(game, remote = false, name = '') {
     this.game = game;
     this.remote = remote;
-    this.fig = new Figure('player');
+    this.fig = new Figure(T.player);
     this.group = this.fig.group;
     this.arm = new THREE.Group();
     this.arm.position.set(0.16, 1.3, -0.05);
     this.group.add(this.arm);
-    this.gun = new THREE.Mesh(wgeo('m16'), vcMat);
+    this.gun = new THREE.Mesh(wgeo(WEAPONS[0].id), vcMat);
     this.gun.position.set(-0.05, -0.04, -0.28);
     this.arm.add(this.gun);
     if (remote && name) { this.label = nameSprite(name); this.group.add(this.label); }
@@ -117,7 +131,7 @@ export class Soldier {
   updateViewModel(dt, camera, on) {
     if (!this.vm) {
       this.vm = new THREE.Group();
-      this.vmGun = new THREE.Mesh(wgeo('m16'), vcMat);
+      this.vmGun = new THREE.Mesh(wgeo(WEAPONS[0].id), vcMat);
       this.vm.add(this.vmGun);
       camera.add(this.vm);
       this.adsT = 0; this.kick = 0;

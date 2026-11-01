@@ -1,4 +1,4 @@
-// Geschosse, Bordschützen (M60) und Feindbeschuss
+// Geschosse, Bordschützen (M60/M240H/MG3) und Feindbeschuss
 import * as THREE from './lib/three.module.min.js';
 import { GUN, G } from './config.js';
 import { clamp, wrapAngle, rand } from './util.js';
@@ -144,7 +144,8 @@ export class Gunner {
   }
 
   reset() {
-    this.ammo = GUN.ammo;
+    this.gun = this.heli.spec.gun;
+    this.ammo = this.gun.ammo;
     this.cool = 0;
     this.burst = 0;
     this.pause = 0;
@@ -203,7 +204,7 @@ export class Gunner {
         if (!e.alive) continue;
         const dx = e.x - h.pos.x, dz = e.z - h.pos.z;
         const d = Math.hypot(dx, dz, e.y - h.pos.y);
-        if (d > GUN.range) continue;
+        if (d > this.gun.range) continue;
         if (!(e.reveal > 0 || d < 90)) continue;
         _v.set(e.x, e.y + 1, e.z);
         this.anglesTo(_v, a);
@@ -224,7 +225,7 @@ export class Gunner {
     let tyaw = 0, tpitch = -0.3, aligned = false;
     if (t && t.alive) {
       const d0 = Math.hypot(t.x - h.pos.x, t.y - h.pos.y, t.z - h.pos.z);
-      const tt = d0 / GUN.muzzleVel;
+      const tt = d0 / this.gun.muzzleVel;
       _v.set(t.x - h.vel.x * tt, t.y + 0.9 + 0.5 * G * tt * tt, t.z - h.vel.z * tt);
       _v.y -= h.vel.y * tt;
       if (this.err) { _v.add(this.err); this.err.multiplyScalar(Math.exp(-dt * 0.35)); }
@@ -253,7 +254,7 @@ export class Gunner {
       return false;
     }
     this.emptyWarned = false;
-    this.cool += 60 / GUN.rpm;
+    this.cool += 60 / this.gun.rpm;
     this.ammo--;
     this.shots++;
     this.firing = true;
@@ -262,7 +263,7 @@ export class Gunner {
     dir.x += (rand() - 0.5) * spread * 2; dir.y += (rand() - 0.5) * spread * 2; dir.z += (rand() - 0.5) * spread * 2;
     dir.normalize();
     const tracer = this.shots % 2 === 0;
-    game.combat.fire(muzzle, dir, this.heli.vel, tracer, false, undefined, this.mode === 'ai');
+    game.combat.fire(muzzle, dir, this.heli.vel, tracer, false, this.gun.muzzleVel, this.mode === 'ai');
     if (tracer && game.net) game.net.gunFire(this.heli.index, this.side, muzzle, dir);
     game.effects.muzzle(muzzle.x + dir.x * 0.3, muzzle.y + dir.y * 0.3, muzzle.z + dir.z * 0.3, true);
     game.audio.shot('m60', game.camera.position.distanceTo(muzzle));

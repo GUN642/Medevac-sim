@@ -6,14 +6,15 @@
 <meta name="theme-color" content="#1b2013">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="description" content="UH-1D Medevac-Hubschraubersimulator im Vietnamkrieg – Verwundete bergen, Truppen transportieren, abgeschossene Piloten retten.">
-<title>Dustoff – UH-1D Medevac Vietnam</title>
+<meta name="description" content="Medevac-Hubschraubersimulator: UH-1D in Vietnam 1968, UH-60, CH-47 und CH-53GS in Afghanistan 2010 – Verwundete bergen, Truppen transportieren, abgeschossene Piloten retten.">
+<title>Dustoff – Medevac-Hubschraubersimulator</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="brownout"></div>
 
 <!-- ============ HUD ============ -->
 <div id="hud" class="hidden">
@@ -78,17 +79,19 @@
 <!-- ============ Overlays ============ -->
 <div id="loading" class="overlay">
   <div class="logo">DUSTOFF</div>
-  <div class="sub">UH-1D · VIETNAM 1968</div>
+  <div class="sub" id="load-sub">MEDEVAC-HUBSCHRAUBERSIMULATOR</div>
   <div class="loadbar"><div id="load-bar"></div></div>
   <div id="load-text">Lade …</div>
 </div>
 
 <div id="menu" class="overlay hidden">
   <div class="logo">DUSTOFF</div>
-  <div class="sub">UH-1D MEDEVAC · VIETNAM 1968</div>
+  <div class="sub" id="menu-sub">UH-1D MEDEVAC · VIETNAM 1968</div>
   <div class="menu-buttons">
     <button id="btn-start" class="primary">EINSATZ BEGINNEN</button>
     <button id="btn-start-foot">ALS INFANTERIE BEGINNEN</button>
+    <button id="btn-map" class="pre-start">KARTE: VIETNAM 1968</button>
+    <button id="btn-heli" class="pre-start">HUBSCHRAUBER: UH-1D</button>
     <button id="btn-continue" class="primary hidden">FORTSETZEN</button>
     <button id="btn-help">STEUERUNG</button>
     <button id="btn-mp">MEHRSPIELER (LAN)</button>
@@ -134,7 +137,7 @@
     </div>
     <div id="mp-form">
       <label>Ihr Name <input id="mp-name" type="text" maxlength="16"></label>
-      <label class="check"><input id="mp-heli2" type="checkbox" checked> Zweiten Hubschrauber (UH-1D #2) einsetzen</label>
+      <label>Zweiter Hubschrauber <select id="mp-heli2"></select></label>
       <button id="btn-host" class="primary">SPIEL ERÖFFNEN</button>
       <h3>Gefundene Spiele</h3>
       <div id="mp-hosts"></div>
@@ -143,7 +146,7 @@
       <p id="mp-status"></p>
       <ul class="howto">
         <li>Einer eröffnet das Spiel, die anderen treten bei. Neue Mitspieler können jederzeit dazukommen.</li>
-        <li>Zusammen fliegen: einer ist Pilot, die anderen sitzen an den M60. Freie Plätze übernimmt die KI.</li>
+        <li>Zusammen fliegen: einer ist Pilot, die anderen sitzen an den Bord-MGs. Freie Plätze übernimmt die KI.</li>
         <li>Mit dem zweiten Hubschrauber fliegen zwei Piloten gemeinsam. Über <b>CREW</b> (Taste X, Controller ⊖) wechseln Sie den Platz – auch in die andere Maschine, wenn beide nebeneinander gelandet sind.</li>
         <li>Gäste-WLANs mit „Client-Isolation“ verhindern die Verbindung.</li>
       </ul>
@@ -245,7 +248,8 @@
       <li>Behalten Sie den <b>Treibstoff</b> im Blick: Auf Pad <b>POL</b> (gelber Rand, Tankwagen) wird getankt, repariert und Munition aufgefüllt.</li>
       <li>Verwundete und gerettete Piloten auf Pad <b>MED</b> (rotes Kreuz) abliefern.</li>
       <li><b>Infanterie:</b> Über CREW → „Aussteigen“ oder „Als Infanterie beginnen“ spielen Sie einen Soldaten. Steigen Sie als Passagier ein – ist kein Mensch am Steuer, fliegt der KI-Pilot den Auftrag und setzt Sie an der LZ ab. Mit „Abholung“ (G) holt er Sie wieder.</li>
-      <li>Waffen zu Fuß: M16A1, M60, M79-Granatwerfer, Ithaca-37-Schrotflinte, M1911. Munition und Gesundheit füllen sich in der FOB auf.</li>
+      <li>Waffen zu Fuß – Vietnam: M16A1, M60, M79, Ithaca 37, M1911 · Afghanistan: M4A1, M249, M320, Mossberg 590, M9. Munition und Gesundheit füllen sich in der FOB auf.</li>
+      <li><b>Karte und Hubschrauber</b> wählen Sie im Hauptmenü: Vietnam 1968 mit der UH-1D oder Afghanistan 2010 mit UH-60 Black Hawk, CH-47 Chinook oder CH-53GS. In Afghanistan wirbeln die Rotoren beim Landen viel Staub auf (Brownout) und Böen schütteln den Hubschrauber.</li>
     </ul>
     <button data-close="help" class="primary">SCHLIESSEN</button>
   </div>

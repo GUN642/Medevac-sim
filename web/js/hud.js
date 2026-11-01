@@ -143,9 +143,9 @@ export class HUD {
     this.el['vs-bar'].className = vsn < -0.45 && h.agl < 30 ? 'danger' : '';
     // Passagiere
     const pc = h.passengers.length;
-    this.el.pax.innerHTML = `<span class="lbl">KABINE</span> ${pc}/${HELI.capacity}`;
+    this.el.pax.innerHTML = `<span class="lbl">KABINE</span> ${pc}/${h.spec.capacity}`;
     const L = h.gunners.left, R = h.gunners.right;
-    this.el.ammo.innerHTML = `<span class="lbl">M60</span> L ${L.ammo} · R ${R.ammo}`;
+    this.el.ammo.innerHTML = `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammo} · R ${R.ammo}`;
     // Infanterie
     const fh = document.getElementById('foot-hud');
     if (g.seat === 'foot') {
@@ -339,7 +339,7 @@ export class HUD {
     g.crews.forEach((c, i) => {
       const h = g.helis[i];
       const st = h.crashed ? 'abgestürzt' : h.contact ? 'gelandet' : 'in der Luft';
-      html += `<div class="crew-heli"><h3>UH-1D #${i + 1} <small>${st} · ${Math.round(h.fuel)} % Treibstoff · Kabine ${h.passengers.length}/${HELI.capacity}</small></h3>`;
+      html += `<div class="crew-heli"><h3>${h.spec.short} #${i + 1} <small>${st} · ${Math.round(h.fuel)} % Treibstoff · Kabine ${h.passengers.length}/${h.spec.capacity}</small></h3>`;
       for (const s of ['pilot', 'left', 'right']) {
         const occ = c[s];
         const mine = occ === g.myId;
@@ -348,7 +348,7 @@ export class HUD {
       }
       const paxMine = c.pax.includes(g.myId);
       const paxNames = c.pax.map((x) => esc(name(x))).join(', ');
-      html += `<button data-heli="${i}" data-seat="pax" class="${paxMine ? 'mine' : ''}">Passagier<small>${paxNames || 'Kabine'} · ${g.heliLoad(h)}/${HELI.capacity}</small></button>`;
+      html += `<button data-heli="${i}" data-seat="pax" class="${paxMine ? 'mine' : ''}">Passagier<small>${paxNames || 'Kabine'} · ${g.heliLoad(h)}/${h.spec.capacity}</small></button>`;
       const me = g.seatOf(g.myId);
       if (me && me.i === i) html += `<button data-heli="${i}" data-seat="foot">Aussteigen<small>zu Fuß (nur am Boden)</small></button>`;
       html += '</div>';

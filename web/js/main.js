@@ -1,6 +1,8 @@
-// Dustoff – UH-1D Medevac Vietnam: Hauptprogramm
+// Dustoff – Medevac-Hubschraubersimulator (Vietnam 1968 / Afghanistan 2010): Hauptprogramm
 import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
+import { AfghanWorld } from './worldAfg.js';
+import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
 import { Effects } from './effects.js';
 import { Helicopter } from './helicopter.js';
 import { Combat, Gunner } from './combat.js';
@@ -10,8 +12,8 @@ import { HUD } from './hud.js';
 import { Input } from './input.js';
 import { AudioSys } from './audio.js';
 import { Net, netTransport, COLORS } from './net.js';
-import { Soldier, WEAPONS } from './soldier.js';
-import { FUEL, HELI, CALLSIGN, FOB_NAME, GUN } from './config.js';
+import { Soldier, WEAPONS, setWeaponSet } from './soldier.js';
+import { FUEL } from './config.js';
 import { clamp, damp, dist2, rand, wrapAngle } from './util.js';
 import * as PF from './platform.js';
 
@@ -42,6 +44,7 @@ class Game {
   }
 
   get heli() { return this.helis[this.myHeli]; }
+  get callsign() { const h = this.heli || this.helis[0]; return h ? h.spec.callsign : 'Dustoff'; }
   // Bezugspunkt für Kompass, Karte und Wegpunkt: Soldat zu Fuß oder eigener Hubschrauber
   viewer() {
     if (this.seat === 'foot' && this.soldier.active) {
@@ -62,18 +65,24 @@ class Game {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
+    // Einsatzgebiet (Karte) festlegen, bevor die Welt entsteht
+    const theme = themeOf(this.settings.map);
+    setTheme(theme);
+    setWeaponSet(theme);
+    document.body.dataset.theme = theme;
+    const sky = T.sky;
     this.scene = new THREE.Scene();
-    this.fogDensity = 0.0005;
-    this.scene.fog = new THREE.FogExp2(0xc4cbbd, this.fogDensity);
+    this.fogDensity = sky.fogDensity;
+    this.scene.fog = new THREE.FogExp2(sky.fog, this.fogDensity);
     this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 7000);
     this.scene.add(this.camera); // für die Waffe in der Ego-Perspektive
-    this.scene.add(new THREE.HemisphereLight(0xd9e3ea, 0x46522f, 1.25));
-    const sun = new THREE.DirectionalLight(0xfff0d6, 2.4);
+    this.scene.add(new THREE.HemisphereLight(sky.hemiSky, sky.hemiGround, sky.hemi));
+    const sun = new THREE.DirectionalLight(sky.sun, sky.sunI);
     sun.position.set(-0.5, 1, 0.35).multiplyScalar(1000);
     this.scene.add(sun);
 
     await this.step('Erzeuge Gelände …', 10);
-    this.world = new World(this.scene, q);
+    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : new World(this.scene, q);
     await this.step('Effekte …', 60);
     this.effects = new Effects(this.scene, q);
     this.combat = new Combat(this);
@@ -86,7 +95,7 @@ class Game {
     this.audio.setVolume(this.settings.volume);
     this.tr = netTransport();
     await this.step('Bereite FOB vor …', 85);
-    this.addHeli();
+    this.addHeli(heliTypeFor(T.id, this.settings.heli));
     this.crews = [{ pilot: 0, left: null, right: null, pax: [] }];
     this.soldier = new Soldier(this);
     this.avatars = new Map();
@@ -104,6 +113,11 @@ class Game {
     $('loading').classList.add('hidden');
     this.showMenu();
     try { if (sessionStorage.getItem('dustoff.openLobby')) { sessionStorage.removeItem('dustoff.openLobby'); this.openLobby(); } } catch (e) { /* privat */ }
+    // Nach einem Kartenwechsel automatisch wieder dem Mehrspieler-Spiel beitreten
+    try {
+      const aj = JSON.parse(sessionStorage.getItem('dustoff.autojoin') || 'null');
+      if (aj) { sessionStorage.removeItem('dustoff.autojoin'); this.openLobby(); if (this.tr) this.startJoin(aj.ip, aj.port); }
+    } catch (e) { /* privat */ }
     this.last = performance.now();
     window.game = this; // für Debugging
     this.renderer.setAnimationLoop(() => this.frame());
@@ -116,14 +130,28 @@ class Game {
   }
 
   // ------------------------------------------------------------ Hubschrauber & Besatzung
-  addHeli() {
+  addHeli(type) {
     const i = this.helis.length;
-    const h = new Helicopter(this.scene, this.effects, i);
+    if (!type) type = (this.netTypes && this.netTypes[i]) || T.helis[Math.min(i, T.helis.length - 1)];
+    const h = new Helicopter(this.scene, this.effects, i, heliTypeFor(T.id, type));
     h.gunners = { left: new Gunner('left', h), right: new Gunner('right', h) };
     this.helis.push(h);
+    if (i === 0) this.orbit.dist = h.spec.camDist;
     if (i === 1) this.world.parked[0].visible = false;
     this.resetHeli(i);
     return h;
+  }
+
+  // Typ eines Hubschraubers wechseln (Menü vor dem Start, Mehrspieler-Abgleich)
+  setHeliType(i, type) {
+    const h = this.helis[i];
+    type = heliTypeFor(T.id, type);
+    if (!h || h.type === type) return;
+    h.setType(type);
+    h.gunners = { left: new Gunner('left', h), right: new Gunner('right', h) };
+    this.resetHeli(i);
+    if (i === this.myHeli) { this.orbit.dist = h.spec.camDist; this.camInit = false; }
+    this.setLocalSeat(this.myHeli, this.seat);
   }
 
   padFor(i) { return i === 0 ? this.world.fob.pads.troop : this.world.fob.pads.h2; }
@@ -214,10 +242,10 @@ class Game {
     if (seat === 'left' || seat === 'right') {
       const pilot = this.crews[i] && this.crews[i].pilot;
       const who = pilot != null && pilot !== this.myId ? this.playerName(pilot) + ' fliegt' : 'Der KI-Pilot fliegt den Auftrag';
-      this.radioOnce('ap' + seat, 3, `Sie bedienen das ${seat === 'left' ? 'linke' : 'rechte'} M60. ${who}.`, 'Crew', false, true);
+      this.radioOnce('ap' + seat, 3, `Sie bedienen das ${seat === 'left' ? 'linke' : 'rechte'} ${this.helis[i].spec.gun.name}. ${who}.`, 'Crew', false, true);
     } else if (seat === 'pax') {
       const pilot = this.crews[i] && this.crews[i].pilot;
-      this.radioOnce('pax', 3, `Sie sitzen in der Kabine von UH-1D #${i + 1}. ${pilot != null && pilot !== this.myId ? this.playerName(pilot) + ' fliegt.' : 'Der KI-Pilot fliegt den Auftrag.'} Aussteigen: E / Ⓐ – nur am Boden.`, 'Crew', false, true);
+      this.radioOnce('pax', 3, `Sie sitzen in der Kabine von ${this.helis[i].spec.short} #${i + 1}. ${pilot != null && pilot !== this.myId ? this.playerName(pilot) + ' fliegt.' : 'Der KI-Pilot fliegt den Auftrag.'} Aussteigen: E / Ⓐ – nur am Boden.`, 'Crew', false, true);
     }
     this.helis.forEach((h) => { h.playerPax = this.crews[h.index] ? this.crews[h.index].pax.length : 0; h.updatePassengerDisplay(); });
     this.hud.updateCrew();
@@ -274,7 +302,7 @@ class Game {
     }
     if (seat === 'pax') {
       if (cur && cur.i === i && cur.seat === 'pax') return null;
-      if (this.heliLoad(h) >= HELI.capacity) return 'Die Kabine ist voll.';
+      if (this.heliLoad(h) >= h.spec.capacity) return 'Die Kabine ist voll.';
     } else if (c[seat] != null && c[seat] !== pid) return `Der Platz ${SEAT_NAMES[seat]} ist besetzt (${this.playerName(c[seat])}).`;
     if (!cur) {
       // zu Fuß: nur an einen gelandeten Hubschrauber in der Nähe
@@ -297,7 +325,7 @@ class Game {
     for (const [i, s] of order) {
       if (this.crews[i] && this.crews[i][s] == null) { this.crews[i][s] = pid; return; }
     }
-    if (this.heliLoad(this.helis[0]) < HELI.capacity) this.crews[0].pax.push(pid);
+    if (this.heliLoad(this.helis[0]) < this.helis[0].spec.capacity) this.crews[0].pax.push(pid);
   }
 
   freeSeats(pid) {
@@ -360,10 +388,11 @@ class Game {
     for (const s of w.sites) { const d = dist2(p.x, p.z, s.x, s.z); if (d < bd) { bd = d; spot = { x: s.x, z: s.z, name: s.name }; } }
     let heli = null;
     for (const h of this.helis) if (!h.crashed && this.crews[h.index].pilot == null && (!heli || dist2(h.pos.x, h.pos.z, p.x, p.z) < dist2(heli.pos.x, heli.pos.z, p.x, p.z))) heli = h;
-    const reply = (x) => { if (pid === this.myId) this.radio(x, CALLSIGN, false, true); else this.net.sendTo(pid, { t: 'radio', x, f: CALLSIGN }); };
+    const cs = this.callsign;
+    const reply = (x) => { if (pid === this.myId) this.radio(x, cs, false, true); else this.net.sendTo(pid, { t: 'radio', x, f: cs }); };
     if (!heli) { reply('Kein freier Hubschrauber – ein Mitspieler muss Sie abholen.'); return; }
     heli.aiPickup = { x: spot.x, z: spot.z, pid, t: this.time, name: spot.name };
-    reply(`Verstanden – UH-1D #${heli.index + 1} holt Sie bei ${spot.name} ab (${Math.round(bd)} m von Ihnen).`);
+    reply(`Verstanden – ${heli.spec.short} #${heli.index + 1} holt Sie bei ${spot.name} ab (${Math.round(bd)} m von Ihnen).`);
     if (pid === this.myId) this.myPickup = { x: spot.x, z: spot.z, name: spot.name };
     else this.net.sendTo(pid, { t: 'pickupAck', x: spot.x, z: spot.z, name: spot.name });
   }
@@ -472,6 +501,10 @@ class Game {
     on('btn-start-foot', () => { this.startGame(); if (this.seat !== 'foot') this.wantSeat(this.myHeli, 'foot'); });
     on('btn-continue', () => this.startGame());
     on('btn-help', () => this.openPanel('help'));
+    on('btn-map', () => this.cycleMap());
+    on('btn-heli', () => this.cycleHeli(1));
+    $('mp-heli2').innerHTML = '<option value="">keiner</option>' + T.helis.map((t) => `<option value="${t}">${HELI_TYPES[t].name}</option>`).join('');
+    $('mp-heli2').value = T.helis[T.helis.length > 1 ? 1 : 0];
     on('btn-settings', () => this.openPanel('settings'));
     on('btn-mp', () => {
       // Läuft schon ein Spiel, erst beenden (sauberer Neustart), dann direkt die Lobby öffnen
@@ -507,7 +540,9 @@ class Game {
     });
     $('mp-hosts').addEventListener('click', (e) => {
       const b = e.target.closest('[data-ip]');
-      if (b) this.startJoin(b.dataset.ip, +b.dataset.port);
+      if (!b) return;
+      if (b.dataset.map && b.dataset.map !== T.id) { this.switchMap(b.dataset.map, { ip: b.dataset.ip, port: +b.dataset.port }); return; }
+      this.startJoin(b.dataset.ip, +b.dataset.port);
     });
     document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); this.closePanel(b.dataset.close); }));
     document.querySelectorAll('.help-tabs button').forEach((b) => b.addEventListener('click', () => {
@@ -578,8 +613,50 @@ class Game {
     if (b) b.focus({ preventScroll: false });
   }
 
+  // Kartenwahl: Welt wird neu erzeugt (Neuladen der Seite)
+  cycleMap() {
+    const ids = Object.keys(THEMES);
+    const next = ids[(ids.indexOf(T.id) + 1) % ids.length];
+    this.switchMap(next);
+  }
+
+  switchMap(map, join) {
+    this.settings.map = map;
+    this.settings.heli = heliTypeFor(map, this.settings.heli);
+    PF.saveSettings(this.settings);
+    this.saveStats();
+    try { if (join) sessionStorage.setItem('dustoff.autojoin', JSON.stringify(join)); } catch (e) { /* privat */ }
+    if (this.net) this.net.stop();
+    $('menu').classList.add('hidden');
+    $('lobby').classList.add('hidden');
+    $('load-text').textContent = 'Wechsle nach ' + THEMES[map].name + ' …';
+    $('loading').classList.remove('hidden');
+    setTimeout(() => location.reload(), 50);
+  }
+
+  cycleHeli(dir) {
+    if (this.started || T.helis.length < 2) return;
+    const list = T.helis;
+    const next = list[(list.indexOf(this.helis[0].type) + dir + list.length) % list.length];
+    this.settings.heli = next;
+    PF.saveSettings(this.settings);
+    this.setHeliType(0, next);
+    this.updateMenuLabels();
+  }
+
+  updateMenuLabels() {
+    const spec = this.helis[0].spec;
+    $('menu-sub').textContent = `${spec.short} ${spec.capacity > 12 ? `· ${spec.capacity} PLÄTZE` : 'MEDEVAC'} · ${T.sub}`;
+    $('btn-map').textContent = 'KARTE: ' + T.name.toUpperCase();
+    $('btn-heli').textContent = 'HUBSCHRAUBER: ' + spec.short;
+    $('btn-heli').classList.toggle('hidden', !!this.started || T.helis.length < 2);
+    $('btn-map').classList.toggle('hidden', !!this.started);
+  }
+
   showMenu() {
     this.state = 'menu';
+    $('brownout').style.opacity = 0; this.boShown = 0;
+    this.updateMenuLabels();
     this.hud.show(false);
     this.updateTouchVisibility();
     $('menu').classList.remove('hidden');
@@ -627,7 +704,7 @@ class Game {
     this.updateTouchVisibility();
     if (!this.started) {
       this.started = true;
-      this.hud.radio(`${CALLSIGN}, hier TOC ${FOB_NAME}. Willkommen in Vietnam. Halten Sie sich bereit.`, 'TOC');
+      this.hud.radio(`${this.callsign}, hier TOC ${T.fobName}. Willkommen in ${T.country}. Halten Sie sich bereit.`, 'TOC');
       setTimeout(() => { if (!this.missions.current && this.role !== 'client') this.missions.generate(); }, 1200);
     }
   }
@@ -692,20 +769,25 @@ class Game {
   refreshHosts() {
     const list = this.tr.hosts();
     $('mp-hosts').innerHTML = list.length
-      ? list.map((h) => `<button data-ip="${esc(h.ip)}" data-port="${h.port}">${esc(h.info.name || 'Host')} · ${h.info.n || 1} Spieler${h.info.heli2 ? ' · 2 Hubschrauber' : ''}<small>${esc(h.ip)}</small></button>`).join('')
+      ? list.map((h) => {
+        const map = THEMES[h.info.map] ? h.info.map : 'vietnam';
+        const types = (h.info.types || []).map((t) => (HELI_TYPES[t] ? HELI_TYPES[t].short : t)).join(' + ') || (h.info.heli2 ? '2 Hubschrauber' : 'UH-1D');
+        return `<button data-ip="${esc(h.ip)}" data-port="${h.port}" data-map="${map}">${esc(h.info.name || 'Host')} · ${h.info.n || 1} Spieler · ${THEMES[map].name}<small>${esc(types)} · ${esc(h.ip)}${map !== T.id ? ' · Karte wird gewechselt' : ''}</small></button>`;
+      }).join('')
       : '<p class="note">Suche nach Spielen im Netzwerk …</p>';
   }
 
   myName() { return ($('mp-name').value || 'Pilot').trim().slice(0, 16) || 'Pilot'; }
 
   startHost() {
-    const heli2 = $('mp-heli2').checked;
+    const heli2Type = $('mp-heli2').value;
+    const heli2 = !!heli2Type;
+    if (heli2 && this.helis.length < 2) { this.addHeli(heli2Type); this.crews.push({ pilot: null, left: null, right: null, pax: [] }); }
     this.net = new Net(this, this.tr);
     const r = this.net.host(this.myName(), heli2);
     if (!r || String(r).startsWith('err')) { this.onNetStatus('Spiel konnte nicht eröffnet werden: ' + r, true); this.net = null; return; }
     this.role = 'host';
     this.myId = 0;
-    if (heli2 && this.helis.length < 2) { this.addHeli(); this.crews.push({ pilot: null, left: null, right: null, pax: [] }); }
     this.netReady = true;
     const ip = String(r).split(':').slice(1).join(':');
     this.radio(`Mehrspieler-Spiel eröffnet (${ip}). Mitspieler im selben WLAN können jetzt beitreten.`, 'TOC', false, true);
@@ -727,6 +809,8 @@ class Game {
     if (this.missions.current) this.missions.retire(this.missions.current);
     this.missions.nextTimer = -1;
     this.time = w.time || 0;
+    this.netTypes = w.types || null;
+    if (this.netTypes) this.helis.forEach((h, i) => this.netTypes[i] && this.setHeliType(i, this.netTypes[i]));
     if (w.heli2 && this.helis.length < 2) this.addHeli();
     for (let i = 0; i < this.helis.length; i++) this.resetHeli(i);
     this.applyCrews(w.c);
@@ -734,7 +818,7 @@ class Game {
     this.netReady = true;
     this.started = true;
     this.startGame();
-    this.radio(`Verbunden mit ${this.playerName(0)}. Sie sind ${SEAT_NAMES[this.seat]} in UH-1D #${this.myHeli + 1}.`, 'TOC', false, true);
+    this.radio(`Verbunden mit ${this.playerName(0)}. Sie sind ${SEAT_NAMES[this.seat]} in ${this.heli.spec.short} #${this.myHeli + 1}.`, 'TOC', false, true);
   }
 
   onNetStatus(text, err) {
@@ -809,7 +893,7 @@ class Game {
     if (h === this.heli) {
       this.stats.losses++;
       this.saveStats();
-      this.radio(`MAYDAY, MAYDAY! ${CALLSIGN}${this.helis.length > 1 ? ' #' + (h.index + 1) : ''} stürzt ab!`, CALLSIGN, true, true);
+      this.radio(`MAYDAY, MAYDAY! ${h.spec.callsign}${this.helis.length > 1 ? ' #' + (h.index + 1) : ''} stürzt ab!`, h.spec.callsign, true, true);
       this.crashAt = this.time;
     }
     this.audio.boom(this.camera.position.distanceTo(h.pos));
@@ -916,6 +1000,7 @@ class Game {
   adjustFocused(dir) {
     const el = document.activeElement;
     if (!el || !this.topOverlay() || !this.topOverlay().contains(el)) { this.moveFocus(dir); return; }
+    if (el.id === 'btn-heli') { this.cycleHeli(dir); return; }
     if (el.tagName === 'SELECT') {
       el.selectedIndex = clamp(el.selectedIndex + dir, 0, el.options.length - 1);
       el.dispatchEvent(new Event('change'));
@@ -945,7 +1030,8 @@ class Game {
     this.attractT = (this.attractT || 0) + dt;
     const h = this.heli, t = this.attractT * 0.08;
     h.animate(dt);
-    this.camera.position.set(h.pos.x + Math.sin(t) * 26, h.pos.y + 6 + Math.sin(t * 0.7) * 2, h.pos.z + Math.cos(t) * 26);
+    const r = h.spec.camDist * 1.1;
+    this.camera.position.set(h.pos.x + Math.sin(t) * r, h.pos.y + 6 + Math.sin(t * 0.7) * 2 + r * 0.05, h.pos.z + Math.cos(t) * r);
     this.camera.lookAt(h.pos.x, h.pos.y + 1, h.pos.z);
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time + this.attractT, this.camera);
@@ -1024,7 +1110,7 @@ class Game {
         const mode = mine ? 'player' : occupied ? 'remote' : this.role === 'client' ? 'remote' : 'ai';
         if (mine && !background) {
           const gn = hh.gunners[side];
-          this.aimAssist(dt, aim, gn, (e, o) => { this._aaV = (this._aaV || new THREE.Vector3()).set(e.x, e.y + 1, e.z); gn.anglesTo(this._aaV, o); return gn.inArc(o); }, this.input.zoomHeld, GUN.range);
+          this.aimAssist(dt, aim, gn, (e, o) => { this._aaV = (this._aaV || new THREE.Vector3()).set(e.x, e.y + 1, e.z); gn.anglesTo(this._aaV, o); return gn.inArc(o); }, this.input.zoomHeld, gn.gun.range);
         }
         hh.gunners[side].update(dt, this, mine && !background ? aim : { dx: 0, dy: 0 }, mine && !background && this.input.fire, mode);
       }
@@ -1049,7 +1135,7 @@ class Game {
       }
       for (const side of ['left', 'right']) {
         const gu = hh.gunners[side];
-        if (gu.mode === 'player' || gu.mode === 'ai') gu.ammo = Math.min(GUN.ammo, gu.ammo + Math.ceil(400 * dt));
+        if (gu.mode === 'player' || gu.mode === 'ai') gu.ammo = Math.min(gu.gun.ammo, gu.ammo + Math.ceil(400 * dt));
       }
       if (hh === h) {
         const full = h.fuel >= 99.9 && h.hp >= 99.9;
@@ -1069,7 +1155,7 @@ class Game {
       let near = null, nd = 12;
       for (const hh of this.helis) { const d = dist2(S.pos.x, S.pos.z, hh.pos.x, hh.pos.z); if (d < nd && !hh.crashed) { nd = d; near = hh; } }
       const key = this.input.device === 'gamepad' ? 'Ⓐ' : this.input.device === 'touch' ? 'EIN/AUS' : 'E';
-      if (near) hint = near.contact ? `${key}: In UH-1D #${near.index + 1} einsteigen` : 'Hubschrauber noch in der Luft – warten bis er gelandet ist';
+      if (near) hint = near.contact ? `${key}: In ${near.spec.short} #${near.index + 1} einsteigen` : 'Hubschrauber noch in der Luft – warten bis er gelandet ist';
       else if (S.reloadT > 0) hint = 'Nachladen …';
       else if (S.mag[S.w] === 0 && S.res[S.w] === 0) hint = 'Keine Munition – in der FOB auffüllen oder Waffe wechseln';
     } else if (this.seat === 'pax') {
@@ -1088,7 +1174,7 @@ class Game {
       if (!h.contact && h.agl < 25 && h.vel.y < -5) warnings.push({ text: 'SINKRATE – ZIEHEN!', level: 'crit' });
       if (h.boundaryWarn) warnings.push({ text: 'EINSATZGEBIET VERLASSEN – UMKEHREN', level: 'warn' });
       if (!hint && h.fuel < 35 && dF < 600) hint = 'Zum Tanken auf Pad POL (gelber Rand, neben dem Tankwagen) landen';
-      if (!hint && this.missions.target(h) === 'from' && this.heliLoad(h) >= HELI.capacity) hint = 'Kabine voll!';
+      if (!hint && this.missions.target(h) === 'from' && this.heliLoad(h) >= h.spec.capacity) hint = 'Kabine voll!';
       if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)';
     }
     if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });
@@ -1104,6 +1190,9 @@ class Game {
       cameraLabel: this.seat === 'pilot' ? (this.camMode === 'chase' ? 'Außenansicht' : 'Cockpit') : '',
     });
     this.updateWaypointBeam();
+    // Brownout: Sicht trübt sich beim Schweben über Sand (nur im/am eigenen Hubschrauber)
+    const bo = !onFoot && !h.crashed ? h.brownout || 0 : 0;
+    if (Math.abs(bo - (this.boShown || 0)) > 0.02) { this.boShown = bo; $('brownout').style.opacity = (bo * 0.75).toFixed(2); }
     let ah = h, ad = 0;
     if (onFoot) {
       ad = 1e9;
@@ -1206,7 +1295,7 @@ class Game {
     } else {
       const o = this.orbit;
       o.yaw -= look.dx; o.pitch = clamp(o.pitch + look.dy, -0.15, 1.2);
-      o.dist = clamp(o.dist + look.zoom * 3, 12, 70);
+      o.dist = clamp(o.dist + look.zoom * 3, 12, 95);
       if (!this.input.mouseDown[2]) o.yaw *= 1 - damp(0.8, dt);
       const yaw = h.yaw + o.yaw;
       const tx = h.pos.x + Math.sin(yaw) * Math.cos(o.pitch) * o.dist;

@@ -1,21 +1,12 @@
 // Auftragserzeugung und -ablauf: MEDEVAC, Truppentransport, CSAR
 import * as THREE from './lib/three.module.min.js';
-import { FOB_NAME, CALLSIGN, HELI } from './config.js';
+import { T } from './theme.js';
+import { wreckAfg } from './afgModels.js';
 import { rand, clamp, bearing, dirName, fmtDist, fmtBearing, dist2 } from './util.js';
 import { wreckParts, merge, vcMat } from './models.js';
 
-const UNITS = [
-  'Bravo 6, 2/7. Kavallerie', 'Charlie 3, 1/5. Kavallerie', 'Alpha 2, 2/12. Infanterie', 'Delta 6, 1/8. Kavallerie',
-  'Tiger 4, Fernspäher-Team', 'Echo 1, 173. Luftlandebrigade', 'Raider 2, 1/327. Infanterie', 'Mustang 5, 3/21. Infanterie',
-];
 const SMOKES = ['gelb', 'rot', 'grün', 'violett'];
 const SMOKE_ADJ = { gelb: 'Gelber', rot: 'Roter', grün: 'Grüner', violett: 'Violetter' };
-const AIRCRAFT = [
-  { kind: 'f4', name: 'F-4 Phantom', crew: 2, call: 'Gunfighter 2' },
-  { kind: 'o1', name: 'O-1 Bird Dog', crew: 2, call: 'Bird Dog 1-4' },
-  { kind: 'huey', name: 'UH-1H Huey', crew: 4, call: 'Gladiator 2-6' },
-  { kind: 'a1', name: 'A-1 Skyraider', crew: 1, call: 'Sandy 3' },
-];
 
 export class Missions {
   constructor(game) {
@@ -31,7 +22,7 @@ export class Missions {
 
   fobPoint(pad) {
     const f = this.game.world.fob;
-    return { name: `${FOB_NAME} – Pad ${pad.name}`, short: `Pad ${pad.name}`, x: pad.x, z: pad.z, y: f.y, kind: 'fob', pad, radius: 16 };
+    return { name: `${T.fobName} – Pad ${pad.name}`, short: `Pad ${pad.name}`, x: pad.x, z: pad.z, y: f.y, kind: 'fob', pad, radius: 16 };
   }
   sitePoint(site) {
     return { name: site.name, short: site.name, x: site.x, z: site.z, y: site.y, kind: 'site', site, radius: 65 };
@@ -56,7 +47,7 @@ export class Missions {
     const hotChance = clamp(0.3 + this.count * 0.05, 0.3, 0.7);
     const m = {
       id: 'M' + this.count + '_' + Math.floor(rand() * 1e6), num: this.count, type,
-      smoke: rand.pick(SMOKES), unit: rand.pick(UNITS), boarded: 0, delivered: 0,
+      smoke: rand.pick(SMOKES), unit: rand.pick(T.units), boarded: 0, delivered: 0,
       smokePopped: {}, hotWarned: false, revealed: true, emitters: [],
     };
     if (type === 'medevac') {
@@ -72,7 +63,8 @@ export class Missions {
     } else if (type === 'transport') {
       const v = rand.int(0, 2);
       m.title = 'TRUPPENTRANSPORT';
-      m.count = rand.int(4, 10);
+      const cap = Math.max(...g.helis.map((x) => x.spec.capacity));
+      m.count = cap > 12 ? rand.int(8, Math.min(cap, 16 + this.count * 2)) : rand.int(4, Math.min(cap, 10));
       if (v === 0) {
         m.from = this.fobPoint(w.fob.pads.troop);
         m.to = this.sitePoint(this.pickSite());
@@ -97,7 +89,7 @@ export class Missions {
         m.hotAt = m.hot ? (rand() < 0.5 ? 'from' : 'to') : null;
       }
     } else {
-      const ac = rand.pick(AIRCRAFT);
+      const ac = rand.pick(T.aircraft);
       const site = this.pickSite();
       m.title = 'CSAR';
       m.aircraft = ac;
@@ -136,8 +128,8 @@ export class Missions {
       rows.push(['Verwundete', `${m.count} (${m.litters} liegend, ${m.walking} gehfähig)`]);
       rows.push(['LZ-Status', hotTxt, m.hot ? 'hot' : 'cold']);
       rows.push(['Markierung', `${SMOKE_ADJ[m.smoke]} Rauch`]);
-      rows.push(['Ablieferung', `${FOB_NAME} – Lazarett (Pad MED)`]);
-      radio = `„${CALLSIGN}, hier ${m.unit}. Wir haben ${m.count === 1 ? 'einen Verwundeten' : m.count + ' Verwundete'}${m.litters && m.count > 1 ? `, davon ${m.litters} ${m.litters === 1 ? 'Tragefall' : 'Tragefälle'}` : m.litters ? ' (Tragefall)' : ''}. ${m.hot ? 'Wir stehen unter Beschuss!' : 'Die Lage ist ruhig.'} Erbitten sofortige Evakuierung bei ${m.from.name}.“`;
+      rows.push(['Ablieferung', `${T.fobName} – Lazarett (Pad MED)`]);
+      radio = `„${g.callsign}, hier ${m.unit}. Wir haben ${m.count === 1 ? 'einen Verwundeten' : m.count + ' Verwundete'}${m.litters && m.count > 1 ? `, davon ${m.litters} ${m.litters === 1 ? 'Tragefall' : 'Tragefälle'}` : m.litters ? ' (Tragefall)' : ''}. ${m.hot ? 'Wir stehen unter Beschuss!' : 'Die Lage ist ruhig.'} Erbitten sofortige Evakuierung bei ${m.from.name}.“`;
     } else if (m.type === 'transport') {
       const b2 = bearing(m.from.x, m.from.z, m.to.x, m.to.z), d2 = dist2(m.from.x, m.from.z, m.to.x, m.to.z);
       rows.push(['Auftrag', `Truppentransport (${m.variant})`]);
@@ -147,7 +139,7 @@ export class Missions {
       rows.push(['Soldaten', `${m.count}`]);
       rows.push(['LZ-Status', m.hot ? `HEISS bei ${m.hotAt === 'from' ? 'Punkt A' : 'Punkt B'}!` : 'KALT – beide LZs ruhig', m.hot ? 'hot' : 'cold']);
       if (m.to.kind === 'site' || m.from.kind === 'site') rows.push(['Markierung', `${SMOKE_ADJ[m.smoke]} Rauch`]);
-      radio = `„${CALLSIGN}, hier TOC ${FOB_NAME}. ${m.count} Soldaten von ${m.from.short} nach ${m.to.short} verbringen.${m.hot ? ' Rechnen Sie mit Feindfeuer!' : ''}“`;
+      radio = `„${g.callsign}, hier TOC ${T.fobName}. ${m.count} Soldaten von ${m.from.short} nach ${m.to.short} verbringen.${m.hot ? ' Rechnen Sie mit Feindfeuer!' : ''}“`;
     } else {
       rows.push(['Auftrag', 'Bergung abgeschossener Besatzung']);
       rows.push(['Maschine', `${m.aircraft.name} („${m.aircraft.call}“)`]);
@@ -156,7 +148,7 @@ export class Missions {
       rows.push(['Besatzung', `${m.count} Überlebende`]);
       rows.push(['LZ-Status', m.hot ? 'HEISS – Feind in der Nähe!' : 'KALT – unklar, Vorsicht', m.hot ? 'hot' : 'cold']);
       rows.push(['Markierung', `${SMOKE_ADJ[m.smoke]} Rauch, sobald sie Sie hören`]);
-      rows.push(['Ablieferung', `${FOB_NAME} – Pad MED`]);
+      rows.push(['Ablieferung', `${T.fobName} – Pad MED`]);
       radio = `„Mayday, Mayday! ${m.aircraft.call} ist runter! ${m.count === 1 ? 'Pilot ist' : 'Besatzung ist'} am Boden. Achten Sie auf die Rauchsäule des Wracks.“`;
     }
     const need = this.fuelNeeded(m);
@@ -229,7 +221,7 @@ export class Missions {
 
   buildWreck(m) {
     const g = this.game, w = g.world, wi = m.wreckInfo;
-    m.wreck = new THREE.Mesh(merge(wreckParts(m.aircraft.kind)), vcMat);
+    m.wreck = new THREE.Mesh(merge(T.id === 'afghanistan' ? wreckAfg(m.aircraft.kind) : wreckParts(m.aircraft.kind)), vcMat);
     m.wreck.position.set(wi.x, w.height(wi.x, wi.z) - 0.1, wi.z);
     m.wreck.rotation.y = wi.r;
     g.scene.add(m.wreck);
@@ -248,7 +240,7 @@ export class Missions {
   canBoard(h) {
     const m = this.current;
     if (!m || this.phase !== 'active' || !h || h.crashed || !h.onGround) return false;
-    if (m.boarded >= m.count || this.game.heliLoad(h) >= HELI.capacity) return false;
+    if (m.boarded >= m.count || this.game.heliLoad(h) >= h.spec.capacity) return false;
     return dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius();
   }
 
@@ -263,7 +255,7 @@ export class Missions {
       const b = bearing(h.pos.x, h.pos.z, to.x, to.z);
       const what = m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : 'Alle Soldaten';
       g.radio(`Crew: ${what} an Bord – los, los, los! Kurs ${fmtBearing(b)} nach ${to.name}.`, 'Crew');
-    } else if (g.heliLoad(h) >= HELI.capacity) g.radio('Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.', 'Crew');
+    } else if (g.heliLoad(h) >= h.spec.capacity) g.radio('Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.', 'Crew');
     this.changed();
   }
 
@@ -271,7 +263,7 @@ export class Missions {
   target(h = this.game.heli) {
     const m = this.current;
     if (!m || this.phase !== 'active') return null;
-    if (m.boarded < m.count && this.game.heliLoad(h) < HELI.capacity) {
+    if (m.boarded < m.count && this.game.heliLoad(h) < h.spec.capacity) {
       if (this.paxOf(h) === 0) return 'from';
       // noch beim Einsteigen: am Aufnahmeort bleiben
       if (h.contact && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius()) return 'from';
@@ -314,13 +306,13 @@ export class Missions {
         m.smokePopped[end] = true;
         m.emitters.push(g.effects.smokeGrenade(p.x + 4, g.world.height(p.x + 4, p.z), p.z, m.smoke));
         const who = m.type === 'csar' ? m.aircraft.call : m.unit.split(',')[0];
-        g.radio(`${who}: ${CALLSIGN}, wir hören Sie! Rauch ist geworfen – bestätigen Sie ${m.smoke}.`, who);
-        setTimeout(() => g.radio(`${CALLSIGN}: Sehe ${m.smoke}en Rauch, wir kommen rein.`, CALLSIGN), 2500);
+        g.radio(`${who}: ${g.callsign}, wir hören Sie! Rauch ist geworfen – bestätigen Sie ${m.smoke}.`, who);
+        setTimeout(() => g.radio(`${g.callsign}: Sehe ${m.smoke}en Rauch, wir kommen rein.`, g.callsign), 2500);
         this.changed();
       }
       if (m.hot && m.hotAt === end && !m.hotWarned && d < 1900) {
         m.hotWarned = true;
-        g.radio(`${m.type === 'csar' ? m.aircraft.call : m.unit.split(',')[0]}: Achtung, die LZ ist HEISS! Feindfeuer aus Richtung ${m.enemyDir || 'Baumlinie'}!`, 'Funk', true);
+        g.radio(`${m.type === 'csar' ? m.aircraft.call : m.unit.split(',')[0]}: Achtung, die LZ ist HEISS! Feindfeuer aus Richtung ${m.enemyDir || T.enemyFrom}!`, 'Funk', true);
       }
       if (m.type === 'csar' && !m.revealed && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < 950) {
         m.revealed = true;
@@ -338,7 +330,7 @@ export class Missions {
         if (!near) h.unloading = false;
         if (h.unloading) {
           h.unloadT -= dt;
-          if (h.unloadT <= 0) { h.unloadT = 0.7; this.unloadOne(h); }
+          if (h.unloadT <= 0) { h.unloadT = h.spec.door === 'ramp' ? 0.3 : 0.7; this.unloadOne(h); } // über die Heckrampe geht es schneller
         }
       } else h.unloading = false;
     }
@@ -396,7 +388,7 @@ export class Missions {
     };
     g.onMissionResult(result);
     if (g.net) g.net.send({ t: 'result', r: result });
-    g.radio(m.type === 'transport' ? `TOC: Gut gemacht, ${CALLSIGN}. Auftrag erledigt.` : `Lazarett: Danke, ${CALLSIGN}! Ihr habt Leben gerettet.`, 'TOC');
+    g.radio(m.type === 'transport' ? `TOC: Gut gemacht, ${g.callsign}. Auftrag erledigt.` : `Lazarett: Danke, ${g.callsign}! Ihr habt Leben gerettet.`, 'TOC');
     this.retire(m);
     this.nextTimer = 7;
     this.changed();

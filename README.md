@@ -1,8 +1,10 @@
-# Dustoff – UH-1D Medevac Vietnam
+# Dustoff – Medevac-Hubschraubersimulator
 
-Ein Hubschraubersimulator im Browser: Als Pilot einer **Bell UH-1D „Huey“** fliegen Sie 1968 in Vietnam
-Rettungs- und Transporteinsätze von der **FOB Eagle** aus. Läuft auf GitHub Pages, als Android-App (APK mit
-automatischer Update-Funktion) und lässt sich per Touchscreen, Nintendo-Switch-Controller oder Tastatur/Maus steuern.
+Ein Hubschraubersimulator im Browser mit zwei Einsatzgebieten: Als Pilot einer **Bell UH-1D „Huey“** fliegen Sie
+1968 in Vietnam Rettungs- und Transporteinsätze von der **FOB Eagle** aus – oder 2010 in **Afghanistan** mit
+**UH-60 Black Hawk**, **CH-47 Chinook** oder **CH-53GS** von der **FOB Kunduz**. Läuft auf GitHub Pages, als
+Android-App (APK mit automatischer Update-Funktion) und lässt sich per Touchscreen, Nintendo-Switch-Controller oder
+Tastatur/Maus steuern.
 
 **Spielen:** https://gun642.github.io/Medevac-sim/
 **Android-APK:** https://gun642.github.io/Medevac-sim/apk/medevac-sim.apk
@@ -14,8 +16,8 @@ automatischer Update-Funktion) und lässt sich per Touchscreen, Nintendo-Switch-
 2. Fliegen Sie zum gelben Wegpunkt (Kompass oben, Pfeil mit Kurs/Entfernung, Minikarte, Lichtsäule im Gelände).
 3. Bei Annäherung werfen die Truppen **farbigen Rauch**. Landen Sie sanft im Ring – die Soldaten steigen selbst ein
    (Tragen werden von Kameraden zum Hubschrauber gebracht).
-4. In einer **heißen LZ** schießen Vietcong/NVA aus der Baumlinie (grüne Leuchtspur). Ihre beiden **Bordschützen**
-   eröffnen mit dem **M60** selbstständig das Feuer auf erkannte Feinde. Optional übernehmen Sie selbst ein MG –
+4. In einer **heißen LZ** schießen Vietcong/NVA aus der Baumlinie bzw. Taliban aus Gehöften (grüne Leuchtspur). Ihre
+   beiden **Bordschützen** eröffnen mit dem Bord-MG (M60, M240H oder MG3) selbstständig das Feuer auf erkannte Feinde. Optional übernehmen Sie selbst ein MG –
    der Kopilot hält dann die Maschine in der Schwebe.
 5. Zurück zur FOB: Verwundete auf Pad **MED** (rotes Kreuz) abliefern. Danach folgt der nächste Auftrag.
 
@@ -26,6 +28,22 @@ LZs lauern Späher. Die KI-Bordschützen reagieren verzögert und streuen – de
 In unregelmäßigen Abständen greift der Feind die **FOB** aus dem Wald an („ALARM – FOB wird angegriffen“ mit
 Himmelsrichtung). Verteidigen Sie die Basis zusammen mit der Wachmannschaft am Perimeter – zu Fuß oder aus der Luft.
 Ist der Angriff abgewehrt, gibt es Bonuspunkte.
+
+### Einsatzgebiete und Hubschrauber
+
+Im Hauptmenü wählen Sie mit **KARTE** das Einsatzgebiet und mit **HUBSCHRAUBER** die Maschine
+(Controller: Taste drücken bzw. links/rechts). Der Kartenwechsel lädt die Welt neu.
+
+| Karte | Landschaft | Hubschrauber |
+| --- | --- | --- |
+| **Vietnam 1968** | Dschungel, Reisfelder, Fluss, Hütten-Dörfer, Vietcong/NVA | UH-1D (10 Plätze, M60) |
+| **Afghanistan 2010** | Staubige Hochwüste mit Wadis, Flussoase mit Feldern und Pappeln, Lehmgehöfte (Qalats) mit Moscheen, schroffe Berge im Nordwesten, Außenposten (COP/PB) mit HESCO-Wällen, Taliban | UH-60 Black Hawk (11 Plätze, M240H), CH-47 Chinook (33 Plätze, M240H, Tandemrotor), CH-53GS (36 Plätze, MG3) |
+
+Die Maschinen fliegen sich unterschiedlich: Der Black Hawk ist wendig und steigt schnell, Chinook und CH-53GS sind
+träge, nehmen aber eine ganze Kompanie mit (Ein- und Ausstieg über die Heckrampe). In Afghanistan nervt die Wüste:
+Beim Schweben über Sand wirbelt der Rotor eine Staubwolke auf (**Brownout**, die Sicht wird trüb) und **Böen**
+schütteln den Hubschrauber. Zu Fuß stehen dort M4A1, M249, M320, Mossberg 590 und M9 zur Wahl. Im Mehrspieler gibt
+der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wechseln beim Beitreten automatisch die Karte.
 
 ### Auftragsarten
 

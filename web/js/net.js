@@ -11,6 +11,7 @@
 // BroadcastChannel-Transport zwischen zwei Fenstern/Tabs.
 import * as THREE from './lib/three.module.min.js';
 import { Soldier, WEAPONS } from './soldier.js';
+import { T } from './theme.js';
 
 function androidTransport() {
   const A = window.AndroidApp;
@@ -102,6 +103,7 @@ export class Net {
   }
 
   get isHost() { return this.mode === 'host'; }
+  beaconInfo() { return { name: this.name, heli2: this.heli2, n: this.players.size || 1, v: 2, map: T.id, types: this.game.helis.map((h) => h.type) }; }
 
   // ------------------------------------------------------------ Verbindungsaufbau
   host(name, heli2) {
@@ -109,18 +111,19 @@ export class Net {
     this.name = name;
     this.heli2 = heli2;
     this.players.set(0, { id: 0, name });
-    const r = this.tr.host({ name, heli2, n: 1, v: 1 });
+    const r = this.tr.host(this.beaconInfo());
     return r;
   }
 
   join(ip, port, name) {
+    this.joinTarget = { ip, port };
     this.mode = 'client';
     this.name = name;
     this.tr.join(ip, port);
   }
 
   updateBeacon() {
-    if (this.isHost) this.tr.info({ name: this.name, heli2: this.heli2, n: this.players.size, v: 1 });
+    if (this.isHost) this.tr.info(this.beaconInfo());
   }
 
   send(obj) { this.tr.send(this.isHost ? -1 : 0, obj); }
@@ -234,7 +237,7 @@ export class Net {
         const name = String(m.name || 'Spieler').slice(0, 16);
         this.players.set(p, { id: p, name });
         g.assignSeat(p);
-        this.sendTo(p, { t: 'welcome', id: p, heli2: this.heli2, c: g.crews, pl: [...this.players.values()], mission: g.missions.toNet(), time: g.time });
+        this.sendTo(p, { t: 'welcome', id: p, heli2: this.heli2, map: T.id, types: g.helis.map((h) => h.type), c: g.crews, pl: [...this.players.values()], mission: g.missions.toNet(), time: g.time });
         this.sendCrews();
         g.radio(`${name} ist dem Einsatz beigetreten.`, 'TOC');
         break;
@@ -295,6 +298,8 @@ export class Net {
       case '_fail': g.onNetStatus('Verbindung fehlgeschlagen.', true); this.mode = null; break;
       case '_leave': g.onNetLost(); break;
       case 'welcome':
+        // anderes Einsatzgebiet: Karte wechseln, neu laden und automatisch wieder beitreten
+        if (m.map && m.map !== T.id) { g.switchMap(m.map, this.joinTarget); return; }
         this.myId = m.id;
         this.heli2 = m.heli2;
         for (const pl of m.pl) this.players.set(pl.id, pl);
