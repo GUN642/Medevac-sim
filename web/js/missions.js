@@ -30,7 +30,7 @@ export class Missions {
 
   pickSite(exclude = []) {
     const w = this.game.world;
-    const maxD = 1800 + this.count * 250;
+    const maxD = 3900 + this.count * 300;
     let cands = w.sites.filter((s) => s !== this.lastSite && !exclude.includes(s) && dist2(s.x, s.z, w.fob.x, w.fob.z) < maxD);
     if (cands.length < 2) cands = w.sites.filter((s) => s !== this.lastSite && !exclude.includes(s));
     const s = rand.pick(cands);
@@ -84,7 +84,7 @@ export class Missions {
       } else {
         const a = this.pickSite();
         let b = null;
-        const cands = w.sites.filter((s) => s !== a && dist2(s.x, s.z, a.x, a.z) > 900 && dist2(s.x, s.z, a.x, a.z) < 2600);
+        const cands = w.sites.filter((s) => s !== a && dist2(s.x, s.z, a.x, a.z) > 1500 && dist2(s.x, s.z, a.x, a.z) < 3500);
         b = cands.length ? rand.pick(cands) : this.pickSite([a]);
         m.from = this.sitePoint(a);
         m.to = this.sitePoint(b);

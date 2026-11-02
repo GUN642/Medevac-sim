@@ -203,9 +203,18 @@ export class Helicopter {
     this.yawRate += (yt - this.yawRate) * damp(3 * S.agility, dt);
     this.yaw += this.yawRate * dt;
 
+    // Rotorkreisebene (bestimmt die Schubrichtung) und Rumpflage getrennt: Im Reiseflug liegt der Rumpf
+    // fast waagerecht, nur beim Beschleunigen und Abbremsen neigt sich die Nase deutlich.
     this.euler.set(this.pitch, this.yaw, this.roll, 'YXZ');
     this.quat.setFromEuler(this.euler);
     this.up.copy(UP).applyQuaternion(this.quat);
+    const dragAcc = this.kDrag * vf * vf + 0.05 * Math.abs(vf);
+    const trim = Math.sign(vf) * Math.atan(dragAcc / G) * 0.88;
+    this.bodyPitch = this.pitch + trim;
+    if (Math.abs(trim) > 0.001) {
+      this.euler.set(this.bodyPitch, this.yaw, this.roll, 'YXZ');
+      this.quat.setFromEuler(this.euler);
+    }
 
     // Schub (Kollektiv als Steig-/Sinkratenvorgabe)
     let vyT = ctl.collective >= 0 ? ctl.collective * S.climbRate : ctl.collective * S.sinkRate;

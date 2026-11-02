@@ -116,7 +116,7 @@ export class World {
     while (this.sites.length < 22 && tries++ < 6000) {
       const x = rng.range(-HALF + 380, HALF - 380), z = rng.range(-HALF + 380, HALF - 380);
       const df = dist2(x, z, FOB_POS.x, FOB_POS.z);
-      if (df < 950 || df > 3400) continue;
+      if (df < 3050 || df > 5800) continue; // Einsatzorte mindestens 3 km von der FOB
       const o2 = {};
       const h = this.rawHeight(x, z, o2);
       if (h < 1.8 || h > 280 || o2.river < 90) continue;
