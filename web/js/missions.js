@@ -462,6 +462,13 @@ export class Missions {
       const p = m[end];
       const d = dist2(h.pos.x, h.pos.z, p.x, p.z);
       // Rauch werfen bei Annäherung
+      // Nachts markieren alle Truppen (auch Spezialkräfte) mit Blitzlicht
+      if (g.nightSys.night && p.kind === 'site' && d < 1500 && !(m.strobe || {})[end] && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
+        (m.strobe = m.strobe || {})[end] = true;
+        m.emitters.push(g.effects.strobe(p.x + 3, g.world.height(p.x + 3, p.z), p.z));
+        if (m.noSmoke) g.radio(`${m.unit.split(',')[0]}: Wir hören Sie – IR-Blitzer ist an.`, m.unit.split(',')[0]);
+        this.changed();
+      }
       if (p.kind === 'site' && d < 1300 && !m.smokePopped[end] && !m.noSmoke && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
         m.smokePopped[end] = true;
         m.emitters.push(g.effects.smokeGrenade(p.x + 4, g.world.height(p.x + 4, p.z), p.z, m.smoke));
@@ -613,7 +620,7 @@ export class Missions {
       if (this.phase === 'briefing') { g.hud.showBriefing(m, this.describe(m)); g.audio.radio(); }
     } else {
       const m = old;
-      const keep = { emitters: m.emitters, wreck: m.wreck, mirrorSmoke: m.mirrorSmoke };
+      const keep = { emitters: m.emitters, wreck: m.wreck, mirrorSmoke: m.mirrorSmoke, mirrorStrobe: m.mirrorStrobe };
       Object.assign(m, d.m, keep);
       if (m.wreckInfo && !m.wreck) this.buildWreck(m);
       if (this.phase !== 'briefing') g.hud.hideBriefing();
@@ -628,6 +635,11 @@ export class Missions {
         m.mirrorSmoke[end] = true;
         const p = m[end];
         m.emitters.push(this.game.effects.smokeGrenade(p.x + 4, this.game.world.height(p.x + 4, p.z), p.z, m.smoke));
+      }
+      if (m.strobe && m.strobe[end] && !(m.mirrorStrobe = m.mirrorStrobe || {})[end]) {
+        m.mirrorStrobe[end] = true;
+        const p = m[end];
+        m.emitters.push(this.game.effects.strobe(p.x + 3, this.game.world.height(p.x + 3, p.z), p.z));
       }
     }
   }

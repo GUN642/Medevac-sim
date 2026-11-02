@@ -159,6 +159,7 @@ export class Effects {
     const c = SMOKE_COLORS[colorName] || SMOKE_COLORS.gelb;
     return this.addEmitter({ type: 'smoke', x, y, z, c, rate: 14, acc: 0, size: [2, 16], life: 9, rise: 2.4, alpha: 0.75 });
   }
+  strobe(x, y, z) { return this.addEmitter({ type: 'strobe', x, y, z, rate: 1.1, acc: 0 }); }
   wreckFire(x, y, z) {
     return this.addEmitter({ type: 'fire', x, y, z, rate: 10, acc: 0, size: [4, 30], life: 14, rise: 6, alpha: 0.6 });
   }
@@ -196,6 +197,9 @@ export class Effects {
         if (e.type === 'smoke') {
           this.smoke.spawn(e.x + rand.range(-0.5, 0.5), e.y + 0.3, e.z + rand.range(-0.5, 0.5), rand.range(-0.6, 0.6), e.rise * rand.range(0.7, 1.3), rand.range(-0.6, 0.6),
             e.life * rand.range(0.8, 1.2), e.size[0], e.size[1], e.c[0] * rand.range(0.9, 1.05), e.c[1] * rand.range(0.9, 1.05), e.c[2] * rand.range(0.9, 1.05), e.alpha, 0.25, 0.25);
+        } else if (e.type === 'strobe') {
+          // IR-/Blitzlicht zur Markierung der Landezone bei Nacht
+          this.glow.spawn(e.x, e.y + 1, e.z, 0, 0, 0, 0.12, 2.6, 2.2, 0.9, 0.95, 1, 1, 0, 0);
         } else if (e.type === 'fire') {
           this.glow.spawn(e.x + rand.range(-3, 3), e.y + 0.5, e.z + rand.range(-3, 3), rand.range(-0.5, 0.5), rand.range(2, 5), rand.range(-0.5, 0.5), rand.range(0.4, 0.9), 3, 1.2, 1, 0.5, 0.15, 0.9, 0.5, 2);
           this.smoke.spawn(e.x + rand.range(-2, 2), e.y + 2, e.z + rand.range(-2, 2), rand.range(-0.5, 0.5), e.rise * rand.range(0.7, 1.3), rand.range(-0.5, 0.5),

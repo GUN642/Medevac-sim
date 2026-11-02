@@ -3,6 +3,7 @@ import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
 import { AfghanWorld } from './worldAfg.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
+import { NightSys } from './night.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
 import { Effects } from './effects.js';
 import { Helicopter } from './helicopter.js';
@@ -81,7 +82,8 @@ class Game {
     this.scene.fog = new THREE.FogExp2(sky.fog, this.fogDensity);
     this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 7000);
     this.scene.add(this.camera); // für die Waffe in der Ego-Perspektive
-    this.scene.add(new THREE.HemisphereLight(sky.hemiSky, sky.hemiGround, sky.hemi));
+    this.hemi = new THREE.HemisphereLight(sky.hemiSky, sky.hemiGround, sky.hemi);
+    this.scene.add(this.hemi);
     const sun = new THREE.DirectionalLight(sky.sun, sky.sunI);
     sun.position.set(-0.5, 1, 0.35).multiplyScalar(1000);
     this.scene.add(sun);
@@ -105,6 +107,8 @@ class Game {
     this.effects = new Effects(this.scene, q);
     this.combat = new Combat(this);
     this.air = new AirSupport(this);
+    this.nightSys = new NightSys(this);
+    this.nightSys.set(this.settings.night);
     this.units = new Units(this);
     this.missions = new Missions(this);
     this.hud = new HUD(this);
@@ -425,6 +429,11 @@ class Game {
   }
   rocketDir(h) { return new THREE.Vector3(0, -0.06, -1).normalize().applyQuaternion(h.quat); }
 
+  toggleNvg() {
+    if (!this.nightSys.toggleNvg()) { this.radioOnce('nonvg', 2, 'Nachtsichtgerät gibt es nur bei Nacht.', 'Crew', false, true); return; }
+    this.radioOnce('nvg', 0.3, this.nightSys.nvg ? 'Nachtsichtgerät an' : 'Nachtsichtgerät aus', 'Crew', false, true);
+  }
+
   // Luftunterstützung für die eigene Position anfordern (zu Fuß oder im Hubschrauber)
   requestSupport(kind) {
     const p = this.playerPos(this.myId);
@@ -610,6 +619,13 @@ class Game {
     on('btn-continue', () => this.startGame());
     on('btn-help', () => this.openPanel('help'));
     on('btn-map', () => this.cycleMap());
+    on('btn-time', () => {
+      if (this.started) return;
+      this.settings.night = !this.settings.night;
+      PF.saveSettings(this.settings);
+      this.nightSys.set(this.settings.night);
+      this.updateMenuLabels();
+    });
     on('btn-heli', () => this.cycleHeli(1));
     $('mp-heli2').innerHTML = '<option value="">keiner</option>' + T.helis.map((t) => `<option value="${t}">${HELI_TYPES[t].name}</option>`).join('');
     $('mp-heli2').value = T.helis[T.helis.length > 1 ? 1 : 0];
@@ -761,6 +777,8 @@ class Game {
     $('btn-heli').textContent = 'HUBSCHRAUBER: ' + spec.short;
     $('btn-heli').classList.toggle('hidden', !!this.started || T.helis.length < 2);
     $('btn-map').classList.toggle('hidden', !!this.started);
+    $('btn-time').textContent = 'ZEIT: ' + (this.nightSys.night ? 'NACHT' : 'TAG');
+    $('btn-time').classList.toggle('hidden', !!this.started);
   }
 
   showMenu() {
@@ -920,6 +938,7 @@ class Game {
     this.missions.nextTimer = -1;
     this.time = w.time || 0;
     this.netTypes = w.types || null;
+    if (w.night !== undefined) this.nightSys.set(w.night);
     if (this.netTypes) this.helis.forEach((h, i) => this.netTypes[i] && this.setHeliType(i, this.netTypes[i]));
     if (w.heli2 && this.helis.length < 2) this.addHeli();
     for (let i = 0; i < this.helis.length; i++) this.resetHeli(i);
@@ -1053,6 +1072,7 @@ class Game {
         if (a === 'reload') { S.startReload(); continue; }
         if (a === 'camera' || a === 'crouch') { S.crouch = !S.crouch; continue; }
         if (a === 'zoom') { this.zoomToggle = !this.zoomToggle; continue; }
+        if (a === 'nvg' || (a === 'dpad-up' && this.nightSys.night)) { this.toggleNvg(); continue; }
         if (a === 'view' || a === 'dpad-up') {
           this.settings.footView = this.settings.footView === 'first' ? 'third' : 'first';
           PF.saveSettings(this.settings);
@@ -1078,6 +1098,7 @@ class Game {
         case 'help': this.pause(true); this.openPanel('help'); break;
         case 'crew': this.hud.toggleCrew(); break;
         case 'airsupport': this.hud.toggleCrew(true); break;
+        case 'nvg': this.toggleNvg(); break;
         case 'camera': case 'view':
           if (this.seat === 'pilot') this.camMode = this.camMode === 'chase' ? 'cockpit' : 'chase';
           break;
@@ -1311,6 +1332,7 @@ class Game {
       cameraLabel: this.seat === 'pilot' ? (this.camMode === 'chase' ? 'Außenansicht' : 'Cockpit') : '',
     });
     this.updateWaypointBeam();
+    this.nightSys.update(onFoot ? null : h);
     // Brownout: Sicht trübt sich beim Schweben über Sand (nur im/am eigenen Hubschrauber)
     const bo = !onFoot && !h.crashed ? h.brownout || 0 : 0;
     if (Math.abs(bo - (this.boShown || 0)) > 0.02) { this.boShown = bo; $('brownout').style.opacity = (bo * 0.75).toFixed(2); }

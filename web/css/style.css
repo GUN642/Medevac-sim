@@ -296,3 +296,10 @@ body:not(.rocket-mode) .rocket-only { display: none !important; }
 #magvignette { position: fixed; inset: 0; pointer-events: none; display: none; background: radial-gradient(circle at 50% 50%, transparent 0, transparent 30vmin, rgba(0, 0, 0, 0.85) 34vmin, #000 42vmin); }
 body.fp-mag #magvignette { display: block; }
 body:not(.optic) .optic-only { display: none !important; }
+
+/* Nacht: Nachtsichtgerät (grün, Röhrenrand, Rauschen) */
+body.nvg #game { filter: grayscale(1) sepia(1) hue-rotate(58deg) saturate(3.2) brightness(1.15) contrast(1.15); }
+#nvg { position: fixed; inset: 0; pointer-events: none; display: none; background: radial-gradient(ellipse at 50% 50%, transparent 0, transparent 55%, rgba(0, 0, 0, 0.75) 72%, #000 85%), var(--noise); background-size: auto, 128px 128px; animation: nvgnoise 0.25s steps(4) infinite; }
+body.nvg #nvg { display: block; }
+@keyframes nvgnoise { 0% { background-position: 0 0, 0 0; } 25% { background-position: 0 0, 37px 61px; } 50% { background-position: 0 0, 91px 13px; } 75% { background-position: 0 0, 22px 101px; } }
+body:not(.night) .night-only { display: none !important; }

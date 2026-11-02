@@ -567,7 +567,7 @@ export class Units {
       let p = 0.06 * clamp(1.2 - dist / 380, 0.15, 1);
       p *= S.crouch ? 0.55 : 1;
       p *= S.moving ? 0.7 : 1;
-      p *= g.settings.difficulty;
+      p *= g.settings.difficulty * (g.nightSys && g.nightSys.night ? 0.7 : 1);
       if (!S.alive) return;
       if (rand() < p) {
         _b.set(sp.x + rand.range(-0.2, 0.2), sp.y + 1.1, sp.z + rand.range(-0.2, 0.2));
@@ -587,7 +587,7 @@ export class Units {
       let p = (e.heavy ? 0.13 : 0.11) * clamp(1.15 - dist / e.range, 0.12, 1);
       p *= sp < 6 ? 1.5 : sp < 20 ? 1.0 : sp < 40 ? 0.6 : 0.4;
       p *= h.onGround ? 1.15 : 1;
-      p *= g.settings.difficulty;
+      p *= g.settings.difficulty * (g.nightSys && g.nightSys.night ? 0.7 : 1);
       const hit = rand() < p;
       if (hit) {
         _b.set(h.pos.x + rand.range(-1.2, 1.2), h.pos.y + rand.range(-0.8, 1.0), h.pos.z + rand.range(-2, 3));

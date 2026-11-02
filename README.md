@@ -67,6 +67,21 @@ der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wech
 | **MEDEVAC** | Verwundete (liegend auf Tragen und gehfähig) aus einer LZ zum Lazarett fliegen |
 | **Truppentransport** | X Soldaten von Punkt A nach Punkt B (FOB → LZ, LZ → FOB oder LZ → LZ) |
 | **CSAR** | Ein Flugzeug/Hubschrauber (F-4, A-1, O-1, UH-1) wurde abgeschossen. Suchgebiet anfliegen, Rauchsäule des Wracks finden, Besatzung bergen |
+| **Spezialkräfte – Infiltration** | Kommandotrupp verdeckt an einem abgelegenen Absetzpunkt absetzen (kein Rauch) |
+| **Spezialkräfte – Exfiltration** | Entdecktes Team herausholen, der Feind rückt auf den Aufnahmepunkt vor |
+| **Nachschub** | Kisten mit Munition und Wasser von der FOB zu einem Außenposten fliegen |
+| **VIP-Transport** | Gouverneur oder General mit Begleitschutz – sanft landen, Bonus ohne Schaden |
+| **Aufklärung** | Drei Punkte tief überfliegen und Feindbewegungen melden |
+| **Luftnahunterstützung** | (Apache) eingeschlossene Truppe freikämpfen |
+
+Alle Einsatzorte liegen mindestens 3 km von der FOB entfernt – der Treibstoff will eingeteilt werden.
+
+### Nachtflug
+
+Im Hauptmenü **ZEIT: NACHT** wählen (im Mehrspieler gibt der Host die Tageszeit vor). Nachts gibt es nur Mond und
+Sterne; das **Nachtsichtgerät** schaltet man mit **N** (Controller: linken Stick drücken, zu Fuß Steuerkreuz oben;
+Touch NVG). Landezonen werden mit Blitzlichtern markiert, der Landescheinwerfer geht unter 60 m automatisch an
+(mit Nachtsichtgerät aus). Der Feind trifft nachts schlechter.
 
 ### Treibstoff, Schaden, Munition
 

@@ -103,7 +103,7 @@ export class Net {
   }
 
   get isHost() { return this.mode === 'host'; }
-  beaconInfo() { return { name: this.name, heli2: this.heli2, n: this.players.size || 1, v: 2, map: T.id, types: this.game.helis.map((h) => h.type) }; }
+  beaconInfo() { return { name: this.name, heli2: this.heli2, n: this.players.size || 1, v: 2, map: T.id, types: this.game.helis.map((h) => h.type), night: this.game.nightSys.night ? 1 : 0 }; }
 
   // ------------------------------------------------------------ Verbindungsaufbau
   host(name, heli2) {
@@ -245,7 +245,7 @@ export class Net {
         const name = String(m.name || 'Spieler').slice(0, 16);
         this.players.set(p, { id: p, name });
         g.assignSeat(p);
-        this.sendTo(p, { t: 'welcome', id: p, heli2: this.heli2, map: T.id, types: g.helis.map((h) => h.type), c: g.crews, pl: [...this.players.values()], mission: g.missions.toNet(), time: g.time });
+        this.sendTo(p, { t: 'welcome', id: p, heli2: this.heli2, map: T.id, types: g.helis.map((h) => h.type), night: g.nightSys.night, c: g.crews, pl: [...this.players.values()], mission: g.missions.toNet(), time: g.time });
         this.sendCrews();
         g.radio(`${name} ist dem Einsatz beigetreten.`, 'TOC');
         break;

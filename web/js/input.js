@@ -78,7 +78,7 @@ export class Input {
       if (!this.keys.has(k)) {
         const map = {
           Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'view', KeyM: 'map',
-          Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'magnifier', KeyL: 'airsupport',
+          Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'magnifier', KeyL: 'airsupport', KeyN: 'nvg',
           KeyE: 'use', KeyR: 'reload', Digit4: 'num4', Digit5: 'num5', KeyG: 'pickup',
         };
         if (map[k]) { this.actions.push(map[k]); if (k === 'Tab') e.preventDefault(); }
@@ -273,6 +273,7 @@ export class Input {
       const any = Math.abs(lx) + Math.abs(ly) + Math.abs(rx) + Math.abs(ry) + b(6) + b(7) > 0.2 || gp.buttons.some((x) => x.pressed);
       if (any && this.device !== 'gamepad') { this.device = 'gamepad'; this.onDevice && this.onDevice(); }
       if (this.mode === 'pilot') {
+        if (pressed(10)) this.actions.push('nvg');
         f.roll += lx; f.pitch += -ly; f.yaw += rx;
         f.collective += -ry + b(7) - b(6);
       } else if (this.mode === 'foot') {
@@ -287,10 +288,12 @@ export class Input {
         this.sprint = this.sprint || !!this.padSprint;
         if (pressed(11)) this.actions.push('crouch');
       } else if (this.mode === 'pax') {
+        if (pressed(10)) this.actions.push('nvg');
         this.look.dx += rx * dt * 2;
         this.look.dy += ry * dt * 2;
       } else {
         const s = 2.2 * this.settings.sensitivity * dt;
+        if (pressed(10)) this.actions.push('nvg');
         this.aim.dx += (rx + lx * 0.5) * s;
         this.aim.dy += (ry + ly * 0.5) * s * (this.settings.invertY ? -1 : 1);
         fire = fire || b(7) > 0.4;
