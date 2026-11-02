@@ -138,7 +138,7 @@ public class UpdateManager {
             pendingApk = apk;
             new AlertDialog.Builder(act)
                     .setTitle("Installation erlauben")
-                    .setMessage("Damit sich Dustoff selbst aktualisieren kann, erlauben Sie bitte im nächsten Bildschirm „Apps aus dieser Quelle installieren“. Danach geht es automatisch weiter.")
+                    .setMessage("Damit sich Hot LZ selbst aktualisieren kann, erlauben Sie bitte im nächsten Bildschirm „Apps aus dieser Quelle installieren“. Danach geht es automatisch weiter.")
                     .setPositiveButton("Einstellungen öffnen", (d, w) -> {
                         try {
                             act.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,

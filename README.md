@@ -1,4 +1,4 @@
-# Dustoff – Medevac-Hubschraubersimulator
+# Hot LZ – Hubschrauber-Einsätze
 
 Ein Hubschraubersimulator im Browser mit zwei Einsatzgebieten: Als Pilot einer **Bell UH-1D „Huey“** fliegen Sie
 1968 in Vietnam Rettungs- und Transporteinsätze von der **FOB Eagle** aus – oder 2010 in **Afghanistan** mit

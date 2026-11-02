@@ -168,7 +168,7 @@ public class MainActivity extends Activity {
                 value -> {
                     if (value != null && value.contains("menu")) {
                         new AlertDialog.Builder(this)
-                                .setTitle("Dustoff beenden?")
+                                .setTitle("Hot LZ beenden?")
                                 .setPositiveButton("Beenden", (d, w) -> finish())
                                 .setNegativeButton("Weiterspielen", null)
                                 .show();
