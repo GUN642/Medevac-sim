@@ -86,8 +86,8 @@ export function netTransport() {
 }
 
 const SIDES = ['left', 'right'];
-const PAX_CODE = { wounded: 'w', pilot: 'p', us: 'u' };
-const PAX_TYPE = { w: 'wounded', p: 'pilot', u: 'us' };
+const PAX_CODE = { wounded: 'w', pilot: 'p', us: 'u', sof: 's', cargo: 'c', vip: 'v' };
+const PAX_TYPE = { w: 'wounded', p: 'pilot', u: 'us', s: 'sof', c: 'cargo', v: 'vip' };
 const COLORS = [[1, 0.3, 0.18], [0.45, 1.0, 0.35], [0.45, 1.0, 0.35]];
 const r2 = (v) => Math.round(v * 100) / 100;
 

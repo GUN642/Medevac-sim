@@ -111,6 +111,10 @@ const FIG_TYPES = {
   crewA:    { uni: 0x6b6d55, skin: 0xd2a07a, hat: 'flight', hatCol: 0x4a4c3c, pack: null, gun: null },
   pilotA:   { uni: 0x6b6d55, skin: 0xd8a882, hat: 'flight', hatCol: 0x3f4133, pack: 0x55604a, gun: null },
   playerA:  { uni: 0x857d5e, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x7a7055, pack: 0x6b6247, gun: null, vest: 0x6f6649, armsAim: true },
+  sof:      { uni: 0x7b7458, skin: 0xc99a70, hat: 'cap', hatCol: 0x5b5745, pack: 0x5a5440, gun: 0x1d1d1d, vest: 0x5e5a46, rifle: 'm4', beard: 0x3a2a1e },
+  lrrp:     { uni: 0x3d4a2a, skin: 0xd2a07a, hat: 'boonie', hatCol: 0x3d4a2a, pack: 0x3f4a2b, gun: 0x1d1d1d },
+  vipA:     { uni: 0xdcd6c6, skin: 0xb98560, hat: 'karakul', hatCol: 0x3a3028, pack: null, gun: null, robe: true, vest: 0x4a4a52, beard: 0x2a2a2a },
+  vipV:     { uni: 0x5a6340, skin: 0xd2a07a, hat: 'cap', hatCol: 0x4a5236, pack: null, gun: null },
   tal:      { uni: 0x8d887c, skin: 0xb98560, hat: 'turban', hatCol: 0x1f1f1f, pack: null, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
   tal2:     { uni: 0x6e5f4a, skin: 0xb07a55, hat: 'turban', hatCol: 0xd8d2c0, pack: 0x3d3a30, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
 };
@@ -170,6 +174,9 @@ function figureGeos(type) {
     parts.push(P(box(0.05, 0.04, 0.04), 0x222222, [0, 1.72, -0.13]));                     // NVG-Halter
     parts.push(P(box(0.08, 0.05, 0.03), 0x3a3a30, [0, 1.68, 0.13]));                      // Batteriepack
   }
+  if (t.hat === 'cap') { parts.push(P(sph(0.115, 12, 6, 0, HALFPI), t.hatCol, [0, 1.63, 0.0])); parts.push(P(box(0.16, 0.015, 0.1), t.hatCol, [0, 1.635, -0.13])); }
+  if (t.hat === 'boonie') { parts.push(P(sph(0.115, 12, 6, 0, HALFPI), t.hatCol, [0, 1.64, 0])); parts.push(P(cyl(0.2, 0.21, 0.015, 14), t.hatCol, [0, 1.645, 0], [0.05, 0, 0])); }
+  if (t.hat === 'karakul') parts.push(P(cyl(0.1, 0.11, 0.1, 12), t.hatCol, [0, 1.71, 0]));
   if (t.hat === 'band') parts.push(P(cyl(0.112, 0.112, 0.06, 12), t.hatCol, [0, 1.64, 0]));
   if (t.hat === 'flight') { parts.push(P(sph(0.135, 12, 7, 0, Math.PI * 0.62), t.hatCol, [0, 1.61, 0], [0, 0, 0], [1, 1, 1.08])); parts.push(P(box(0.18, 0.05, 0.03), 0x1a1d1f, [0, 1.66, -0.13])); }
   if (t.hat === 'conical') parts.push(P(cone(0.32, 0.2, 14), t.hatCol, [0, 1.77, 0]));

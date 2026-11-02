@@ -562,6 +562,28 @@ export class World {
     ];
   }
 
+  // Freie, ebene Fläche abseits von Landezonen und Dörfern (Absetzpunkte für Spezialkräfte, Aufklärung)
+  findClearing(rng, minFob = 3000, maxFob = 5600, avoid = []) {
+    const f = this.fob;
+    for (let k = 0; k < 4000; k++) {
+      const x = rng.range(-HALF + 300, HALF - 300), z = rng.range(-HALF + 300, HALF - 300);
+      const df = dist2(x, z, f.x, f.z);
+      if (df < minFob || df > maxFob) continue;
+      const h = this.height(x, z);
+      if (h < 1.5 || h > 500) continue;
+      let ok = true;
+      for (const [dx, dz] of [[0, 0], [22, 0], [-22, 0], [0, 22], [0, -22], [15, 15], [-15, -15]]) {
+        if (this.inForest(x + dx, z + dz) > 0.12 || Math.abs(this.height(x + dx, z + dz) - h) > 2.5) { ok = false; break; }
+      }
+      if (!ok) continue;
+      if (this.sites.some((s) => dist2(s.x, s.z, x, z) < 500) || this.villages.some((v) => dist2(v.x, v.z, x, z) < 350)) continue;
+      if (avoid.some((a) => dist2(a.x, a.z, x, z) < 700)) continue;
+      if (this.treeContact(x, z, 14, h, h + 30)) continue;
+      return { x, z, y: h };
+    }
+    return null;
+  }
+
   // Deckung für Feinde und Orte für Hinterhalte
   coverAt(x, z) { return this.inForest(x, z) > 0.4 ? 0.45 : 0.1; }
   ambushSpot(x, z) { return this.inForest(x, z) >= 0.3; }

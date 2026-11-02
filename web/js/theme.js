@@ -51,7 +51,9 @@ export const THEMES = {
     fobName: 'FOB Eagle', helis: ['uh1d'],
     enemyName: 'Vietcong', enemyFrom: 'Baumlinie', enemyCover: 'Dschungel', trees: 'Bäume', crashTrees: 'In den Dschungel gestürzt!',
     friend: () => (rand() < 0.25 ? 'us2' : 'us'), enemy: (heavy) => (heavy || rand() < 0.4 ? 'nva' : 'vc'),
-    wounded: 'wounded', crew: 'crew', player: 'player', pilot: 'pilot',
+    wounded: 'wounded', crew: 'crew', player: 'player', pilot: 'pilot', sof: 'lrrp', vip: 'vipV',
+    sofUnits: ['LRRP-Team Kilo 2', 'MACV-SOG RT Idaho', 'Ranger-Team Charlie', 'SEAL-Zug Bravo'],
+    vips: [{ who: 'General Westmoreland', why: 'Lagebesprechung' }, { who: 'ein Kongressabgeordneter', why: 'Frontbesuch' }, { who: 'Oberst Moore', why: 'Gefechtsstandverlegung' }],
     units: [
       'Bravo 6, 2/7. Kavallerie', 'Charlie 3, 1/5. Kavallerie', 'Alpha 2, 2/12. Infanterie', 'Delta 6, 1/8. Kavallerie',
       'Tiger 4, Fernspäher-Team', 'Echo 1, 173. Luftlandebrigade', 'Raider 2, 1/327. Infanterie', 'Mustang 5, 3/21. Infanterie',
@@ -70,7 +72,9 @@ export const THEMES = {
     fobName: 'FOB Kunduz', helis: ['uh60', 'ch47', 'ch53', 'ah64'],
     enemyName: 'Taliban', enemyFrom: 'Lehmmauern', enemyCover: 'Ortschaft', trees: 'Pappeln', crashTrees: 'In die Pappeln gestürzt!',
     friend: () => (rand() < 0.5 ? (rand() < 0.3 ? 'isaf2' : 'isaf') : 'bw'), enemy: (heavy) => (heavy || rand() < 0.45 ? 'tal2' : 'tal'),
-    wounded: 'woundedA', crew: 'crewA', player: 'playerA', pilot: 'pilotA',
+    wounded: 'woundedA', crew: 'crewA', player: 'playerA', pilot: 'pilotA', sof: 'sof', vip: 'vipA',
+    sofUnits: ['KSK-Kommandotrupp 2', 'ODA 3125', 'SEAL Team 4 Golf', 'Ranger-Zug Alpha'],
+    vips: [{ who: 'der Distriktgouverneur', why: 'Shura mit den Dorfältesten' }, { who: 'der Regionalkommandeur', why: 'Frontbesuch' }, { who: 'ein Polizeichef', why: 'Lagebesprechung' }],
     units: [
       'Wolf 2-1, 2/508. Fallschirmjäger', 'Gator 3, 1/6. Marines', 'Kilo 1-3, 3/7. Marines', 'Spartan 6, 2/87. Infanterie',
       'Falke 2, Ausbildungs- und Schutzbataillon', 'Leopard 1-1, QRF Kunduz', 'Viking 4, Fernspäher', 'Taurus 2, 1/320. Feldartillerie',
@@ -101,5 +105,8 @@ export function heliTypeFor(themeId, type) {
 export function figFor(kind) {
   if (kind === 'wounded') return T.wounded;
   if (kind === 'pilot') return T.pilot;
+  if (kind === 'sof') return T.sof;
+  if (kind === 'vip') return T.vip;
+  if (kind === 'cargo') return 'cargo';
   return T.id === 'afghanistan' ? (rand() < 0.5 ? 'isaf' : 'bw') : kind === 'us2' ? 'us2' : 'us';
 }

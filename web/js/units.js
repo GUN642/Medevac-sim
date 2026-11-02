@@ -12,6 +12,8 @@ const litterGeo = buildLitter();
 const mgGeo = new THREE.BoxGeometry(0.15, 0.15, 1.6);
 const mgMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
 const vehGeo = {};
+const crateGeo = new THREE.BoxGeometry(0.75, 0.5, 0.5);
+const crateMat = new THREE.MeshLambertMaterial({ color: 0x55603a });
 
 let uid = 1;
 
@@ -51,6 +53,17 @@ export class Units {
       u.mat = mat;
       u.obj = g;
       this.scene.add(g);
+      return u;
+    }
+    if (vis === 'C') {
+      // Soldat trägt eine Nachschubkiste
+      const f = new Figure(T.friend());
+      const crate = new THREE.Mesh(crateGeo, crateMat);
+      crate.position.set(0, 1.15, -0.4);
+      f.group.add(crate);
+      u.figs = [f];
+      u.obj = f.group;
+      this.scene.add(u.obj);
       return u;
     }
     if (vis === 'L') {
@@ -107,12 +120,12 @@ export class Units {
 
   // Wartender Passagier (Soldat, Verwundeter auf Trage, Pilot)
   spawnPassenger(kind, x, z, missionId) {
-    const type = kind === 'walking' ? T.wounded : kind === 'pilot' ? T.pilot : T.friend();
-    const u = this.makeVisual(kind === 'litter' ? 'L' : 'F:' + type);
+    const type = kind === 'walking' ? T.wounded : kind === 'pilot' ? T.pilot : kind === 'sof' ? T.sof : kind === 'vip' ? T.vip : T.friend();
+    const u = this.makeVisual(kind === 'litter' ? 'L' : kind === 'cargo' ? 'C' : 'F:' + type);
     Object.assign(u, { id: uid++, kind, missionId, state: 'wait', x, z, y: 0 });
     u.speed = kind === 'litter' ? 1.7 : kind === 'walking' ? 1.4 : kind === 'pilot' ? 3.0 : 3.6;
-    this.setPose(u, kind === 'litter' ? P_DOWN : kind === 'troop' ? P_KNEEL : 0);
-    u.paxType = kind === 'litter' || kind === 'walking' ? 'wounded' : kind === 'pilot' ? 'pilot' : 'us';
+    this.setPose(u, kind === 'litter' ? P_DOWN : kind === 'troop' || kind === 'sof' ? P_KNEEL : 0);
+    u.paxType = kind === 'litter' || kind === 'walking' ? 'wounded' : kind === 'pilot' ? 'pilot' : ['sof', 'cargo', 'vip'].includes(kind) ? kind : 'us';
     this.place(u, x, z);
     u.obj.rotation.y = rand() * Math.PI * 2;
     this.pax.push(u);
@@ -328,9 +341,9 @@ export class Units {
   // Passagier verlässt den Hubschrauber und läuft zu einem Ziel
   spawnWalker(paxType, from, to, onArrive) {
     const type = figFor(paxType);
-    const u = this.makeVisual(paxType === 'wounded' && rand() < 0.6 ? 'L' : 'F:' + type);
+    const u = this.makeVisual(paxType === 'wounded' && rand() < 0.6 ? 'L' : paxType === 'cargo' ? 'C' : 'F:' + type);
     u.id = uid++;
-    u.speed = u.vis === 'L' ? 1.7 : paxType === 'wounded' ? 1.4 : 3.4;
+    u.speed = u.vis === 'L' ? 1.7 : paxType === 'wounded' ? 1.4 : paxType === 'cargo' ? 2.4 : 3.4;
     this.setPose(u, 0);
     u.state = 'exit';
     u.target = to;

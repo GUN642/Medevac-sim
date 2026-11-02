@@ -7,6 +7,8 @@ import { HELI_TYPES, T, figFor } from './theme.js';
 import { clamp, damp, rand } from './util.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
+const crateGeo = new THREE.BoxGeometry(0.75, 0.55, 0.55);
+const crateMat = new THREE.MeshLambertMaterial({ color: 0x55603a });
 
 export class Helicopter {
   constructor(scene, effects, index = 0, type = 'uh1d') {
@@ -112,11 +114,18 @@ export class Helicopter {
         const type = p.fig;
         if (!f || f.type !== type) {
           if (f) this.model.group.remove(f.group);
-          f = new Figure(type);
           const s = seats[i];
-          f.group.position.set(s.p[0], 0, s.p[1]);
-          f.group.rotation.y = s.r;
-          f.sit(s.sit[0], s.sit[1]);
+          if (type === 'cargo') {
+            // Nachschubkiste auf dem Kabinenboden
+            f = { type, group: new THREE.Mesh(crateGeo, crateMat) };
+            f.group.position.set(s.p[0], -this.spec.skidH + 0.95, s.p[1]);
+            f.group.rotation.y = s.r;
+          } else {
+            f = new Figure(type);
+            f.group.position.set(s.p[0], 0, s.p[1]);
+            f.group.rotation.y = s.r;
+            f.sit(s.sit[0], s.sit[1]);
+          }
           this.model.group.add(f.group);
           this.seatFigs[i] = f;
         }
