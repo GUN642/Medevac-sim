@@ -21,9 +21,9 @@ export const HELI_TYPES = {
   },
   ch47: {
     id: 'ch47', model: 'chinook', name: 'Boeing CH-47F „Chinook“', short: 'CH-47', callsign: 'Big Windy 2-5',
-    emptyMass: 10600, fuelMassFull: 3100, paxMass: 100, capacity: 33, maxThrust: 21500 * G,
-    skidH: 1.75, rotorRadius: 9.1, rotorTop: 3.4, maxPitch: 0.42, maxRoll: 0.5, climbRate: 9, sinkRate: 7, yawRate: 0.85,
-    vmax: 125, agility: 0.72, burn: 0.95, drag: 0.8, gun: { name: 'M240H', rpm: 750, ammo: 2000, muzzleVel: 853, range: 850 },
+    emptyMass: 10600, fuelMassFull: 3100, paxMass: 100, capacity: 33, maxThrust: 26000 * G,
+    skidH: 1.75, rotorRadius: 9.1, rotorTop: 3.4, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 8, yawRate: 1.3,
+    vmax: 125, agility: 1.15, burn: 0.95, drag: 0.8, armor: 0.55, gun: { name: 'M240H', rpm: 750, ammo: 2000, muzzleVel: 853, range: 850 },
     rotorAudio: 0.8, rotorCut: 0.75, camDist: 38, shadow: 16, door: 'ramp', rampZ: 8.2, numbers: ['10-08046', '08-08712'],
   },
   ah64: {
@@ -37,9 +37,9 @@ export const HELI_TYPES = {
   },
   ch53: {
     id: 'ch53', model: 'ch53', name: 'Sikorsky CH-53GS', short: 'CH-53GS', callsign: 'Hummel 1-2',
-    emptyMass: 10900, fuelMassFull: 2900, paxMass: 100, capacity: 36, maxThrust: 21000 * G,
-    skidH: 1.65, rotorRadius: 11, rotorTop: 3.0, maxPitch: 0.4, maxRoll: 0.5, climbRate: 8, sinkRate: 7, yawRate: 0.8,
-    vmax: 127, agility: 0.68, burn: 0.9, drag: 0.9, gun: { name: 'MG3', rpm: 1100, ammo: 2400, muzzleVel: 820, range: 800 },
+    emptyMass: 10900, fuelMassFull: 2900, paxMass: 100, capacity: 36, maxThrust: 26000 * G,
+    skidH: 1.65, rotorRadius: 11, rotorTop: 3.0, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 8, yawRate: 1.3,
+    vmax: 127, agility: 1.15, burn: 0.9, drag: 0.9, armor: 0.5, gun: { name: 'MG3', rpm: 1100, ammo: 2400, muzzleVel: 820, range: 800 },
     rotorAudio: 1.7, rotorCut: 0.9, camDist: 40, shadow: 18, door: 'ramp', rampZ: 7.2, numbers: ['84+05', '85+11'],
   },
 };

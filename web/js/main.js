@@ -1060,9 +1060,10 @@ class Game {
           continue;
         }
         if (a === 'use' || a === 'confirm') { if (!this.hud.mapOpen) { this.useAction(); continue; } }
-        if (a === 'radio' || a === 'pickup' || a === 'dpad-down') { this.requestPickup(); continue; }
+        if (a === 'radio' || a === 'pickup' || (a === 'dpad-down' && !S.weapon.optic)) { this.requestPickup(); continue; }
         if (a === 'dpad-left') { S.setWeapon(S.w - 1); continue; }
-        if (a === 'magnifier' || (a === 'dpad-right' && S.weapon.optic)) {
+        // Vergrößerer: Taste B bzw. Steuerkreuz unten (links/rechts bleibt Waffenwechsel)
+        if (a === 'magnifier' || (a === 'dpad-down' && S.weapon.optic)) {
           if (S.toggleMagnifier()) this.radioOnce('mag', 0.5, S.magOn ? '3x-Vergrößerer aufgeklappt' : '3x-Vergrößerer weggeklappt', 'Waffe', false, true);
           continue;
         }

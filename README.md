@@ -57,7 +57,7 @@ der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wech
 - **Feindfahrzeuge**: Pickups mit schwerem MG (Vietnam: Lkw) fahren zwischen Dörfern umher, rücken auf Landezonen
   und die FOB vor und halten aus großer Entfernung auf Hubschrauber. Zerstörbar mit Raketen, 30 mm, Granaten oder
   vielen Treffern.
-- **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller →, Touch 3x).
+- **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller Steuerkreuz unten, Touch 3x).
 - Alle modernen Hubschrauber erreichen mindestens **120 Knoten**, der Apache etwa 145.
 
 ### Auftragsarten
