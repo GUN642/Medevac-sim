@@ -85,7 +85,7 @@ export function netTransport() {
   return androidTransport();
 }
 
-const SIDES = ['left', 'right'];
+const SIDES = ['left', 'right', 'ramp'];
 const PAX_CODE = { wounded: 'w', pilot: 'p', us: 'u', sof: 's', cargo: 'c', vip: 'v' };
 const PAX_TYPE = { w: 'wounded', p: 'pilot', u: 'us', s: 'sof', c: 'cargo', v: 'vip' };
 const COLORS = [[1, 0.3, 0.18], [0.45, 1.0, 0.35], [0.45, 1.0, 0.35]];
@@ -230,9 +230,9 @@ export class Net {
     const g = this.game;
     g.helis.forEach((h, i) => { if (g.owns(i)) this.send({ t: 'h', i, s: h.getState(), c: h.crashed ? h.crashCause : '' }); });
     if (g.seat === 'foot') this.send({ t: 'p', s: g.soldier.getState() });
-    else if (g.seat === 'left' || g.seat === 'right') {
+    else if (SIDES.includes(g.seat)) {
       const gu = g.heli.gunners[g.seat];
-      this.send({ t: 'g', i: g.myHeli, s: g.seat === 'left' ? 0 : 1, y: r2(gu.yaw), p: r2(gu.pitch), a: gu.ammo });
+      this.send({ t: 'g', i: g.myHeli, s: SIDES.indexOf(g.seat), y: r2(gu.yaw), p: r2(gu.pitch), a: gu.ammo });
     }
   }
 
@@ -354,6 +354,7 @@ export class Net {
       SIDES.forEach((s, k) => {
         if (i === g.myHeli && s === g.seat) return;
         const gu = h.gunners[s];
+        if (!d.g[k]) return;
         gu.netYaw = d.g[k][0]; gu.netPitch = d.g[k][1]; gu.ammo = d.g[k][2];
       });
     });

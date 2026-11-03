@@ -95,7 +95,7 @@ export class Input {
   setMode(mode) {
     this.mode = mode;
     if ((mode === 'pilot' || mode === 'pax') && document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
-    const gunner = mode === 'left' || mode === 'right';
+    const gunner = mode === 'left' || mode === 'right' || mode === 'ramp';
     document.body.classList.toggle('gunner-mode', gunner);
     document.body.classList.toggle('foot-mode', mode === 'foot');
     document.body.classList.toggle('pax-mode', mode === 'pax');
@@ -103,7 +103,7 @@ export class Input {
     document.body.classList.toggle('pilot-seat', mode === 'pilot');
   }
 
-  get aimMode() { return this.mode === 'left' || this.mode === 'right' || this.mode === 'foot'; }
+  get aimMode() { return this.mode === 'left' || this.mode === 'right' || this.mode === 'ramp' || this.mode === 'foot'; }
 
   // ---------------------------------------------------------------- Touch
   setupTouch() {
@@ -249,7 +249,7 @@ export class Input {
       this.aim.dy += ay * dt * 1.2;
       fire = fire || (this.mouseDown[0] && !this.lockClick);
       this.zoomHeld = this.mouseDown[2];
-    } else if (this.mode === 'left' || this.mode === 'right') {
+    } else if (this.mode === 'left' || this.mode === 'right' || this.mode === 'ramp') {
       // Im Schützensitz: Pfeiltasten zum Zielen, Leertaste/Maus zum Feuern
       const ax = this.key('ArrowRight', 'KeyD') - this.key('ArrowLeft', 'KeyA');
       const ay = this.key('ArrowDown', 'KeyS') - this.key('ArrowUp', 'KeyW');

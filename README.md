@@ -37,7 +37,7 @@ Im Hauptmenü wählen Sie mit **KARTE** das Einsatzgebiet und mit **HUBSCHRAUBER
 | Karte | Landschaft | Hubschrauber |
 | --- | --- | --- |
 | **Vietnam 1968** | Dschungel, Reisfelder, Fluss, Hütten-Dörfer, Vietcong/NVA | UH-1D (10 Plätze, M60) |
-| **Afghanistan 2010** | Staubige Hochwüste mit Wadis, Flussoase mit Feldern und Pappeln, Lehmgehöfte (Qalats) mit Moscheen, schroffe Berge im Nordwesten, Außenposten (COP/PB) mit HESCO-Wällen, Taliban | UH-60 Black Hawk (11 Plätze, M240H), CH-47 Chinook (33 Plätze, M240H, Tandemrotor), CH-53GS (36 Plätze, MG3) |
+| **Afghanistan 2010** | Staubige Hochwüste mit Wadis, Flussoase mit Feldern und Pappeln, Lehmgehöfte (Qalats) mit Moscheen, schroffe Berge im Nordwesten, Außenposten (COP/PB) mit HESCO-Wällen, Taliban | UH-60 Black Hawk (11 Plätze, M240H), CH-47 Chinook (33 Plätze, M134-Miniguns, Tandemrotor), CH-53GS (36 Plätze, schwere M3M-MGs links, rechts und als Heckschütze auf der Rampe) |
 
 Die Maschinen fliegen sich unterschiedlich: Der Black Hawk ist wendig und steigt schnell, Chinook und CH-53GS sind
 träge, nehmen aber eine ganze Kompanie mit (Ein- und Ausstieg über die Heckrampe). In Afghanistan nervt die Wüste:

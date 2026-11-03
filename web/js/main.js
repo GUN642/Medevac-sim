@@ -20,8 +20,10 @@ import { clamp, damp, dist2, rand, wrapAngle } from './util.js';
 import * as PF from './platform.js';
 
 const $ = (id) => document.getElementById(id);
-const SEATS = ['pilot', 'left', 'right'];
-const SEAT_NAMES = { pilot: 'Pilot', left: 'Schütze links', right: 'Schütze rechts', pax: 'Passagier', foot: 'zu Fuß' };
+const SEATS = ['pilot', 'left', 'right', 'ramp'];
+const GUN_SEATS = ['left', 'right', 'ramp'];
+const isGunSeat = (s) => GUN_SEATS.includes(s);
+const SEAT_NAMES = { pilot: 'Pilot', left: 'Schütze links', right: 'Schütze rechts', ramp: 'Heckschütze', pax: 'Passagier', foot: 'zu Fuß' };
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 class Game {
@@ -158,7 +160,7 @@ class Game {
     const i = this.helis.length;
     if (!type) type = (this.netTypes && this.netTypes[i]) || T.helis[Math.min(i, T.helis.length - 1)];
     const h = new Helicopter(this.scene, this.effects, i, heliTypeFor(T.id, type));
-    h.gunners = { left: new Gunner('left', h), right: new Gunner('right', h) };
+    h.gunners = { left: new Gunner('left', h), right: new Gunner('right', h), ramp: new Gunner('ramp', h) };
     h.realShadows = this.shadows;
     this.helis.push(h);
     if (i === 0) this.orbit.dist = h.spec.camDist;
@@ -173,7 +175,7 @@ class Game {
     type = heliTypeFor(T.id, type);
     if (!h || h.type === type) return;
     h.setType(type);
-    h.gunners = { left: new Gunner('left', h), right: new Gunner('right', h) };
+    h.gunners = { left: new Gunner('left', h), right: new Gunner('right', h), ramp: new Gunner('ramp', h) };
     this.resetHeli(i);
     if (i === this.myHeli) { this.orbit.dist = h.spec.camDist; this.camInit = false; }
     this.setLocalSeat(this.myHeli, this.seat);
@@ -184,8 +186,7 @@ class Game {
   resetHeli(i) {
     const p = this.padFor(i), h = this.helis[i];
     h.reset(p.x, this.world.height(p.x, p.z) + 0.12, p.z, i === 0 ? Math.PI * 0.1 : 0.3);
-    h.gunners.left.reset();
-    h.gunners.right.reset();
+    for (const s of GUN_SEATS) h.gunners[s].reset();
     h.rockets = h.spec.rockets || 0;
     h.apHoldY = h.pos.y;
     h.wasCrashed = false;
@@ -252,8 +253,7 @@ class Game {
     this.input.setMode(seat);
     this.zoomToggle = false;
     this.helis.forEach((h, k) => {
-      h.model.guns.left.gunner.group.visible = !(k === i && seat === 'left');
-      h.model.guns.right.gunner.group.visible = !(k === i && seat === 'right');
+      for (const s of GUN_SEATS) h.model.guns[s].gunner.group.visible = !(k === i && seat === s);
     });
     if (changedHeli) this.camInit = false;
     if (seat === 'foot') {
@@ -265,11 +265,11 @@ class Game {
         this.soldier.spawn(p.x + out.x, p.z + out.z, h.yaw);
       }
     } else this.soldier.hide();
-    if (seat === 'left' || seat === 'right') {
+    if (isGunSeat(seat)) {
       const pilot = this.crews[i] && this.crews[i].pilot;
       const who = pilot != null && pilot !== this.myId ? this.playerName(pilot) + ' fliegt' : 'Der KI-Pilot fliegt den Auftrag';
       const gs = this.helis[i].spec.gun;
-      this.radioOnce('ap' + seat, 3, gs.turret ? `Sie sind Waffensystemoffizier: ${gs.name}-Kanone, Zoom mit Rechtsklick / ZL. ${who}.` : `Sie bedienen das ${seat === 'left' ? 'linke' : 'rechte'} ${gs.name}. ${who}.`, 'Crew', false, true);
+      this.radioOnce('ap' + seat, 3, gs.turret ? `Sie sind Waffensystemoffizier: ${gs.name}-Kanone, Zoom mit Rechtsklick / ZL. ${who}.` : `Sie bedienen ${seat === 'ramp' ? 'das' : seat === 'left' ? 'das linke' : 'das rechte'} ${gs.name}${seat === 'ramp' ? ' auf der Heckrampe' : ''}. ${who}.`, 'Crew', false, true);
     } else if (seat === 'pax') {
       const pilot = this.crews[i] && this.crews[i].pilot;
       this.radioOnce('pax', 3, `Sie sitzen in der Kabine von ${this.helis[i].spec.short} #${i + 1}. ${pilot != null && pilot !== this.myId ? this.playerName(pilot) + ' fliegt.' : 'Der KI-Pilot fliegt den Auftrag.'} Aussteigen: E / Ⓐ – nur am Boden.`, 'Crew', false, true);
@@ -382,10 +382,11 @@ class Game {
     if (this.seat === 'foot' || this.seat === 'pax') return;
     const c = this.crews[this.myHeli];
     let k = SEATS.indexOf(this.seat);
-    for (let n = 0; n < 3; n++) {
-      k = (k + dir + 3) % 3;
+    const N = SEATS.length;
+    for (let n = 0; n < N; n++) {
+      k = (k + dir + N) % N;
       const s = SEATS[k];
-      const hs = this.helis[this.myHeli].spec.seats;
+      const hs = this.helis[this.myHeli].spec.seats || ['pilot', 'left', 'right'];
       if (hs && !hs.includes(s)) continue;
       if (c[s] == null || c[s] === this.myId) { if (s !== this.seat) this.wantSeat(this.myHeli, s); return; }
     }
@@ -1094,12 +1095,12 @@ class Game {
         if (a === 'use' || a === 'confirm') { if (!this.hud.mapOpen) { this.useAction(); continue; } }
         if (a === 'radio' || a === 'pickup' || a === 'dpad-down') { this.requestPickup(); continue; }
         if (a === 'dpad-left') { S.setWeapon(S.w - 1); continue; }
-        // Vergrößerer: Taste B bzw. Steuerkreuz rechts (bei Waffen ohne Rotpunktvisier: nächste Waffe)
-        if (a === 'magnifier' || (a === 'dpad-right' && S.weapon.optic)) {
+        // Visier/Vergrößerer: Taste B bzw. Steuerkreuz rechts (Waffenwechsel nur mit L/R und Steuerkreuz links)
+        if (a === 'magnifier' || a === 'dpad-right') {
+          if (!S.weapon.optic) { this.radioOnce('noopt', 2, `${S.weapon.name}: kein Rotpunktvisier – mit ZL über Kimme und Korn zielen.`, 'Waffe', false, true); continue; }
           if (S.toggleMagnifier()) this.radioOnce('mag', 0.5, S.magOn ? '3x-Vergrößerer aufgeklappt' : '3x-Vergrößerer weggeklappt', 'Waffe', false, true);
           continue;
         }
-        if (a === 'dpad-right') { S.setWeapon(S.w + 1); continue; }
       } else if (a === 'use' || (a === 'confirm' && this.seat === 'pax' && !this.hud.mapOpen)) {
         if (this.seat !== 'pilot') this.useAction();
         continue;
@@ -1118,6 +1119,7 @@ class Game {
         case 'seat-pilot': case 'dpad-up': this.wantSeat(this.myHeli, 'pilot'); break;
         case 'seat-left': case 'dpad-left': this.wantSeat(this.myHeli, 'left'); break;
         case 'seat-right': case 'dpad-right': this.wantSeat(this.myHeli, 'right'); break;
+        case 'num4': if ((this.heli.spec.seats || []).includes('ramp')) this.wantSeat(this.myHeli, 'ramp'); break;
         case 'seat-next': if (this.seat === 'pilot' && this.heli.spec.rockets) this.fireRocket(); else this.cycleSeat(1); break;
         case 'pickup': case 'rocket': if (this.seat === 'pilot' && this.heli.spec.rockets) this.fireRocket(); break;
         case 'seat-prev': this.cycleSeat(-1); break;
@@ -1255,7 +1257,7 @@ class Game {
       a.updateRemote(dt);
     }
     this.helis.forEach((hh, i) => {
-      for (const side of ['left', 'right']) {
+      for (const side of GUN_SEATS) {
         const mine = i === this.myHeli && this.seat === side;
         const occupied = this.crews[i] && this.crews[i][side] != null;
         const mode = mine ? 'player' : occupied ? 'remote' : this.role === 'client' ? 'remote' : 'ai';
@@ -1285,7 +1287,7 @@ class Game {
         hh.leak = false;
         if (!hh.engineOn && hh.fuel > 5) { hh.engineOn = true; if (hh === h) this.radio('Triebwerk wieder gestartet.', 'Crew', false, true); }
       }
-      for (const side of ['left', 'right']) {
+      for (const side of GUN_SEATS) {
         const gu = hh.gunners[side];
         if (gu.mode === 'player' || gu.mode === 'ai') gu.ammo = Math.min(gu.gun.ammo, gu.ammo + Math.ceil(400 * dt));
         if (hh.spec.rockets && hh.rockets < hh.spec.rockets && rand() < dt * 4) hh.rockets++;
@@ -1447,7 +1449,7 @@ class Game {
       fov = zoom ? S.weapon.fov / S.magFactor() : 70;
       this.camInit = false;
       }
-    } else if ((this.seat === 'left' || this.seat === 'right') && !h.crashed) {
+    } else if (isGunSeat(this.seat) && !h.crashed) {
       const rig = m.guns[this.seat];
       rig.eye.getWorldPosition(cam.position);
       rig.pitch.getWorldQuaternion(cam.quaternion);

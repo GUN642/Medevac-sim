@@ -144,9 +144,39 @@ function tube(pts, r, color, seg = 24) {
 }
 
 // Bord-MGs mit Lafette und Munitionskasten, Schützen, Piloten, Rotorscheiben, Beacon; fasst Anbauteile zusammen
+// M134 Minigun: Gehäuse und Laufbündel (dreht sich beim Feuern)
+function m134Geo() {
+  return merge([
+    P(box(0.16, 0.16, 0.42), 0x2a2c28, [0, 0, 0.05]),
+    P(cyl(0.08, 0.08, 0.2, 12), 0x2a2c28, [0, 0, -0.25], [HALFPI, 0, 0]),
+    P(box(0.05, 0.14, 0.05), 0x1c1c1c, [0.1, -0.06, 0.25]), P(box(0.05, 0.14, 0.05), 0x1c1c1c, [-0.1, -0.06, 0.25]),
+    P(box(0.28, 0.04, 0.04), 0x1c1c1c, [0, 0.0, 0.28]),
+    P(box(0.22, 0.26, 0.32), 0x4a5030, [-0.22, -0.12, 0.05]),
+    P(cyl(0.025, 0.025, 0.5, 6), 0x3a3a34, [-0.12, -0.02, 0.0], [0.6, 0, HALFPI]),
+  ]);
+}
+function m134Barrels() {
+  const p = [];
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; p.push(P(cyl(0.013, 0.013, 0.62, 6), 0x1a1a1a, [Math.cos(a) * 0.045, Math.sin(a) * 0.045, -0.62], [HALFPI, 0, 0])); }
+  p.push(P(cyl(0.065, 0.065, 0.04, 12), 0x2a2c28, [0, 0, -0.85], [HALFPI, 0, 0]));
+  return merge(p);
+}
+// M3M (.50 cal): schweres Maschinengewehr mit Lochmantel
+function m3mGeo() {
+  return merge([
+    P(box(0.17, 0.2, 0.62), 0x2a2c28, [0, 0, 0.05]),
+    P(cyl(0.032, 0.032, 1.05, 8), 0x1d1e1c, [0, 0.02, -0.78], [HALFPI, 0, 0]),
+    P(cyl(0.05, 0.05, 0.42, 10), 0x2e302b, [0, 0.02, -0.45], [HALFPI, 0, 0]),
+    P(cyl(0.045, 0.04, 0.12, 8), 0x161616, [0, 0.02, -1.3], [HALFPI, 0, 0]),
+    P(box(0.05, 0.14, 0.05), 0x1c1c1c, [0.08, -0.06, 0.38]), P(box(0.05, 0.14, 0.05), 0x1c1c1c, [-0.08, -0.06, 0.38]),
+    P(box(0.24, 0.24, 0.34), 0x4a5030, [-0.24, -0.1, 0.0]),
+    P(box(0.06, 0.08, 0.06), 0x1c1c1c, [0, 0.14, -0.1]),
+  ]);
+}
+
 function finish(group, parts, cfg) {
   const crewType = T.crew || 'crew';
-  const gunGeo = m60Geo();
+  const gunGeo = cfg.gunGeo || m60Geo();
   const guns = {};
   const g = cfg.guns;
   const mounts = cfg.gunMounts || ['left', 'right'].map((side) => {
@@ -161,6 +191,9 @@ function finish(group, parts, cfg) {
     const pitch = new THREE.Group();
     mount.add(pitch);
     pitch.add(new THREE.Mesh(m.geo || gunGeo, detailMat));
+    let spin = null;
+    if (cfg.spinGeo && !m.dummy) { spin = new THREE.Mesh(cfg.spinGeo, detailMat); pitch.add(spin); }
+    if (m.arc) mount.userData.arc = m.arc;
     const muzzle = new THREE.Object3D();
     muzzle.position.set(0, 0.01, m.muzzleZ || -0.9);
     pitch.add(muzzle);
@@ -181,7 +214,17 @@ function finish(group, parts, cfg) {
       gunner.sit(1.0, m.sitY);
       if (!m.dummy) group.add(gunner.group);
     }
-    guns[m.side] = { mount, pitch, muzzle, eye, gunner };
+    guns[m.side] = { mount, pitch, muzzle, eye, gunner, spin };
+  }
+  // Platzhalter für nicht vorhandene Schützenplätze (z. B. Rampe)
+  for (const side of ['left', 'right', 'ramp']) {
+    if (guns[side]) continue;
+    const mount = new THREE.Group(), pitch = new THREE.Group();
+    mount.add(pitch);
+    mount.userData.baseYaw = 0;
+    const muzzle = new THREE.Object3D(), eye = new THREE.Object3D();
+    pitch.add(muzzle, eye);
+    guns[side] = { mount, pitch, muzzle, eye, gunner: new Figure(crewType), spin: null };
   }
   const pilots = [];
   const plist = cfg.pilotList || [-1, 1].map((sx) => [sx * cfg.pilots.x, cfg.pilots.y || 0, cfg.pilots.z, cfg.pilots.sitY]);
@@ -333,6 +376,7 @@ function buildHuey({ static: isStatic = false, number = '66-16024' } = {}) {
     eyePilot: new THREE.Vector3(0.55, 0.47, -1.78),
     spin: [[mainRotor, 'y', 22], [tailRotor, 'x', 70]],
     exhaust: new THREE.Vector3(0, 1.62, 3.5),
+    gear: [[-1.25, -1.6, -1.9], [1.25, -1.6, -1.9], [-1.25, -1.6, 2.4], [1.25, -1.6, 2.4]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
   };
 }
 
@@ -438,6 +482,7 @@ function buildBlackhawk({ static: isStatic = false, number = '08-20112' } = {}) 
     eyePilot: new THREE.Vector3(0.55, 0.42, -3.5),
     spin: [[mainRotor, 'y', 26], [tailRotor, 'x', 75]],
     exhaust: new THREE.Vector3(1.1, 1.4, 2.5),
+    gear: [[-1.45, -1.55, -3.3], [1.45, -1.55, -3.3], [0, -1.55, 8.85]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
   };
 }
 
@@ -532,6 +577,7 @@ function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
   rear.add(new THREE.Mesh(rotorGeo(3, 9.1, 0.8, { hubR: 0.45 }), detailMat));
   group.add(rear);
   const f = finish(group, parts, {
+    gunGeo: m134Geo(), spinGeo: m134Barrels(),
     guns: { x: 1.62, y: 0.15, z: -5.1, figX: 1.15, sitY: -0.35 }, floor: -1.08,
     pilots: { x: 0.65, z: -7.25, sitY: -0.35 },
     discs: [{ obj: front, r: 9.1 }, { obj: rear, r: 9.1 }],
@@ -546,6 +592,7 @@ function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
     eyePilot: new THREE.Vector3(0.65, 0.42, -7.45),
     spin: [[front, 'y', 18], [rear, 'y', -18]],
     exhaust: new THREE.Vector3(2.0, 1.55, 7.6),
+    gear: [[-1.6, -1.75, -4.6], [1.6, -1.75, -4.6], [-1.6, -1.75, 5.05], [1.6, -1.75, 5.05]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
   };
 }
 
@@ -647,7 +694,14 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
   tailRotor.add(new THREE.Mesh(tailRotorGeo(4, 3.0, 0.32), detailMat));
   group.add(tailRotor);
   const f = finish(group, parts, {
-    guns: { x: 1.42, y: 0.25, z: -3.9, figX: 0.95, sitY: -0.3 }, floor: -1.02,
+    gunGeo: m3mGeo(),
+    gunMounts: [
+      { side: 'left', pos: [-1.42, 0.25, -3.9], baseYaw: HALFPI, fig: [-0.95, 0, -3.65], sitY: -0.3, post: true },
+      { side: 'right', pos: [1.42, 0.25, -3.9], baseYaw: -HALFPI, fig: [0.95, 0, -3.65], sitY: -0.3, post: true },
+      // Heckschütze auf der Rampe, Blick nach hinten
+      { side: 'ramp', pos: [0, -0.35, 5.3], baseYaw: Math.PI, fig: [0, 0, 4.75], sitY: -0.32, eye: [0, 0.32, 0.55], arc: { yaw: 1.15, pmin: -1.0, pmax: 0.25 } },
+    ],
+    floor: -1.02,
     pilots: { x: 0.6, z: -5.5, sitY: -0.32 },
     discs: [{ obj: mainRotor, r: 11 }],
     beacon: [0, 2.6, 3.0],
@@ -661,6 +715,7 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
     eyePilot: new THREE.Vector3(0.6, 0.45, -5.7),
     spin: [[mainRotor, 'y', 17], [tailRotor, 'x', 60]],
     exhaust: new THREE.Vector3(1.45, 2.0, 2.1),
+    gear: [[-1.95, -1.65, 0.4], [1.95, -1.65, 0.4], [0, -1.65, -5.6]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
   };
 }
 
@@ -786,6 +841,7 @@ export function buildApache({ static: isStatic = false, number = '09-05601' } = 
     eyePilot: new THREE.Vector3(0, 1.08, -3.25),
     spin: [[mainRotor, 'y', 24], [tailRotor, 'x', 75]],
     exhaust: new THREE.Vector3(1.2, 1.1, 3.1),
+    gear: [[-1.05, -1.55, -2.95], [1.05, -1.55, -2.95], [0, -1.55, 8.75]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
     rocketPods: [new THREE.Vector3(-2.25, -0.05, -0.8), new THREE.Vector3(2.25, -0.05, -0.8)],
   };
 }

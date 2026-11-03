@@ -54,6 +54,7 @@ export class Helicopter {
     // eigene Materialkopien (zum Abdunkeln nach einem Absturz)
     this.model.tint = [this.model.body, this.model.detail].filter(Boolean).map((m) => (m.material = m.material.clone()));
     this.model.rotorHome = this.model.mainRotor.position.clone();
+    this.gear = (this.model.gear || [[-1.2, -this.spec.skidH, -2], [1.2, -this.spec.skidH, -2], [0, -this.spec.skidH, 2]]).map((g) => new THREE.Vector3(...g));
     // Luftwiderstand so, dass bei voll nach vorn gedrücktem Stick die Höchstgeschwindigkeit erreicht wird
     const S = this.spec;
     if (S.vmax) { const v = S.vmax * 0.5144 * 1.2; this.kDrag = Math.max(0.0001, (G * Math.tan(S.maxPitch) - 0.05 * v) / (v * v)); }
@@ -182,7 +183,7 @@ export class Helicopter {
     const S = this.spec;
     const mass = this.mass, W = mass * G;
     const ground = world.groundHeight(this.pos.x, this.pos.z);
-    this.agl = this.pos.y - S.skidH - ground;
+    this.agl = Math.max(0, this.gearClearance(world));
     const ge = 1 + 0.12 * clamp(1 - this.agl / 11, 0, 1);
     const power = (this.engineOn ? 1 : 0.58) * (this.hp < 25 ? 0.87 : 1);
     const Tmax = S.maxThrust * ge * power * this.rpm * this.rpm;
@@ -261,12 +262,12 @@ export class Helicopter {
     this.vel.addScaledVector(a, dt);
     this.pos.addScaledVector(this.vel, dt);
 
-    // Bodenkontakt
+    // Bodenkontakt über die Aufsetzpunkte (Räder/Kufen): der tiefste Punkt setzt zuerst auf,
+    // z. B. das Heckrad beim Abfangen mit hochgenommener Nase
     const gh = world.height(this.pos.x, this.pos.z);
-    const gnd = Math.max(gh, 0);
     const water = gh < -0.05;
-    const bottom = this.pos.y - S.skidH;
-    if (bottom <= gnd) {
+    const clear = this.gearClearance(world);
+    if (clear <= 0) {
       if (!this.contact) {
         const vy = this.vel.y, h2 = this.speed;
         const tilt = Math.acos(clamp(this.up.y, -1, 1));
@@ -277,7 +278,7 @@ export class Helicopter {
           this.events.push('hardlanding');
         } else this.events.push('touchdown');
       }
-      this.pos.y = gnd + S.skidH;
+      this.pos.y -= clear;
       if (this.vel.y < 0) this.vel.y = 0;
       const fr = damp(this.thrust > 0.9 * W ? 0.8 : 5, dt);
       this.vel.x *= 1 - fr;
@@ -324,6 +325,18 @@ export class Helicopter {
     this.fx(dt, world);
     this.syncModel();
     this.animate(dt);
+  }
+
+  // Kleinster Abstand eines Rads/einer Kufe zum Boden (negativ = im Boden)
+  gearClearance(world) {
+    let min = 1e9;
+    const p = this._g || (this._g = new THREE.Vector3());
+    for (const g of this.gear) {
+      p.copy(g).applyQuaternion(this.quat).add(this.pos);
+      const c = p.y - Math.max(world.height(p.x, p.z), 0);
+      if (c < min) min = c;
+    }
+    return min;
   }
 
   // Rotorabwind und Schadensrauch (lokal und für Hubschrauber anderer Spieler)

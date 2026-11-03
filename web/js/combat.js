@@ -18,11 +18,11 @@ export class Combat {
   clear() { this.bullets.length = 0; this.visual.length = 0; this.grenades = []; }
 
   // visual=true: Geschoss eines anderen Spielers (nur Darstellung, keine Trefferprüfung)
-  fire(p, dir, inherit, tracer, visual = false, speed = GUN.muzzleVel, ai = false, he = false) {
+  fire(p, dir, inherit, tracer, visual = false, speed = GUN.muzzleVel, ai = false, he = false, big = false) {
     this.bullets.push({
       p: p.clone(),
       v: dir.clone().multiplyScalar(speed).add(inherit),
-      life: 0, tracer, visual, ai, he,
+      life: 0, tracer, visual, ai, he, big,
     });
   }
 
@@ -87,7 +87,7 @@ export class Combat {
         const hr = e.vehicle ? 2.2 : 0.85;
         if (d2 < hr * hr && (e.vehicle || !(rand() < (e.cover || 0) + (b.ai ? 0.3 : 0)))) {
           if (b.he) { this.explode(b.p.x, b.p.y, b.p.z, false, 0.6); dead = true; break; }
-          if (e.vehicle) { g.units.damageEnemy(e, 1); fx.sparks(b.p.x, b.p.y, b.p.z); dead = true; break; }
+          if (e.vehicle) { g.units.damageEnemy(e, b.big ? 2.5 : 1); fx.sparks(b.p.x, b.p.y, b.p.z); dead = true; break; }
           g.units.killEnemy(e);
           fx.puff(e.x, e.y + 1, e.z, 0.35, 0.12, 0.1, 2, 0.8, 1, 0.8);
           dead = true;
@@ -172,8 +172,8 @@ export class Gunner {
     this.rig = heli.model.guns[side];
     this.baseYaw = this.rig.mount.userData.baseYaw;
     // nicht vorhandener Platz (z. B. rechter Schütze im Apache)
-    this.disabled = !!(heli.spec.seats && !heli.spec.seats.includes(side));
-    this.arc = heli.spec.gun.arc || { yaw: 1.35, pmin: -1.2, pmax: 0.35 };
+    this.disabled = !(heli.spec.seats || ['pilot', 'left', 'right']).includes(side);
+    this.arc = this.rig.mount.userData.arc || heli.spec.gun.arc || { yaw: 1.35, pmin: -1.2, pmax: 0.35 };
     this.yaw = 0;
     this.pitch = -0.3;
     this.reset();
@@ -221,12 +221,18 @@ export class Gunner {
     } else if (mode === 'player') {
       this.yaw = clamp(this.yaw - aimInput.dx, -this.arc.yaw, this.arc.yaw);
       this.pitch = clamp(this.pitch - aimInput.dy, this.arc.pmin, this.arc.pmax);
-      for (let n = 0; fireInput && this.cool <= 0 && n < 4; n++) this.tryFire(game, 0.0035);
+      for (let n = 0; fireInput && this.cool <= 0 && n < (this.gun.minigun ? 10 : 4); n++) this.tryFire(game, this.gun.minigun ? 0.008 : 0.0035);
     } else {
       this.ai(dt, game);
     }
     this.rig.mount.rotation.y = this.baseYaw + this.yaw;
     this.rig.pitch.rotation.x = this.pitch;
+    // Minigun: Laufbündel dreht beim Feuern hoch und läuft nach
+    if (this.rig.spin) {
+      this.spinV = Math.max(0, (this.spinV || 0) + (this.firing ? 60 : -25) * dt);
+      this.spinV = Math.min(this.spinV, 60);
+      this.rig.spin.rotation.z += this.spinV * dt;
+    }
   }
 
   ai(dt, game) {
@@ -277,9 +283,9 @@ export class Gunner {
     if (t && aligned) {
       if (this.burst <= 0) {
         this.pause -= dt;
-        if (this.pause <= 0) { this.burst = 6 + Math.floor(rand() * 8); this.pause = 0.8 + rand() * 1.2; }
+        if (this.pause <= 0) { this.burst = (6 + Math.floor(rand() * 8)) * (this.gun.minigun ? 4 : 1); this.pause = 0.8 + rand() * 1.2; }
       }
-      for (let n = 0; this.burst > 0 && this.cool <= 0 && n < 4; n++) if (this.tryFire(game, 0.03)) this.burst--; else break;
+      for (let n = 0; this.burst > 0 && this.cool <= 0 && n < (this.gun.minigun ? 10 : 4); n++) if (this.tryFire(game, 0.03)) this.burst--; else break;
     }
   }
 
@@ -298,11 +304,11 @@ export class Gunner {
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.rig.pitch.getWorldQuaternion(_q));
     dir.x += (rand() - 0.5) * spread * 2; dir.y += (rand() - 0.5) * spread * 2; dir.z += (rand() - 0.5) * spread * 2;
     dir.normalize();
-    const tracer = this.shots % 2 === 0;
-    game.combat.fire(muzzle, dir, this.heli.vel, tracer, false, this.gun.muzzleVel, this.mode === 'ai', !!this.gun.he);
+    const tracer = this.shots % (this.gun.tracerEvery || 2) === 0;
+    game.combat.fire(muzzle, dir, this.heli.vel, tracer, false, this.gun.muzzleVel, this.mode === 'ai', !!this.gun.he, !!this.gun.heavy);
     if (tracer && game.net) game.net.gunFire(this.heli.index, this.side, muzzle, dir);
     game.effects.muzzle(muzzle.x + dir.x * 0.3, muzzle.y + dir.y * 0.3, muzzle.z + dir.z * 0.3, true);
-    game.audio.shot(this.gun.he ? 'dshk' : 'm60', game.camera.position.distanceTo(muzzle));
+    if (this.shots % (this.gun.soundEvery || 1) === 0) game.audio.shot(this.gun.he || this.gun.heavy ? 'dshk' : this.gun.minigun ? 'm16' : 'm60', game.camera.position.distanceTo(muzzle));
     return true;
   }
 }

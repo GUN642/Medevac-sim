@@ -146,7 +146,8 @@ export class HUD {
     const pc = h.passengers.length;
     this.el.pax.innerHTML = h.spec.capacity ? `<span class="lbl">KABINE</span> ${pc}/${h.spec.capacity}` : `<span class="lbl">RAKETEN</span> ${h.rockets ?? 0}`;
     const L = h.gunners.left, R = h.gunners.right;
-    this.el.ammo.innerHTML = R.disabled ? `<span class="lbl">${h.spec.gun.name}</span> ${L.ammo}` : `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammo} · R ${R.ammo}`;
+    const Rp = h.gunners.ramp;
+    this.el.ammo.innerHTML = R.disabled ? `<span class="lbl">${h.spec.gun.name}</span> ${L.ammo}` : `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammo} · R ${R.ammo}${Rp && !Rp.disabled ? ` · H ${Rp.ammo}` : ''}`;
     // Infanterie
     const fh = document.getElementById('foot-hud');
     if (g.seat === 'foot') {
@@ -161,7 +162,7 @@ export class HUD {
     this.el.warnings.innerHTML = info.warnings.map((w) => `<div class="warn ${w.level || ''}">${w.text}</div>`).join('');
     this.el.hint.textContent = info.hint || '';
     this.el.hint.style.display = info.hint ? 'block' : 'none';
-    const seatNames = { pilot: 'PILOT', left: 'SCHÜTZE LINKS', right: 'SCHÜTZE RECHTS', pax: 'PASSAGIER', foot: 'INFANTERIE' };
+    const seatNames = { pilot: 'PILOT', left: 'SCHÜTZE LINKS', right: 'SCHÜTZE RECHTS', ramp: 'HECKSCHÜTZE', pax: 'PASSAGIER', foot: 'INFANTERIE' };
     const c = g.crews[g.myHeli];
     const pilotTxt = g.seat === 'pilot' || g.seat === 'foot' ? '' : c.pilot == null ? ' · KI-Pilot fliegt' : c.pilot !== g.myId ? ' · Pilot: ' + g.playerName(c.pilot) : '';
     const sn = g.heli.spec.seatNames && g.heli.spec.seatNames[g.seat];
@@ -332,11 +333,11 @@ export class HUD {
     if (this.el['crew-line']) {
       if (g.role === 'solo') this.el['crew-line'].textContent = '';
       else {
-        this.el['crew-line'].textContent = g.crews.map((c, i) => `#${i + 1}: ` + ['pilot', 'left', 'right'].map((s) => (c[s] != null ? name(c[s]) : '–')).join(' / ')).join('   ');
+        this.el['crew-line'].textContent = g.crews.map((c, i) => `#${i + 1}: ` + (g.helis[i].spec.seats || ['pilot', 'left', 'right']).map((s) => (c[s] != null ? name(c[s]) : '–')).join(' / ')).join('   ');
       }
     }
     if (!this.crewOpen) return;
-    const labels = { pilot: 'Pilot', left: 'Schütze links', right: 'Schütze rechts' };
+    const labels = { pilot: 'Pilot', left: 'Schütze links', right: 'Schütze rechts', ramp: 'Heckschütze' };
     let html = '';
     g.crews.forEach((c, i) => {
       const h = g.helis[i];
