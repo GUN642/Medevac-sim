@@ -286,7 +286,7 @@ export class Input {
         if (pressed(10)) this.padSprint = !this.padSprint;
         if (Math.hypot(lx, ly) < 0.2) this.padSprint = false;
         this.sprint = this.sprint || !!this.padSprint;
-        if (pressed(11)) this.actions.push('crouch');
+        if (pressed(11)) this.actions.push('magnifier');   // rechten Stick drücken: Visier/Vergrößerer
       } else if (this.mode === 'pax') {
         if (pressed(10)) this.actions.push('nvg');
         this.look.dx += rx * dt * 2;

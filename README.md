@@ -60,7 +60,7 @@ der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wech
 - **Panzerfäuste in der FOB**: An acht Ablagen innen an der Mauer (an den Toren und Ecken) nimmt man zu Fuß mit
   E / Ⓐ / EIN-AUS eine **AT4** (Vietnam: **M72 LAW**) mit 3 Schuss auf – ein Treffer zerstört ein Fahrzeug.
   Nachschub gibt es nur an den Ablagen.
-- **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller Steuerkreuz rechts, Touch 3x).
+- **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller rechten Stick drücken (R3), Touch 3x).
 - Alle modernen Hubschrauber erreichen mindestens **120 Knoten**, der Apache etwa 145.
 
 ### Auftragsarten
@@ -132,7 +132,7 @@ kurz vor dem Aufsetzen.
 | Laufen / Sprinten | WASD / Shift | Linker Stick / L3 | Linker Daumen (ganz außen: sprinten) |
 | Zielen / Zoom | Maus / rechte Maustaste | Rechter Stick / ZL | Wischen oder FEUER ziehen / ZOOM |
 | Feuern / Nachladen | Linksklick / R | ZR / Ⓨ | FEUER / LADEN |
-| Ducken / Springen | C / Leertaste | R3 / – | DUCKEN |
+| Ducken / Springen | C / Leertaste | Steuerkreuz → / – | DUCKEN |
 
 ## Mehrspieler im lokalen Netzwerk
 

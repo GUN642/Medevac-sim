@@ -1083,7 +1083,7 @@ class Game {
         if (a === 'seat-next' || a === 'wnext') { S.setWeapon(S.w + 1); continue; }
         if (a === 'seat-prev' || a === 'wprev') { S.setWeapon(S.w - 1); continue; }
         if (a === 'reload') { S.startReload(); continue; }
-        if (a === 'camera' || a === 'crouch') { S.crouch = !S.crouch; continue; }
+        if (a === 'camera' || a === 'crouch' || a === 'dpad-right') { S.crouch = !S.crouch; continue; }
         if (a === 'zoom') { this.zoomToggle = !this.zoomToggle; continue; }
         if (a === 'nvg' || (a === 'dpad-up' && this.nightSys.night)) { this.toggleNvg(); continue; }
         if (a === 'view' || a === 'dpad-up') {
@@ -1095,8 +1095,8 @@ class Game {
         if (a === 'use' || a === 'confirm') { if (!this.hud.mapOpen) { this.useAction(); continue; } }
         if (a === 'radio' || a === 'pickup' || a === 'dpad-down') { this.requestPickup(); continue; }
         if (a === 'dpad-left') { S.setWeapon(S.w - 1); continue; }
-        // Visier/Vergrößerer: Taste B bzw. Steuerkreuz rechts (Waffenwechsel nur mit L/R und Steuerkreuz links)
-        if (a === 'magnifier' || a === 'dpad-right') {
+        // Visier/Vergrößerer: Taste B bzw. rechten Stick drücken (Waffenwechsel nur mit L/R und Steuerkreuz links)
+        if (a === 'magnifier') {
           if (!S.weapon.optic) { this.radioOnce('noopt', 2, `${S.weapon.name}: kein Rotpunktvisier – mit ZL über Kimme und Korn zielen.`, 'Waffe', false, true); continue; }
           if (S.toggleMagnifier()) this.radioOnce('mag', 0.5, S.magOn ? '3x-Vergrößerer aufgeklappt' : '3x-Vergrößerer weggeklappt', 'Waffe', false, true);
           continue;
