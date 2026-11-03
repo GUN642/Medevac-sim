@@ -503,8 +503,8 @@ function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
     { z: -7.6, w: 3.0, top: 1.0, bot: -1.12, nt: 2.4, nb: 3.5 },
     { z: -6.6, w: 3.38, top: 1.52, bot: -1.15, nt: 2.6, nb: 6 },
     { z: 5.6, w: 3.4, top: 1.56, bot: -1.15, nt: 2.6, nb: 6 },
-    { z: 6.6, w: 3.32, top: 1.56, bot: -0.95, nt: 2.6, nb: 5 },
-    { z: 7.45, w: 3.1, top: 1.5, bot: -0.3, nt: 2.6, nb: 4 },
+    { z: 6.9, w: 3.32, top: 1.56, bot: -1.15, nt: 2.6, nb: 6 },
+    { z: 7.45, w: 3.1, top: 1.5, bot: 0.1, nt: 2.6, nb: 4 },
   ];
   const rearPylon = [
     { z: 3.4, w: 0.9, top: 1.6, bot: 1.45 },
@@ -557,8 +557,11 @@ function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
     parts.push(P(box(0.3, 0.04, 0.3), 0x2a2b2b, [sx * 1.7, -1.0, -5.3]));
   }
   // Heckrampe: Scharnier am Kabinenboden, abgesenkt bis zum Boden
-  parts.push(P(box(2.6, 0.12, 2.4), 0x34372a, [0, -1.42, 7.05], [-0.28, 0, 0]));
-  parts.push(P(box(2.6, 0.05, 0.4), 0x2a2b24, [0, -1.72, 8.3], [-0.05, 0, 0]));
+  // Scharnier am Ende des Kabinenbodens (z 6.95), hinteres Ende liegt auf dem Boden auf
+  parts.push(P(box(2.6, 0.12, 2.3), 0x34372a, [0, -1.44, 8.05], [0.28, 0, 0]));
+  parts.push(P(box(2.6, 0.05, 0.35), 0x2a2b24, [0, -1.73, 9.3], [0.05, 0, 0]));
+  parts.push(P(cyl(0.07, 0.07, 2.7, 10), 0x2a2b24, [0, -1.12, 6.95], [0, 0, HALFPI]));
+  for (const sx of [-1, 1]) parts.push(P(box(0.06, 0.06, 2.4), 0x2a2b24, [sx * 1.25, -1.2, 8.05], [0.4, 0, 0]));   // Halteseile
   parts.push(P(box(3.0, 1.9, 0.06), 0x34372c, [0, 0.0, -6.55]));
   cockpit(parts, group, { z: -8.0, w: 2.5, y: -0.25, seatX: 0.65, seatZ: -7.15, seatY: -0.45 });
   parts.push(P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 2.6, -6.0]), P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 3.35, 6.8]));
@@ -671,7 +674,9 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
   wheel(parts, 0.32, 0.22, [-0.3, -1.33, -5.6]);
   wheel(parts, 0.32, 0.22, [0.3, -1.33, -5.6]);
   parts.push(P(box(0.15, 0.55, 0.15), COL.metal, [0, -1.0, -5.6]));
-  parts.push(P(box(2.3, 0.12, 2.3), 0x353a2c, [0, -1.42, 5.7], [-0.3, 0, 0]));
+  // Heckrampe: Scharnier am Kabinenboden (z 4.6), hinteres Ende auf dem Boden
+  parts.push(P(box(2.3, 0.12, 2.3), 0x353a2c, [0, -1.35, 5.72], [0.26, 0, 0]));
+  parts.push(P(cyl(0.07, 0.07, 2.4, 10), 0x2a2b24, [0, -1.05, 4.6], [0, 0, HALFPI]));
   parts.push(P(box(2.9, 2.2, 0.06), 0x34372c, [0, 0.1, -4.75]));
   cockpit(parts, group, { z: -6.45, w: 2.3, y: -0.2, seatX: 0.6, seatZ: -5.45, seatY: -0.42 });
   parts.push(P(cyl(0.06, 0.06, 2.4, 8), 0x2a2a28, [0.75, 0.35, -7.6], [HALFPI + 0.25, 0, 0]));

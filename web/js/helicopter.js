@@ -202,6 +202,9 @@ export class Helicopter {
       tp += clamp(vf * 0.03, -0.26, 0.26) * ap;
       tr += clamp(vr * 0.04, -0.26, 0.26) * ar;
     }
+    // Fest am Boden (Kollektiv unten): Lage folgt nur dem Gelände, kein Abbremsen per Neigung
+    this.grounded = this.contact && ctl.collective < 0.15 && this.thrust < 0.97 * this.mass * G;
+    if (this.grounded && this.groundTP !== undefined) { tp = this.groundTP; tr = this.groundTR; }
     const k = damp(3.2 * S.agility, dt);
     this.pitch += (tp - this.pitch) * k;
     this.roll += (tr - this.roll) * k;
@@ -219,7 +222,7 @@ export class Helicopter {
     this.quat.setFromEuler(this.euler);
     this.up.copy(UP).applyQuaternion(this.quat);
     const dragAcc = this.kDrag * vf * vf + 0.05 * Math.abs(vf);
-    const trim = Math.sign(vf) * Math.atan(dragAcc / G) * 0.88;
+    const trim = this.contact ? 0 : Math.sign(vf) * Math.atan(dragAcc / G) * 0.88;
     this.bodyPitch = this.pitch + trim;
     if (Math.abs(trim) > 0.001) {
       this.euler.set(this.bodyPitch, this.yaw, this.roll, 'YXZ');
@@ -266,7 +269,9 @@ export class Helicopter {
     // z. B. das Heckrad beim Abfangen mit hochgenommener Nase
     const gh = world.height(this.pos.x, this.pos.z);
     const water = gh < -0.05;
-    const clear = this.gearClearance(world);
+    let clear = this.gearClearance(world);
+    // Kein Hüpfen: steht die Maschine und hebt nicht ab, bleibt sie am Boden „kleben“
+    if (this.grounded && clear > 0 && clear < 0.35 && this.vel.y < 1) { this.pos.y -= clear; clear = 0; }
     if (clear <= 0) {
       if (!this.contact) {
         const vy = this.vel.y, h2 = this.speed;
@@ -280,15 +285,17 @@ export class Helicopter {
       }
       this.pos.y -= clear;
       if (this.vel.y < 0) this.vel.y = 0;
-      const fr = damp(this.thrust > 0.9 * W ? 0.8 : 5, dt);
+      const fr = damp(this.thrust > 0.9 * W ? 0.8 : this.speed < 4 ? 10 : 5, dt);
       this.vel.x *= 1 - fr;
       this.vel.z *= 1 - fr;
+      if (this.grounded && this.speed < 0.4) { this.vel.x = 0; this.vel.z = 0; }
       this.contact = true;
       if (water) { this.takeDamage(4 * dt, 'impact'); this.events.push('water'); }
       if (this.thrust < 0.95 * W) {
         const n = world.normal(this.pos.x, this.pos.z, this._n);
         const tP = -Math.asin(clamp(n.dot(this.fwd), -1, 1));
         const tR = -Math.asin(clamp(n.dot(this.right), -1, 1));
+        this.groundTP = tP; this.groundTR = tR;
         const kk = damp(8, dt);
         this.pitch += (tP - this.pitch) * kk;
         this.roll += (tR - this.roll) * kk;
