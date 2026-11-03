@@ -254,6 +254,24 @@ function finish(group, parts, cfg) {
   return { guns, pilots, discMat, rotorDisc: discs[0], beacon, beaconMat, detail };
 }
 
+// Heckrampe als eigenes, um das Scharnier schwenkbares Teil.
+// Winkel 0 = waagerecht (Flug), open = abgesenkt bis auf den Boden
+function rampPart(group, { y, z, w, len, col, open }) {
+  const pts = [
+    P(box(w, 0.12, len), col, [0, -0.06, len / 2]),
+    P(box(w, 0.05, 0.35), 0x2a2b24, [0, -0.08, len + 0.12], [-0.22, 0, 0]),
+    P(cyl(0.07, 0.07, w + 0.1, 10), 0x2a2b24, [0, 0, 0], [0, 0, HALFPI]),
+  ];
+  for (const sx of [-1, 1]) pts.push(P(box(0.08, 0.14, len), 0x2a2b24, [sx * (w / 2 - 0.04), 0.06, len / 2]));
+  for (let i = 1; i < 5; i++) pts.push(P(box(w - 0.3, 0.03, 0.06), 0x2a2b24, [0, 0.015, i * len / 5]));   // Trittleisten
+  const obj = new THREE.Group();
+  obj.position.set(0, y, z);
+  obj.rotation.x = open;
+  obj.add(new THREE.Mesh(merge(pts), detailMat));
+  group.add(obj);
+  return { obj, open, ang: open };
+}
+
 function seatsGrid(list, sit) {
   return list.map(([x, z, r, kind]) => ({ p: [x, z], r, sit: sit || (kind === 'bench' ? [1.2, -0.25] : [0.35, -0.67]) }));
 }
@@ -558,10 +576,7 @@ function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
   }
   // Heckrampe: Scharnier am Kabinenboden, abgesenkt bis zum Boden
   // Scharnier am Ende des Kabinenbodens (z 6.95), hinteres Ende liegt auf dem Boden auf
-  parts.push(P(box(2.6, 0.12, 2.3), 0x34372a, [0, -1.44, 8.05], [0.28, 0, 0]));
-  parts.push(P(box(2.6, 0.05, 0.35), 0x2a2b24, [0, -1.73, 9.3], [0.05, 0, 0]));
-  parts.push(P(cyl(0.07, 0.07, 2.7, 10), 0x2a2b24, [0, -1.12, 6.95], [0, 0, HALFPI]));
-  for (const sx of [-1, 1]) parts.push(P(box(0.06, 0.06, 2.4), 0x2a2b24, [sx * 1.25, -1.2, 8.05], [0.4, 0, 0]));   // Halteseile
+  const ramp = rampPart(group, { y: -1.12, z: 6.95, w: 2.6, len: 2.3, col: 0x34372a, open: 0.28 });
   parts.push(P(box(3.0, 1.9, 0.06), 0x34372c, [0, 0.0, -6.55]));
   cockpit(parts, group, { z: -8.0, w: 2.5, y: -0.25, seatX: 0.65, seatZ: -7.15, seatY: -0.45 });
   parts.push(P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 2.6, -6.0]), P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 3.35, 6.8]));
@@ -591,7 +606,7 @@ function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
   for (let i = 0; i < 9; i++) seatList.push([(i % 3 - 1) * 0.55, -1.5 + Math.floor(i / 3) * 2.2, 0, 'floor']);
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor: front, tailRotor: rear, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
-    guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.5]), isStatic,
+    guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.5]), isStatic, ramp,
     eyePilot: new THREE.Vector3(0.65, 0.42, -7.45),
     spin: [[front, 'y', 18], [rear, 'y', -18]],
     exhaust: new THREE.Vector3(2.0, 1.55, 7.6),
@@ -675,8 +690,7 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
   wheel(parts, 0.32, 0.22, [0.3, -1.33, -5.6]);
   parts.push(P(box(0.15, 0.55, 0.15), COL.metal, [0, -1.0, -5.6]));
   // Heckrampe: Scharnier am Kabinenboden (z 4.6), hinteres Ende auf dem Boden
-  parts.push(P(box(2.3, 0.12, 2.3), 0x353a2c, [0, -1.35, 5.72], [0.26, 0, 0]));
-  parts.push(P(cyl(0.07, 0.07, 2.4, 10), 0x2a2b24, [0, -1.05, 4.6], [0, 0, HALFPI]));
+  const ramp = rampPart(group, { y: -1.05, z: 4.6, w: 2.3, len: 2.3, col: 0x353a2c, open: 0.26 });
   parts.push(P(box(2.9, 2.2, 0.06), 0x34372c, [0, 0.1, -4.75]));
   cockpit(parts, group, { z: -6.45, w: 2.3, y: -0.2, seatX: 0.6, seatZ: -5.45, seatY: -0.42 });
   parts.push(P(cyl(0.06, 0.06, 2.4, 8), 0x2a2a28, [0.75, 0.35, -7.6], [HALFPI + 0.25, 0, 0]));
@@ -716,7 +730,7 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
   for (let i = 0; i < 6; i++) seatList.push([(i % 2 - 0.5) * 0.7, -1.5 + Math.floor(i / 2) * 2.0, 0, 'floor']);
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
-    guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.45]), isStatic,
+    guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.45]), isStatic, ramp,
     eyePilot: new THREE.Vector3(0.6, 0.45, -5.7),
     spin: [[mainRotor, 'y', 17], [tailRotor, 'x', 60]],
     exhaust: new THREE.Vector3(1.45, 2.0, 2.1),

@@ -469,6 +469,12 @@ export class Helicopter {
     for (const [obj, axis, rate] of m.spin) obj.rotation[axis] += this.rpm * rate * dt;
     m.discMat.opacity = this.rpm > 0.3 ? 0.08 + this.rpm * 0.08 : 0;
     const t = performance.now() / 1000;
+    // Heckrampe: am Boden abgesenkt, im Flug waagerecht (Ausblick und Schussfeld nach hinten)
+    if (m.ramp && !this.crashed) {
+      const r = m.ramp, tgt = this.agl < 0.8 ? r.open : 0;
+      r.ang += clamp(tgt - r.ang, -0.18 * dt, 0.18 * dt);
+      r.obj.rotation.x = r.ang;
+    }
     m.beaconMat.color.setHex(!this.crashed && (t % 1.2) < 0.12 ? 0xff2020 : 0x400000);
     // Schatten
     const gnd = this.agl;
