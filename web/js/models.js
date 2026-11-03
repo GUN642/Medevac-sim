@@ -307,6 +307,15 @@ export function tentParts(w, l, h, color = COL.canvas) {
   ];
 }
 
+// Ablage mit Panzerfäusten (Kiste, darauf mehrere Rohre)
+export function launcherRackParts(afg) {
+  const tube = afg ? 0x6f6a4e : 0x4b5330;
+  const p = [P(box(1.5, 0.5, 0.7), afg ? 0x6b5a3e : 0x4f4a2c, [0, 0.25, 0])];
+  for (let k = 0; k < 4; k++) p.push(P(cyl(0.05, 0.05, 1.05, 10), tube, [0, 0.56 + (k % 2) * 0.09, -0.22 + k * 0.15], [0, 0, HALFPI]));
+  p.push(P(box(0.4, 0.25, 0.03), 0xd8d0b0, [0, 0.3, -0.36]));
+  return p;
+}
+
 export function hospitalParts() {
   const p = tentParts(9, 16, 4, 0x6a6e48);
   p.push(P(box(3.2, 0.05, 1.0), COL.white, [0, 4.25, 0], [0, 0, 0]));
@@ -488,6 +497,17 @@ export function weaponGeo(id) {
   if (modern) id = WEAPON_ALIAS[id];
   const blk = 0x1b1c1c, wood = modern ? 0x2c2c2a : 0x6e4a2a, od = modern ? 0x6b6450 : 0x4b5330;
   let parts;
+  if (id === 'at4' || id === 'law') {
+    // Einweg-Panzerfaust: Rohr mit Griff, Kimme/Korn sitzen oben auf dem Rohr
+    const c = id === 'at4' ? 0x6f6a4e : 0x4b5330, r = id === 'at4' ? 0.045 : 0.035;
+    return merge([
+      P(cyl(r, r, 1.0, 12), c, [0, 0.04, -0.15], [HALFPI, 0, 0]),
+      P(cyl(r + 0.012, r + 0.012, 0.08, 12), 0x2a2a28, [0, 0.04, -0.66], [HALFPI, 0, 0]),
+      P(cyl(r + 0.01, r + 0.01, 0.06, 12), 0x2a2a28, [0, 0.04, 0.36], [HALFPI, 0, 0]),
+      P(box(0.035, 0.1, 0.05), 0x222222, [0, -0.04, 0.02], [-0.3, 0, 0]),
+      P(box(0.035, 0.08, 0.04), 0x222222, [0, -0.02, -0.22]),
+    ]);
+  }
   if (id === 'ak') parts = [
     P(box(0.055, 0.09, 0.4), 0x2a2a28, [0, 0, -0.08]),
     P(cyl(0.013, 0.013, 0.42, 6), 0x2a2a28, [0, 0.02, -0.5], [HALFPI, 0, 0]),

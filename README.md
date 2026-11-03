@@ -57,7 +57,10 @@ der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wech
 - **Feindfahrzeuge**: Pickups mit schwerem MG (Vietnam: Lkw) fahren zwischen Dörfern umher, rücken auf Landezonen
   und die FOB vor und halten aus großer Entfernung auf Hubschrauber. Zerstörbar mit Raketen, 30 mm, Granaten oder
   vielen Treffern.
-- **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller Steuerkreuz unten, Touch 3x).
+- **Panzerfäuste in der FOB**: An acht Ablagen innen an der Mauer (an den Toren und Ecken) nimmt man zu Fuß mit
+  E / Ⓐ / EIN-AUS eine **AT4** (Vietnam: **M72 LAW**) mit 3 Schuss auf – ein Treffer zerstört ein Fahrzeug.
+  Nachschub gibt es nur an den Ablagen.
+- **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller Steuerkreuz rechts, Touch 3x).
 - Alle modernen Hubschrauber erreichen mindestens **120 Knoten**, der Apache etwa 145.
 
 ### Auftragsarten

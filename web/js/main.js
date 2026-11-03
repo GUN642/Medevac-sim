@@ -392,9 +392,20 @@ class Game {
   }
 
   // Zu Fuß: in den nächsten gelandeten Hubschrauber einsteigen; im Hubschrauber: aussteigen
+  // Nächste Panzerfaust-Ablage in Reichweite (zu Fuß)
+  nearRack() {
+    const S = this.soldier, L = this.world.fob.launchers || [];
+    return L.find((r) => dist2(r.x, r.z, S.pos.x, S.pos.z) < 3.5) || null;
+  }
+
   useAction() {
     if (this.seat === 'foot') {
       if (!this.soldier.alive) return;
+      if (this.nearRack()) {
+        const w = this.soldier.takeLauncher();
+        this.radio(w ? `${w.name} aufgenommen – ${w.mag + w.reserve} Schuss. Wirksam gegen Fahrzeuge.` : 'Sie tragen schon die volle Anzahl Panzerfäuste.', 'Crew', false, true);
+        return;
+      }
       let best = null, bd = 12;
       for (const h of this.helis) {
         const d = dist2(this.soldier.pos.x, this.soldier.pos.z, h.pos.x, h.pos.z);
@@ -598,8 +609,9 @@ class Game {
   respawnSoldier() {
     const p = this.world.fob.pads.troop;
     this.soldier.spawn(p.x + 18 + rand() * 6, p.z + 10 + rand() * 6, 0);
-    this.soldier.mag = this.soldier.mag.map((_, i) => WEAPONS[i].mag);
-    this.soldier.res = this.soldier.res.map((_, i) => WEAPONS[i].reserve);
+    this.soldier.mag = this.soldier.mag.map((_, i) => WEAPONS[i].start ?? WEAPONS[i].mag);
+    this.soldier.res = this.soldier.res.map((_, i) => WEAPONS[i].start ?? WEAPONS[i].reserve);
+    if (WEAPONS[this.soldier.w].launcher) this.soldier.setWeapon(0);
     this.deathShown = false;
     this.hud.hideCrash();
     this.radio('Neuer Einsatz zu Fuß – Sie stehen in der FOB bei Pad H1.', 'TOC', false, true);
@@ -1080,10 +1092,10 @@ class Game {
           continue;
         }
         if (a === 'use' || a === 'confirm') { if (!this.hud.mapOpen) { this.useAction(); continue; } }
-        if (a === 'radio' || a === 'pickup' || (a === 'dpad-down' && !S.weapon.optic)) { this.requestPickup(); continue; }
+        if (a === 'radio' || a === 'pickup' || a === 'dpad-down') { this.requestPickup(); continue; }
         if (a === 'dpad-left') { S.setWeapon(S.w - 1); continue; }
-        // Vergrößerer: Taste B bzw. Steuerkreuz unten (links/rechts bleibt Waffenwechsel)
-        if (a === 'magnifier' || (a === 'dpad-down' && S.weapon.optic)) {
+        // Vergrößerer: Taste B bzw. Steuerkreuz rechts (bei Waffen ohne Rotpunktvisier: nächste Waffe)
+        if (a === 'magnifier' || (a === 'dpad-right' && S.weapon.optic)) {
           if (S.toggleMagnifier()) this.radioOnce('mag', 0.5, S.magOn ? '3x-Vergrößerer aufgeklappt' : '3x-Vergrößerer weggeklappt', 'Waffe', false, true);
           continue;
         }
@@ -1296,7 +1308,9 @@ class Game {
       let near = null, nd = 12;
       for (const hh of this.helis) { const d = dist2(S.pos.x, S.pos.z, hh.pos.x, hh.pos.z); if (d < nd && !hh.crashed) { nd = d; near = hh; } }
       const key = this.input.device === 'gamepad' ? 'Ⓐ' : this.input.device === 'touch' ? 'EIN/AUS' : 'E';
-      if (near) hint = near.contact ? `${key}: In ${near.spec.short} #${near.index + 1} einsteigen` : 'Hubschrauber noch in der Luft – warten bis er gelandet ist';
+      const rack = this.nearRack();
+      if (rack) hint = `${key}: Panzerfaust aufnehmen`;
+      else if (near) hint = near.contact ? `${key}: In ${near.spec.short} #${near.index + 1} einsteigen` : 'Hubschrauber noch in der Luft – warten bis er gelandet ist';
       else if (S.reloadT > 0) hint = 'Nachladen …';
       else if (S.mag[S.w] === 0 && S.res[S.w] === 0) hint = 'Keine Munition – in der FOB auffüllen oder Waffe wechseln';
     } else if (this.seat === 'pax') {

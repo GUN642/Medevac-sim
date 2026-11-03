@@ -12,6 +12,8 @@ const WEAPONS_VN = [
   { id: 'm79', sight: [0.11, -0.06, -0.46, 0.3, 0.045, 0.065], name: 'M79', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 50, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.8, sound: 'thump', grenade: true, recoil: 0.05 },
   { id: 'ithaca', sight: [0.06, 0.04, -0.71, 0.3, 0.045, 0.036], name: 'Ithaca 37', desc: 'Schrotflinte', mag: 5, reserve: 40, rpm: 80, auto: false, vel: 400, spread: 0.055, fov: 50, reload: 3.0, sound: 'shotgun', pellets: 9, recoil: 0.06 },
   { id: 'm1911', sight: [0.06, 0.02, -0.17, 0.45, 0.045, 0.045], name: 'M1911', desc: 'Pistole', mag: 7, reserve: 56, rpm: 360, auto: false, vel: 253, spread: 0.018, fov: 45, reload: 1.6, sound: 'pistol', recoil: 0.03 },
+  // Panzerfaust: nur aus den Ablagen an der FOB-Mauer
+  { id: 'law', sight: [0.12, 0.16, -0.42, 0.3, 0.075, 0.075], name: 'M72 LAW', desc: 'Panzerfaust', rpm: 30, auto: false, vel: 230, spread: 0.004, fov: 40, reload: 2.6, sound: 'thump', recoil: 0.08, launcher: true, mag: 1, reserve: 2, start: 0 },
 ];
 const WEAPONS_AFG = [
   { id: 'm4', optic: true, sight: [0.165, 0.0, -0.66, 0.26], name: 'M4A1', desc: 'Sturmgewehr', mag: 30, reserve: 240, rpm: 800, auto: true, vel: 910, spread: 0.011, fov: 26, reload: 2.3, sound: 'm16', tracer: 4, recoil: 0.005 },
@@ -19,6 +21,7 @@ const WEAPONS_AFG = [
   { id: 'm320', sight: [0.11, -0.06, -0.46, 0.3, 0.045, 0.065], name: 'M320', desc: 'Granatwerfer', mag: 1, reserve: 24, rpm: 55, auto: false, vel: 76, spread: 0.006, fov: 42, reload: 1.7, sound: 'thump', grenade: true, recoil: 0.05 },
   { id: 'm590', sight: [0.06, 0.04, -0.71, 0.3, 0.045, 0.036], name: 'Mossberg 590', desc: 'Schrotflinte', mag: 8, reserve: 48, rpm: 85, auto: false, vel: 400, spread: 0.05, fov: 50, reload: 3.4, sound: 'shotgun', pellets: 9, recoil: 0.06 },
   { id: 'm9', sight: [0.06, 0.02, -0.17, 0.45, 0.045, 0.045], name: 'M9', desc: 'Pistole', mag: 15, reserve: 60, rpm: 400, auto: false, vel: 375, spread: 0.016, fov: 45, reload: 1.5, sound: 'pistol', recoil: 0.025 },
+  { id: 'at4', sight: [0.13, 0.18, -0.45, 0.3, 0.085, 0.085], name: 'AT4', desc: 'Panzerfaust', rpm: 30, auto: false, vel: 230, spread: 0.004, fov: 40, reload: 2.6, sound: 'thump', recoil: 0.08, launcher: true, mag: 1, reserve: 2, start: 0 },
 ];
 // Wird beim Start passend zum Einsatzgebiet befüllt (gleiche Array-Instanz für alle Importe)
 export const WEAPONS = WEAPONS_VN.slice();
@@ -147,8 +150,8 @@ export class Soldier {
     this.pos = new THREE.Vector3();
     this.vy = 0; this.yaw = 0; this.pitch = 0;
     this.hp = 100; this.alive = true; this.crouch = false; this.w = 0;
-    this.mag = WEAPONS.map((w) => w.mag);
-    this.res = WEAPONS.map((w) => w.reserve);
+    this.mag = WEAPONS.map((w) => w.start ?? w.mag);
+    this.res = WEAPONS.map((w) => w.start ?? w.reserve);
     this.reloadT = 0; this.cool = 0; this.lastHit = -99; this.deadT = 0;
     this.active = false; this.moving = false; this.onGround = true; this.zoom = false;
     this.group.visible = false;
@@ -215,8 +218,24 @@ export class Soldier {
     if (this.reloadT > 0) this.vm.rotation.x -= 0.6;
   }
 
+  // Panzerfäuste aus einer Ablage aufnehmen (bis zu 3 Schuss) und gleich in die Hand nehmen
+  takeLauncher() {
+    const i = WEAPONS.findIndex((w) => w.launcher);
+    if (i < 0) return false;
+    const w = WEAPONS[i];
+    if (this.mag[i] + this.res[i] >= w.mag + w.reserve) return false;
+    this.mag[i] = w.mag;
+    this.res[i] = w.reserve;
+    this.setWeapon(i);
+    return w;
+  }
+
+  // Ohne Munition wird die Panzerfaust beim Durchschalten übersprungen
+  hasAmmo(i) { const w = WEAPONS[i]; return !w.launcher || this.mag[i] + this.res[i] > 0; }
   setWeapon(i) {
+    const dir = i < this.w ? -1 : 1;
     i = (i + WEAPONS.length) % WEAPONS.length;
+    for (let n = 0; n < WEAPONS.length && !this.hasAmmo(i); n++) i = (i + dir + WEAPONS.length) % WEAPONS.length;
     if (i === this.w) return;
     this.w = i;
     this.gun.geometry = wgeo(WEAPONS[i].id);
@@ -317,7 +336,7 @@ export class Soldier {
       this.resupplyT = (this.resupplyT || 0) + dt;
       if (this.resupplyT > 0.5) {
         this.resupplyT = 0;
-        WEAPONS.forEach((wp, i) => { this.res[i] = Math.min(wp.reserve, this.res[i] + Math.ceil(wp.reserve / 10)); });
+        WEAPONS.forEach((wp, i) => { if (!wp.launcher) this.res[i] = Math.min(wp.reserve, this.res[i] + Math.ceil(wp.reserve / 10)); });
       }
     }
   }
@@ -348,7 +367,14 @@ export class Soldier {
     const muzzle = this.muzzlePos(_m);
     const dir = target.clone().sub(muzzle).normalize();
     const spread = w.spread * (this.zoom ? 0.45 : 1) * (this.crouch ? 0.7 : 1) * (this.moving ? 1.6 : 1);
-    if (w.grenade) {
+    if (w.launcher) {
+      // Rakete mit Feuerstrahl nach hinten
+      const v = dir.clone().multiplyScalar(w.vel);
+      g.combat.rocket(muzzle, v, false);
+      if (g.net) g.net.rocketFire(muzzle, v);
+      g.effects.puff(muzzle.x - dir.x * 2, muzzle.y - dir.y * 2, muzzle.z - dir.z * 2, 0.75, 0.72, 0.66, 8, 2.5, 2.5, 1.8);
+      if (this.mag[this.w] + this.res[this.w] <= 0) setTimeout(() => this.setWeapon(0), 600);
+    } else if (w.grenade) {
       const vel = this.lobVelocity(muzzle, target, w.vel, dir);
       g.combat.grenade(muzzle, vel);
       if (g.net) g.net.footFire(muzzle, vel, w.id, true);

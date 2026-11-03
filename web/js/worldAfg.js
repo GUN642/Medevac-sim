@@ -227,6 +227,7 @@ export class AfghanWorld extends World {
       const a = (i / segs) * Math.PI * 2;
       add(A.hescoWall((2 * Math.PI * R) / segs + 0.4, 2.3), Math.cos(a) * R, Math.sin(a) * R, -a + Math.PI / 2);
     }
+    this.addLauncherRacks(add, R);
     this.fobMesh = new THREE.Mesh(M.worldUV(M.merge(parts)), M.vcGrainMat);
     this.fobMesh.castShadow = this.fobMesh.receiveShadow = true;
     this.scene.add(this.fobMesh);

@@ -398,6 +398,7 @@ export class World {
       const a = (i / segs) * Math.PI * 2;
       add(M.sandbagWall((2 * Math.PI * R) / segs + 0.4, 1.3), Math.cos(a) * R, Math.sin(a) * R, -a + Math.PI / 2);
     }
+    this.addLauncherRacks(add, R);
     this.fobMesh = new THREE.Mesh(M.worldUV(M.merge(parts)), M.vcGrainMat);
     this.fobMesh.castShadow = this.fobMesh.receiveShadow = true;
     this.scene.add(this.fobMesh);
@@ -415,6 +416,18 @@ export class World {
       fig.group.rotation.y = this.rng() * Math.PI * 2;
       this.scene.add(fig.group);
       this.fobFigures.push(fig);
+    }
+  }
+
+  // Panzerfaust-Ablagen innen an der Mauer (neben den Toren und an den Ecken)
+  addLauncherRacks(add, R) {
+    const f = this.fob;
+    f.launchers = [];
+    for (let k = 0; k < 8; k++) {
+      const a = (k * Math.PI) / 4 + (k % 2 ? 0.12 : 0.2);
+      const lx = Math.cos(a) * (R - 4.5), lz = Math.sin(a) * (R - 4.5);
+      add(M.launcherRackParts(T.id === 'afghanistan'), lx, lz, -a + Math.PI / 2);
+      f.launchers.push({ x: f.x + lx, z: f.z + lz });
     }
   }
 
