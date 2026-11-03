@@ -307,10 +307,10 @@ export class Input {
       if (pressed(5)) this.actions.push('seat-next');
       if (pressed(9)) this.actions.push('pause');
       if (pressed(8)) this.actions.push('crew');
-      if (pressed(12)) { this.actions.push('dpad-up'); this.pushNav('nav-up', 'pad'); }
-      if (pressed(13)) { this.actions.push('dpad-down'); this.pushNav('nav-down', 'pad'); }
-      if (pressed(14)) { this.actions.push('dpad-left'); this.pushNav('nav-left', 'pad'); }
-      if (pressed(15)) { this.actions.push('dpad-right'); this.pushNav('nav-right', 'pad'); }
+      if (pressed(12)) { this.pushDpad('up'); this.pushNav('nav-up', 'pad'); }
+      if (pressed(13)) { this.pushDpad('down'); this.pushNav('nav-down', 'pad'); }
+      if (pressed(14)) { this.pushDpad('left'); this.pushNav('nav-left', 'pad'); }
+      if (pressed(15)) { this.pushDpad('right'); this.pushNav('nav-right', 'pad'); }
       // Menü-Navigation auch mit dem linken Stick und dem Steuerkreuz als Achse (nicht-standard Mapping, z. B. Android)
       let hx = 0, hy = 0;
       if (gp.mapping !== 'standard' && ax.length >= 8) {
@@ -326,7 +326,7 @@ export class Input {
       // Steuerkreuz als Achse (z. B. Switch-Controller an Android): auch die Spielaktionen auslösen
       const hat = hy < 0 ? 'up' : hy > 0 ? 'down' : hx < 0 ? 'left' : hx > 0 ? 'right' : null;
       const ph = (this.hatPrev || {})[gp.index];
-      if (hat && hat !== ph && !(gp.buttons[12] && (gp.buttons[12].pressed || gp.buttons[13].pressed || gp.buttons[14].pressed || gp.buttons[15].pressed))) this.actions.push('dpad-' + hat);
+      if (hat && hat !== ph && !(gp.buttons[12] && (gp.buttons[12].pressed || gp.buttons[13].pressed || gp.buttons[14].pressed || gp.buttons[15].pressed))) this.pushDpad(hat);
       (this.hatPrev = this.hatPrev || {})[gp.index] = hat;
       this.stickNav(gp.index, hx || lx, hy || ly, dt);
       this.gpPrev[gp.index] = gp.buttons.map((x) => x.pressed);
@@ -354,6 +354,15 @@ export class Input {
     if (!dir) return;
     st.t -= dt;
     if (st.t <= 0) { st.t = 0.18; this.pushNav(dir, 'pad'); }
+  }
+
+  // Steuerkreuz kommt auf Android teils als Taste UND als Achse an: je Richtung nur einmal pro 300 ms werten
+  pushDpad(dir) {
+    const now = performance.now();
+    if (!this.lastDpad) this.lastDpad = {};
+    if (now - (this.lastDpad[dir] || 0) < 300) return;
+    this.lastDpad[dir] = now;
+    this.actions.push('dpad-' + dir);
   }
 
   // Auf Android kommt das Steuerkreuz doppelt an (Gamepad-API und Tastenereignis der WebView): nur einmal werten
