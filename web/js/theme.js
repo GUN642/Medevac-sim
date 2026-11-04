@@ -39,7 +39,7 @@ export const HELI_TYPES = {
     id: 'ch53', model: 'ch53', name: 'Sikorsky CH-53GS', short: 'CH-53GS', callsign: 'Hummel 1-2',
     emptyMass: 10900, fuelMassFull: 2900, paxMass: 100, capacity: 36, maxThrust: 26000 * G,
     skidH: 1.65, rotorRadius: 11, rotorTop: 3.0, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 8, yawRate: 1.3,
-    vmax: 127, agility: 1.15, burn: 0.9, drag: 0.9, armor: 0.5, gun: { name: 'M3M .50', rpm: 1050, ammo: 400, mags: 2, muzzleVel: 890, range: 1300, heavy: true, tracerEvery: 3 },
+    vmax: 127, vlimit: 130, agility: 1.15, burn: 0.9, drag: 0.9, armor: 0.5, gun: { name: 'M3M .50', rpm: 1050, ammo: 400, mags: 2, muzzleVel: 890, range: 1300, heavy: true, tracerEvery: 3 },
     seats: ['pilot', 'left', 'right', 'ramp'], seatNames: { ramp: 'Heckschütze (Rampe)' },
     rotorAudio: 1.7, rotorCut: 0.9, camDist: 40, shadow: 18, door: 'ramp', rampZ: 7.2, numbers: ['84+05', '85+11'],
   },

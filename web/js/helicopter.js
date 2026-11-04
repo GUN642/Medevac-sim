@@ -263,6 +263,11 @@ export class Helicopter {
     if (Math.abs(this.pos.x) > lim) { a.x -= Math.sign(this.pos.x) * (Math.abs(this.pos.x) - lim) * 0.12; this.boundaryWarn = true; }
     if (Math.abs(this.pos.z) > lim) { a.z -= Math.sign(this.pos.z) * (Math.abs(this.pos.z) - lim) * 0.12; this.boundaryWarn = true; }
     this.vel.addScaledVector(a, dt);
+    // Harte Höchstgeschwindigkeit (z. B. CH-53: 130 kt), auch im Sturzflug
+    if (S.vlimit) {
+      const vl = (S.vlimit - 0.4) / 1.944, hv = Math.hypot(this.vel.x, this.vel.z);
+      if (hv > vl) { const k = vl / hv; this.vel.x *= k; this.vel.z *= k; }
+    }
     this.pos.addScaledVector(this.vel, dt);
 
     // Bodenkontakt über die Aufsetzpunkte (Räder/Kufen): der tiefste Punkt setzt zuerst auf,
