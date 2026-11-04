@@ -47,18 +47,19 @@ function instrumentTexture() {
 
 // Cockpit: Instrumententafel mit Blendschutz, Mittelkonsole, Pilotensitze mit Panzerung, Steuerknüppel
 function cockpit(parts, group, { z, w, y, seatX, seatZ, seatY }) {
-  parts.push(P(box(w, 0.08, 0.5), 0x1a1c1b, [0, y + 0.3, z - 0.15], [0.15, 0, 0]));
-  parts.push(P(box(w * 0.9, 0.55, 0.12), 0x24272a, [0, y, z], [-0.35, 0, 0]));
+  // flache Blendschutzhaube und tief sitzendes Instrumentenbrett, damit der Pilot nach vorn unten sieht
+  parts.push(P(box(w * 0.7, 0.04, 0.26), 0x1a1c1b, [0, y - 0.02, z - 0.08], [0.12, 0, 0]));
+  parts.push(P(box(w * 0.7, 0.36, 0.08), 0x24272a, [0, y - 0.22, z], [-0.5, 0, 0]));
   parts.push(P(box(0.35, 0.5, 0.9), 0x24272a, [0, y - 0.45, z + 0.5]));
   for (const sx of [-1, 1]) {
     parts.push(P(box(0.55, 0.12, 0.55), 0x2f302b, [sx * seatX, seatY, seatZ]));
     parts.push(P(box(0.55, 0.85, 0.12), 0x2f302b, [sx * seatX, seatY + 0.45, seatZ + 0.3], [-0.12, 0, 0]));
     parts.push(P(box(0.08, 0.6, 0.5), 0x3a3b33, [sx * (seatX + 0.3), seatY + 0.3, seatZ + 0.1]));
-    parts.push(P(cyl(0.025, 0.025, 0.6, 6), 0x111111, [sx * seatX, seatY + 0.25, seatZ - 0.45], [0.35, 0, 0]));
+    parts.push(P(cyl(0.02, 0.02, 0.42, 6), 0x111111, [sx * seatX, seatY + 0.16, seatZ - 0.42], [0.35, 0, 0]));
   }
-  const pl = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.85, 0.48), new THREE.MeshBasicMaterial({ map: instrumentTexture() }));
-  pl.position.set(0, y, z - 0.065);
-  pl.rotation.set(0.35, PI, 0);
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.66, 0.31), new THREE.MeshBasicMaterial({ map: instrumentTexture() }));
+  pl.position.set(0, y - 0.2, z - 0.05);
+  pl.rotation.set(0.5, PI, 0);
   group.add(pl);
 }
 
@@ -391,7 +392,7 @@ function buildHuey({ static: isStatic = false, number = '66-16024' } = {}) {
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
     guns: f.guns, pilots: f.pilots, seats, isStatic,
-    eyePilot: new THREE.Vector3(0.55, 0.47, -1.78),
+    eyePilot: new THREE.Vector3(0.55, 0.72, -2.0),
     spin: [[mainRotor, 'y', 22], [tailRotor, 'x', 70]],
     exhaust: new THREE.Vector3(0, 1.62, 3.5),
     gear: [[-1.25, -1.6, -1.9], [1.25, -1.6, -1.9], [-1.25, -1.6, 2.4], [1.25, -1.6, 2.4]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
@@ -497,7 +498,7 @@ function buildBlackhawk({ static: isStatic = false, number = '08-20112' } = {}) 
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
     guns: f.guns, pilots: f.pilots, seats, isStatic,
-    eyePilot: new THREE.Vector3(0.55, 0.42, -3.5),
+    eyePilot: new THREE.Vector3(0.55, 0.74, -3.72),
     spin: [[mainRotor, 'y', 26], [tailRotor, 'x', 75]],
     exhaust: new THREE.Vector3(1.1, 1.4, 2.5),
     gear: [[-1.45, -1.55, -3.3], [1.45, -1.55, -3.3], [0, -1.55, 8.85]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
@@ -620,7 +621,7 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor: front, tailRotor: rear, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
     guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.5]), isStatic, ramp,
-    eyePilot: new THREE.Vector3(0.65, 0.42, -7.45),
+    eyePilot: new THREE.Vector3(0.65, 0.74, -7.66),
     spin: [[front, 'y', 18], [rear, 'y', -18]],
     exhaust: new THREE.Vector3(2.0, 1.55, 7.6),
     gear: [[-1.6, -1.75, -4.6], [1.6, -1.75, -4.6], [-1.6, -1.75, 5.05], [1.6, -1.75, 5.05]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
@@ -712,7 +713,6 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   const ramp = rampPart(group, { y: -1.05, z: 4.6, w: 2.3, len: 2.3, col: 0x353a2c, open: 0.26 });
   parts.push(P(box(2.9, 2.2, 0.06), 0x34372c, [0, 0.1, -4.75]));
   cockpit(parts, group, { z: -6.45, w: 2.3, y: -0.2, seatX: 0.6, seatZ: -5.45, seatY: -0.42 });
-  parts.push(P(cyl(0.06, 0.06, 2.4, 8), 0x2a2a28, [0.75, 0.35, -7.6], [HALFPI + 0.25, 0, 0]));
   parts.push(P(cyl(0.24, 0.28, 0.85, 12), COL.metal, [0, 2.7, 0]));
   parts.push(P(box(0.04, 0.5, 0.28), 0x111111, [0, 2.6, 3.0], [0.35, 0, 0]));
   parts.push(P(cyl(0.2, 0.2, 0.5, 10), COL.gun, [-0.25, 3.9, 12.5], [0, 0, HALFPI]));
@@ -748,7 +748,7 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
     guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.45]), isStatic, ramp, retract,
-    eyePilot: new THREE.Vector3(0.6, 0.45, -5.7),
+    eyePilot: new THREE.Vector3(0.6, 0.76, -5.92),
     spin: [[mainRotor, 'y', 17], [tailRotor, 'x', 60]],
     exhaust: new THREE.Vector3(1.45, 2.0, 2.1),
     gear: [[-1.95, -1.65, 0.4], [1.95, -1.65, 0.4], [0, -1.65, -5.6]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt

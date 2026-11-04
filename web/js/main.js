@@ -1519,10 +1519,13 @@ class Game {
       this.cockpitLook.pitch = clamp(this.cockpitLook.pitch - look.dy, -0.9, 0.6);
       if (!this.input.mouseDown[2]) { this.cockpitLook.yaw *= 1 - damp(1.5, dt); this.cockpitLook.pitch *= 1 - damp(1.5, dt); }
       cam.position.copy(m.eyePilot).applyQuaternion(h.quat).add(h.pos);
-      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(this.cockpitLook.pitch - 0.08, this.cockpitLook.yaw, 0, 'YXZ'));
+      // Im Landeanflug (tief und langsam) blickt der Pilot automatisch etwas nach unten
+      const landing = clamp((45 - h.agl) / 35, 0, 1) * clamp((22 - h.speed) / 12, 0, 1);
+      this.ckDown = (this.ckDown || 0) + (landing * 0.32 - (this.ckDown || 0)) * Math.min(1, dt * 2);
+      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(this.cockpitLook.pitch - 0.12 - this.ckDown, this.cockpitLook.yaw, 0, 'YXZ'));
       cam.quaternion.copy(h.quat).multiply(q);
       m.pilots[1].group.visible = false;
-      fov = 75;
+      fov = cam.aspect < 1.2 ? 95 : 84;   // weitwinklig, damit man auch seitlich hinaussieht
     } else {
       const o = this.orbit;
       o.yaw -= look.dx; o.pitch = clamp(o.pitch + look.dy, -0.15, 1.2);
