@@ -138,8 +138,10 @@ export class Units {
   spawnDefenders(site, n, missionId) {
     const list = [];
     for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + rand() * 0.4;
-      const r = 24 + rand() * 14;
+      let a = (i / n) * Math.PI * 2 + rand() * 0.4;
+      let r = site.hard ? site.r + 3 + rand() * 6 : 24 + rand() * 14;
+      // nicht im Wasser aufstellen
+      for (let k = 0; k < 8 && this.game.world.height(site.x + Math.cos(a) * r, site.z + Math.sin(a) * r) < 0.4; k++) { a += 0.8; r *= 0.9; }
       const u = this.makeVisual('F:' + T.friend());
       Object.assign(u, { id: uid++, kind: 'defender', missionId, fireT: rand() * 3, burst: 0, shotT: 0, x: 0, z: 0, y: 0, site });
       this.place(u, site.x + Math.cos(a) * r, site.z + Math.sin(a) * r);

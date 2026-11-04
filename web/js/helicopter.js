@@ -257,6 +257,15 @@ export class Helicopter {
       a.y += Math.sin(t * 2.3) * Math.sin(t * 0.9 + 3) * 1.4 * gs * sizeK;
       this.gustLevel = gs;
     }
+    // Fallwinde und Verwirbelungen an Gipfel-Landezonen
+    const pk = !this.contact && world.peakNear ? world.peakNear(this.pos.x, this.pos.z) : null;
+    if (pk && this.pos.y < pk.y + 90) {
+      const t = this.peakT = (this.peakT || 0) + dt;
+      const k = 1 - Math.hypot(this.pos.x - pk.x, this.pos.z - pk.z) / 220;
+      a.x += (Math.sin(t * 1.9) + 0.6 * Math.sin(t * 4.3)) * 1.5 * k;
+      a.z += (Math.cos(t * 1.4 + 1) + 0.6 * Math.sin(t * 3.7 + 2)) * 1.5 * k;
+      a.y += (Math.sin(t * 2.6) * 0.9 - 0.7) * k;
+    }
     // Kartenrand
     this.boundaryWarn = false;
     const lim = HALF - 180;

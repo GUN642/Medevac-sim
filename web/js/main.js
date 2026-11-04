@@ -583,6 +583,8 @@ class Game {
     if (h.agl < 12 && d > 40) pitch = Math.min(pitch, 0.1);
     let collective = clamp((targetY - h.pos.y) * 0.08 - h.vel.y * 0.12, -1, 1);
     if (d < 28) collective = h.speed < 6 ? -0.8 : 0; // senkrecht aufsetzen
+    // Bootstrupp: über dem Wasser in 3 m Höhe schweben statt wassern
+    if (goal.water && d < 60) collective = clamp((3 - h.agl) * 0.15 - h.vel.y * 0.25, -1, 1);
     return { pitch, roll, yaw, collective };
   }
 

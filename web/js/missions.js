@@ -3,12 +3,12 @@ import * as THREE from './lib/three.module.min.js';
 import { T } from './theme.js';
 import { wreckAfg } from './afgModels.js';
 import { rand, clamp, bearing, dirName, fmtDist, fmtBearing, dist2 } from './util.js';
-import { wreckParts, merge, vcMat } from './models.js';
+import { wreckParts, merge, vcMat, P, Figure } from './models.js';
 
 const NATO = ['Kilo', 'Lima', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Tango', 'Victor', 'Whiskey', 'Yankee', 'Zulu', 'Hotel'];
 // Aufträge, bei denen Soldaten/Personen/Ladung transportiert werden (nicht Verwundete)
-const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip'];
-const TYPE_WEIGHTS = [['medevac', 30], ['transport', 13], ['csar', 11], ['insert', 10], ['exfil', 10], ['resupply', 10], ['recon', 8], ['vip', 8]];
+const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip', 'boat'];
+const TYPE_WEIGHTS = [['medevac', 30], ['transport', 13], ['csar', 11], ['insert', 10], ['exfil', 10], ['resupply', 10], ['recon', 8], ['vip', 8], ['boat', 8]];
 const SMOKES = ['gelb', 'rot', 'grün', 'violett'];
 const SMOKE_ADJ = { gelb: 'Gelber', rot: 'Roter', grün: 'Grüner', violett: 'Violetter' };
 
@@ -20,6 +20,7 @@ export class Missions {
     this.count = 0;
     this.nextTimer = -1;
     this.stale = [];
+    this.boats = [];
     this.lastSite = null;
     this.unloadT = 0;
   }
@@ -56,6 +57,9 @@ export class Missions {
       for (const [t, wgt] of TYPE_WEIGHTS) { if ((x -= wgt) <= 0) { type = t; break; } }
     }
     if (noCabin || (anyGunship && rand() < 0.3)) type = 'cas';
+    // Bootstrupp: nur wenn es in Reichweite breites Wasser gibt
+    const water = type === 'boat' ? w.findWater(rand) : null;
+    if (type === 'boat' && !water) type = 'medevac';
     const hotChance = clamp(0.3 + this.count * 0.05, 0.3, 0.7);
     const m = {
       id: 'M' + this.count + '_' + Math.floor(rand() * 1e6), num: this.count, type,
@@ -122,6 +126,17 @@ export class Missions {
         m.hot = rand() < 0.75;
         m.hotAt = m.hot ? 'from' : null;
       }
+    } else if (type === 'boat') {
+      const cap = Math.max(...g.helis.map((x) => x.spec.capacity));
+      const nm = `Flusspunkt ${rand.pick(NATO)}`;
+      m.title = 'BOOTSTRUPP – HELOCAST';
+      m.unit = rand.pick(T.sofUnits);
+      m.count = rand.int(4, Math.max(4, Math.min(cap, 6)));
+      m.noSmoke = true;
+      m.from = this.fobPoint(w.fob.pads.troop);
+      m.to = { name: nm, short: nm, x: water.x, z: water.z, y: 0, kind: 'water', radius: 30 };
+      m.hot = rand() < 0.25;
+      m.hotAt = m.hot ? 'to' : null;
     } else if (type === 'resupply') {
       const cap = Math.max(...g.helis.map((x) => x.spec.capacity));
       const posts = w.sites.filter((s) => s.post);
@@ -229,6 +244,15 @@ export class Missions {
       radio = m.type === 'insert'
         ? `„${g.callsign}, hier TOC. ${m.unit} muss verdeckt bei ${p.name} abgesetzt werden. Aufnahme bei ${T.fobName}, Pad H1. Keine Rauchzeichen.“`
         : `„${g.callsign}, hier ${m.unit}. ${m.hot ? 'Wir sind aufgeflogen und werden verfolgt!' : 'Auftrag erfüllt.'} Erbitten Exfil bei ${p.name}, Planquadrat ${w.gridRef(p.x, p.z)}.“`;
+    } else if (m.type === 'boat') {
+      const bp = bearing(w.fob.x, w.fob.z, m.to.x, m.to.z), dp = dist2(w.fob.x, w.fob.z, m.to.x, m.to.z);
+      rows.push(['Auftrag', 'Bootstrupp mit Schlauchboot im Fluss absetzen (Helocast)']);
+      rows.push(['Team', `${m.unit} · ${m.count} Mann + Boot`]);
+      rows.push(['Absetzpunkt', `${m.to.name} · Planquadrat ${w.gridRef(m.to.x, m.to.z)}`]);
+      rows.push(['Ziel', `${fmtBearing(bp)} (${dirName(bp)}) · ${fmtDist(dp)}`]);
+      rows.push(['Vorgabe', 'Über dem Wasser schweben: unter 4 m Höhe, fast im Stillstand – das Team springt mit dem Boot ab. Nicht wassern!']);
+      rows.push(['Lage', m.hot ? 'Feind am Ufer möglich!' : 'Ufer vermutlich frei', m.hot ? 'hot' : 'cold']);
+      radio = `„${g.callsign}, hier TOC. ${m.unit} wird mit Schlauchboot bei ${m.to.name} im Fluss abgesetzt. Aufnahme ${T.fobName}, Pad H1. Tief und langsam über dem Wasser schweben – nicht wassern!“`;
     } else if (m.type === 'resupply') {
       rows.push(['Auftrag', 'Nachschubflug (Munition, Wasser, Verpflegung)']);
       rows.push(['Ladung', `${m.count} Kisten – Aufnahme ${T.fobName}, Pad H1`]);
@@ -268,6 +292,11 @@ export class Missions {
       rows.push(['Ablieferung', `${T.fobName} – Pad MED`]);
       radio = `„Mayday, Mayday! ${m.aircraft.call} ist runter! ${m.count === 1 ? 'Pilot ist' : 'Besatzung ist'} am Boden. Achten Sie auf die Rauchsäule des Wracks.“`;
     }
+    // Schwierige Landezonen
+    for (const p of [m.from, m.to]) {
+      const hs = p && p.site && p.site.hard;
+      if (hs) rows.push(['Schwierige LZ', hs === 'peak' ? `${p.name}: Gipfel-LZ – kleine Landefläche, Fallwinde, steile Hänge` : `${p.name}: enges Flusstal – hohe Hänge, wenig Platz`, 'hot']);
+    }
     const need = this.fuelNeeded(m);
     if (g.heli.fuel < need) rows.push(['Hinweis', `Treibstoff knapp (${Math.round(g.heli.fuel)} %, benötigt ca. ${Math.round(need)} %) – vorher am Tankwagen (POL) tanken!`, 'hot']);
     return { title: `AUFTRAG #${m.num} – ${m.title}`, rows, radio, hot: m.hot };
@@ -276,7 +305,7 @@ export class Missions {
   // grobe Schätzung des Treibstoffbedarfs in %
   fuelNeeded(m) {
     const h = this.game.heli;
-    const d = dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) + dist2(m.from.x, m.from.z, m.to.x, m.to.z) + (m.to.kind === 'site' ? dist2(m.to.x, m.to.z, this.game.world.fob.x, this.game.world.fob.z) : 0);
+    const d = dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) + dist2(m.from.x, m.from.z, m.to.x, m.to.z) + (m.to.kind !== 'fob' ? dist2(m.to.x, m.to.z, this.game.world.fob.x, this.game.world.fob.z) : 0);
     return (d / 48) * 0.135 + 12;
   }
 
@@ -295,14 +324,14 @@ export class Missions {
     const kinds = [];
     if (m.type === 'medevac') { for (let i = 0; i < m.litters; i++) kinds.push('litter'); for (let i = 0; i < m.walking; i++) kinds.push('walking'); }
     else if (m.type === 'csar') for (let i = 0; i < m.count; i++) kinds.push('pilot');
-    else if (m.type === 'insert' || m.type === 'exfil') for (let i = 0; i < m.count; i++) kinds.push('sof');
+    else if (m.type === 'insert' || m.type === 'exfil' || m.type === 'boat') for (let i = 0; i < m.count; i++) kinds.push('sof');
     else if (m.type === 'resupply') for (let i = 0; i < m.count; i++) kinds.push('cargo');
     else if (m.type === 'vip') kinds.push('vip', 'troop', 'troop');
     else if (m.type !== 'cas' && m.type !== 'recon') for (let i = 0; i < m.count; i++) kinds.push('troop');
     kinds.forEach((k, i) => {
       let x, z;
       if (m.from.kind === 'fob') { x = m.from.x + 17 + (i % 3) * 1.6; z = m.from.z - 4 + Math.floor(i / 3) * 1.8; }
-      else { const a = rand() * Math.PI * 2, r = 6 + rand() * 12; x = m.from.x + Math.cos(a) * r; z = m.from.z + Math.sin(a) * r; }
+      else { const a = rand() * Math.PI * 2, r = 4 + rand() * Math.min(12, ((m.from.site && m.from.site.r) || 45) * 0.5); x = m.from.x + Math.cos(a) * r; z = m.from.z + Math.sin(a) * r; }
       U.spawnPassenger(k, x, z, m.id);
     });
     // Verteidiger
@@ -310,7 +339,7 @@ export class Missions {
       const p = m[end];
       if (p.kind !== 'site' || p.remote) continue;
       if (m.type === 'csar') continue;
-      const def = U.spawnDefenders(p, 4 + Math.floor(rand() * 4), m.id);
+      const def = U.spawnDefenders(p.site && p.site.hard ? { ...p, hard: p.site.hard, r: p.site.r } : p, p.site && p.site.hard ? 2 + Math.floor(rand() * 2) : 4 + Math.floor(rand() * 4), m.id);
       if (m.hotAt === end) for (const d of def) d.engage = true;
     }
     // Feind
@@ -417,11 +446,12 @@ export class Missions {
       if (m.type === 'csar' && !m.revealed) return { x: m.approx.x, z: m.approx.z, y: this.game.world.height(m.approx.x, m.approx.z), label: 'Suchgebiet', radius: 400, approx: true };
       return { x: m.from.x, z: m.from.z, y: m.from.y, label: m.from.short, radius: m.from.kind === 'fob' ? 12 : m.from.kind === 'recon' ? 150 : 45 };
     }
-    return { x: m.to.x, z: m.to.z, y: m.to.y, label: m.to.short, radius: m.to.kind === 'fob' ? 12 : 45 };
+    return { x: m.to.x, z: m.to.z, y: m.to.y, label: m.to.short, radius: m.to.kind === 'fob' ? 12 : 45, water: m.to.kind === 'water' };
   }
 
   update(dt) {
     const g = this.game, m = this.current, helis = g.helis;
+    this.updateBoats(dt);
     // alte Einsätze aufräumen, wenn alle Hubschrauber weit genug weg sind
     for (let i = this.stale.length - 1; i >= 0; i--) {
       const s = this.stale[i];
@@ -463,9 +493,9 @@ export class Missions {
       const d = dist2(h.pos.x, h.pos.z, p.x, p.z);
       // Rauch werfen bei Annäherung
       // Nachts markieren alle Truppen (auch Spezialkräfte) mit Blitzlicht
-      if (g.nightSys.night && p.kind === 'site' && d < 1500 && !(m.strobe || {})[end] && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
+      if (g.nightSys.night && (p.kind === 'site' || p.kind === 'water') && d < 1500 && !(m.strobe || {})[end] && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
         (m.strobe = m.strobe || {})[end] = true;
-        m.emitters.push(g.effects.strobe(p.x + 3, g.world.height(p.x + 3, p.z), p.z));
+        m.emitters.push(g.effects.strobe(p.x + 3, Math.max(0.3, g.world.height(p.x + 3, p.z)), p.z));
         if (m.noSmoke) g.radio(`${m.unit.split(',')[0]}: Wir hören Sie – IR-Blitzer ist an.`, m.unit.split(',')[0]);
         this.changed();
       }
@@ -488,11 +518,13 @@ export class Missions {
       }
       // Absetzen
       if (end === 'to' && this.paxOf(h) > 0) {
-        const near = h.onGround && dist2(h.pos.x, h.pos.z, m.to.x, m.to.z) < (m.to.kind === 'fob' ? 28 : 75);
+        const dd = dist2(h.pos.x, h.pos.z, m.to.x, m.to.z);
+        // Bootstrupp: tief und langsam über dem Wasser schweben statt landen
+        const near = m.to.kind === 'water' ? !h.contact && h.agl < 4.5 && h.speed < 2.6 && dd < 40 : h.onGround && dd < (m.to.kind === 'fob' ? 28 : 75);
         if (near && !h.unloading) {
           h.unloading = true;
           h.unloadT = 0.6;
-          g.radio(m.to.kind === 'fob' && m.type !== 'transport' ? 'Sanitäter: Wir übernehmen! Bringt sie ins Lazarett!' : 'Crew: Absetzen – alle raus!', m.to.kind === 'fob' ? 'Sanitäter' : 'Crew');
+          g.radio(m.to.kind === 'water' ? 'Crew: Boot raus – Team springt!' : m.to.kind === 'fob' && m.type !== 'transport' ? 'Sanitäter: Wir übernehmen! Bringt sie ins Lazarett!' : 'Crew: Absetzen – alle raus!', m.to.kind === 'fob' ? 'Sanitäter' : 'Crew');
         }
         if (!near) h.unloading = false;
         if (h.unloading) {
@@ -510,6 +542,24 @@ export class Missions {
     if (idx < 0) return;
     const p = h.passengers.splice(idx, 1)[0];
     h.updatePassengerDisplay();
+    if (m.to.kind === 'water') {
+      // Team springt ins Wasser und steigt ins Boot
+      const b = this.boatFor(m, h);
+      const e = g.effects;
+      e.puff(h.pos.x + rand.range(-2, 2), 0.3, h.pos.z + rand.range(-2, 2), 0.86, 0.9, 0.92, 8, 2.2, 2.5, 1.1);
+      if (b.figs < 6) {
+        const fg = new Figure(T.sof || 'sof');
+        fg.group.position.set((b.figs % 2 ? 0.55 : -0.55), 0.25, 1.2 - Math.floor(b.figs / 2) * 1.0);
+        fg.sit(1.2, -0.2);
+        b.obj.add(fg.group);
+        b.figs++;
+      }
+      m.delivered++;
+      g.stats.transported++;
+      if (m.delivered >= m.count) b.go = true;
+      this.changed();
+      return;
+    }
     const from = h.doorPoint(m.delivered % 2 ? 'left' : 'right');
     const f = g.world.fob;
     let target, onArrive = null;
@@ -533,12 +583,58 @@ export class Missions {
     this.changed();
   }
 
+  // Schlauchboot neben dem Hubschrauber auf dem Wasser
+  boatFor(m, h) {
+    if (m.boat) return m.boat;
+    const parts = [
+      P(new THREE.BoxGeometry(1.5, 0.35, 4.6), 0x2b2e2f, [0, 0.05, 0]),
+      P(new THREE.CylinderGeometry(0.32, 0.32, 4.4, 12), 0x1d2022, [-0.95, 0.2, 0], [Math.PI / 2, 0, 0]),
+      P(new THREE.CylinderGeometry(0.32, 0.32, 4.4, 12), 0x1d2022, [0.95, 0.2, 0], [Math.PI / 2, 0, 0]),
+      P(new THREE.SphereGeometry(0.62, 12, 8), 0x1d2022, [0, 0.2, -2.2]),
+      P(new THREE.BoxGeometry(0.45, 0.8, 0.4), 0x111213, [0, 0.45, 2.45]),
+    ];
+    const obj = new THREE.Group();
+    obj.add(new THREE.Mesh(merge(parts), vcMat));
+    obj.position.set(h.pos.x - h.fwd.x * 3, 0.1, h.pos.z - h.fwd.z * 3);
+    obj.rotation.y = h.yaw;
+    this.game.scene.add(obj);
+    m.boat = { obj, figs: 0, go: false, t: 0 };
+    this.boats.push(m.boat);
+    return m.boat;
+  }
+
+  // Boote fahren nach dem Absetzen flussab und verschwinden
+  updateBoats(dt) {
+    const w = this.game.world;
+    for (let i = this.boats.length - 1; i >= 0; i--) {
+      const b = this.boats[i], o = b.obj;
+      o.position.y = 0.1 + Math.sin(performance.now() / 400 + i) * 0.05;
+      if (!b.go) continue;
+      b.t += dt;
+      const sp = Math.min(8, b.t * 2);
+      // Kurs halten, solange voraus Wasser ist, sonst den Fluss entlang drehen
+      let best = o.rotation.y, bestScore = -1;
+      for (let k = -4; k <= 4; k++) {
+        const a = o.rotation.y + k * 0.25;
+        const ok = [12, 25, 40].filter((r) => w.height(o.position.x - Math.sin(a) * r, o.position.z - Math.cos(a) * r) < -0.6).length;
+        const score = ok * 10 - Math.abs(k);
+        if (score > bestScore) { bestScore = score; best = a; }
+      }
+      o.rotation.y += clamp(best - o.rotation.y, -dt * 0.8, dt * 0.8);
+      o.position.x -= Math.sin(o.rotation.y) * sp * dt;
+      o.position.z -= Math.cos(o.rotation.y) * sp * dt;
+      if (b.t > 0.5 && rand() < dt * 8) this.game.effects.puff(o.position.x + Math.sin(o.rotation.y) * 2.6, 0.2, o.position.z + Math.cos(o.rotation.y) * 2.6, 0.9, 0.93, 0.95, 1, 1.0, 0.5, 0.8);
+      if (b.t > 120) { this.game.scene.remove(o); this.boats.splice(i, 1); }
+    }
+  }
+
   complete() {
     const g = this.game, m = this.current;
     this.phase = 'done';
     const elapsed = g.time - m.acceptTime;
     const base = m.type === 'cas' ? (m.killed || m.count) * 45 : m.type === 'recon' ? 450 + (m.found || 0) * 20 : m.type === 'vip' ? 500 : m.type === 'resupply' ? m.count * 60 : m.count * 100;
-    const mult = (m.hot ? 1.5 : 1) * (m.type === 'csar' ? 1.3 : 1);
+    const hardLZ = m.type === 'boat' || [m.from, m.to].some((p) => p && p.site && p.site.hard);
+    const mult = (m.hot ? 1.5 : 1) * (m.type === 'csar' ? 1.3 : 1) * (hardLZ ? 1.3 : 1);
     const timeBonus = Math.max(0, Math.round(300 - elapsed));
     const dmg = this.teamDamage() - m.damage0;
     const dmgBonus = dmg < 1 ? 150 : 0;
@@ -550,6 +646,7 @@ export class Missions {
       lines: [
         [what, `+${Math.round(base * mult)}`],
         m.hot ? ['Heiße LZ', '×1,5'] : null,
+        hardLZ ? ['Schwierige LZ', '×1,3'] : null,
         ['Zeitbonus', `+${timeBonus}`],
         dmgBonus ? ['Ohne Schaden', `+${dmgBonus}`] : ['Schaden genommen', `${Math.round(dmg)} %`],
         ['Gesamt', `${score} Punkte`],
@@ -595,7 +692,7 @@ export class Missions {
   // ------------------------------------------------------------ Netzwerk (Client-Spiegel)
   toNet() {
     const m = this.current;
-    const skip = new Set(['wreck', 'emitters']);
+    const skip = new Set(['wreck', 'emitters', 'boat']);
     return {
       m: m ? JSON.parse(JSON.stringify(m, (k, v) => (skip.has(k) ? undefined : v))) : null,
       phase: this.phase, nextTimer: this.nextTimer,
@@ -658,7 +755,7 @@ export class Missions {
       const step = this.phase === 'briefing' ? 'Neuer Auftrag – Briefing bestätigen' : `Punkt ${m.idx + 1}/3: ${p.name} tief überfliegen (unter 180 m über Grund)`;
       return { line: `${m.title} · ${m.idx}/3 Punkte`, step, hot: m.hot };
     }
-    const n = m.type === 'resupply' ? (one ? 'Kiste' : 'Kisten') : m.type === 'vip' ? 'Personen' : m.type === 'insert' || m.type === 'exfil' ? 'Spezialkräfte' : m.type === 'medevac' ? (one ? 'Verwundeter' : 'Verwundete') : m.type === 'csar' ? (one ? 'Überlebender' : 'Überlebende') : one ? 'Soldat' : 'Soldaten';
+    const n = m.type === 'resupply' ? (one ? 'Kiste' : 'Kisten') : m.type === 'vip' ? 'Personen' : m.type === 'insert' || m.type === 'exfil' || m.type === 'boat' ? 'Spezialkräfte' : m.type === 'medevac' ? (one ? 'Verwundeter' : 'Verwundete') : m.type === 'csar' ? (one ? 'Überlebender' : 'Überlebende') : one ? 'Soldat' : 'Soldaten';
     let step = '';
     const t = this.target(h);
     const left = m.count - m.boarded;
@@ -669,9 +766,12 @@ export class Missions {
       else if (m.from.kind === 'fob') step = `Auf Pad ${m.from.pad.name} landen – Soldaten aufnehmen`;
       else step = `Bei ${m.from.name} landen (${m.smoke}er Rauch) – ${left} ${left === 1 ? 'wartet' : 'warten'}`;
     } else if (t === 'to') {
-      if (h.unloading) step = `Aussteigen: ${m.delivered}/${m.count} – am Boden bleiben`;
+      if (h.unloading) step = m.to.kind === 'water' ? `Absprung: ${m.delivered}/${m.count} – Position halten!` : `Aussteigen: ${m.delivered}/${m.count} – am Boden bleiben`;
       else if (this.paxOf(h) === 0) step = `Alle aufgenommen – ${m.delivered}/${m.count} abgeliefert`;
-      else step = m.to.kind === 'fob' ? `Zur FOB – auf Pad ${m.to.pad.name} landen${m.to.pad.name === 'MED' ? ' (rotes Kreuz)' : ''}` : `Nach ${m.to.name} fliegen und landen`;
+      else if (m.to.kind === 'water') {
+        const dd = dist2(h.pos.x, h.pos.z, m.to.x, m.to.z);
+        step = dd > 60 ? `Nach ${m.to.name} fliegen – über dem Wasser schweben, nicht wassern` : h.agl >= 4.5 ? 'Tiefer – unter 4 m über dem Wasser schweben' : h.speed >= 2.6 ? 'Langsamer – fast stillstehen' : 'Position halten – Team springt ab …';
+      } else step = m.to.kind === 'fob' ? `Zur FOB – auf Pad ${m.to.pad.name} landen${m.to.pad.name === 'MED' ? ' (rotes Kreuz)' : ''}` : `Nach ${m.to.name} fliegen und landen`;
     }
     return { line: `${m.title} · ${m.count} ${n} · ${m.hot ? 'HEISS' : 'KALT'}`, step, hot: m.hot };
   }

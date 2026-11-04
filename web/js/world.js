@@ -128,6 +128,7 @@ export class World {
       this.sites.push({ name, x, z, y: h, r: 45 });
       this.flatten(x, z, 46, 75, h, 'site');
     }
+    this.addHardSites(['Hill 875', 'Hill 881', 'Hill 950', 'Hill 1338'], ['LZ Gorge', 'LZ Canyon', 'LZ Rapids'], 100);
 
     // Dörfer
     const vnames = VILLAGE_NAMES.slice();
@@ -143,6 +144,74 @@ export class World {
       this.villages.push({ name: vnames.shift(), x, z, y: h });
       this.flatten(x, z, 55, 50, h, 'village');
     }
+  }
+
+  // Schwierige Landezonen: enge Gipfel-LZs und Landeplätze tief im Flusstal zwischen steilen Hängen
+  addHardSites(peakNames, valleyNames, minPeak) {
+    const rng = this.rng, F = this.fob;
+    const free = (x, z, d) => !this.sites.some((s) => dist2(s.x, s.z, x, z) < d) && dist2(x, z, F.x, F.z) > 2600 && dist2(x, z, F.x, F.z) < 6000;
+    // Gipfel: höchster Punkt der Umgebung, rundum mindestens 12 m tiefer
+    const peaks = [];
+    for (let i = 0; i < 14000; i++) {
+      const x = rng.range(-HALF + 500, HALF - 500), z = rng.range(-HALF + 500, HALF - 500);
+      if (!free(x, z, 420)) continue;
+      const h = this.rawHeight(x, z);
+      if (h < minPeak) continue;
+      let lower = 0, sum = 0;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2, hh = this.rawHeight(x + Math.cos(a) * 45, z + Math.sin(a) * 45); sum += h - hh; if (hh < h - 3) lower++; }
+      if (lower < 7 || sum / 8 < 6) continue;
+      // keine höheren Felsnadeln dicht daneben (Anflug muss möglich sein)
+      let spire = false;
+      for (let k = 0; k < 12 && !spire; k++) { const a = (k / 12) * Math.PI * 2; for (const [rr, tol] of [[80, 4], [120, 4], [190, 18], [260, 30]]) if (this.rawHeight(x + Math.cos(a) * rr, z + Math.sin(a) * rr) > h + tol) spire = true; }
+      if (spire) continue;
+      peaks.push({ x, z, h });
+    }
+    peaks.sort((a, b) => b.h - a.h);
+    const pn = peakNames.slice();
+    for (const p of peaks) {
+      if (!pn.length) break;
+      if (!free(p.x, p.z, 420)) continue;
+      const y = p.h - 2;
+      this.sites.push({ name: pn.shift(), x: p.x, z: p.z, y, r: 16, hard: 'peak' });
+      this.flatten(p.x, p.z, 16, 26, y, 'site');
+    }
+    // Flusstal: dicht am Wasser, ringsum steile Hänge
+    // erst echte Schluchten (hohe Hänge ringsum), sonst enge Plätze direkt am Ufer
+    const vn = valleyNames.slice();
+    for (let i = 0; i < 24000 && vn.length; i++) {
+      const x = rng.range(-HALF + 500, HALF - 500), z = rng.range(-HALF + 500, HALF - 500);
+      if (!free(x, z, 420)) continue;
+      const o = {};
+      const h = this.rawHeight(x, z, o);
+      if (o.river < 26 || o.river > 60 || h < 0.8) continue;
+      let walls = 0;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; if (this.rawHeight(x + Math.cos(a) * 170, z + Math.sin(a) * 170) > h + 30) walls++; }
+      if (walls < (i < 16000 ? 3 : 0)) continue;
+      const y = Math.max(h, 1.6);
+      this.sites.push({ name: vn.shift(), x, z, y, r: 18, hard: 'valley' });
+      this.flatten(x, z, 18, 14, y, "site");
+    }
+  }
+
+  // Gipfel-LZ in der Nähe (für Fallwinde)
+  peakNear(x, z) {
+    for (const s of this.sites) if (s.hard === 'peak' && dist2(s.x, s.z, x, z) < 220) return s;
+    return null;
+  }
+
+  // Wasserfläche für das Absetzen von Booten (breit und tief genug)
+  findWater(rand, minD = 2500, maxD = 5600) {
+    const F = this.fob;
+    for (let i = 0; i < 3000; i++) {
+      const a = rand() * Math.PI * 2, r = minD + rand() * (maxD - minD);
+      const x = F.x + Math.cos(a) * r, z = F.z + Math.sin(a) * r;
+      if (Math.abs(x) > HALF - 400 || Math.abs(z) > HALF - 400) continue;
+      if (this.height(x, z) > -1.2) continue;
+      let ok = true;
+      for (let k = 0; k < 8 && ok; k++) { const b = (k / 8) * Math.PI * 2; if (this.height(x + Math.cos(b) * 9, z + Math.sin(b) * 9) > -0.4) ok = false; }
+      if (ok) return { x, z };
+    }
+    return null;
   }
 
   flatten(cx, cz, r, blend, target, kind) {
