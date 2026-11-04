@@ -150,7 +150,7 @@ const EN = {
   'Wir stehen im Wasser!': "We're standing in the water!",
   'Abgeschossen!': 'Shot down!', 'Hubschrauber zerstört!': 'Helicopter destroyed!', 'Notwasserung im Fluss!': 'Ditched in the river!',
   'Absturz – zu harte Landung!': 'Crash – landing too hard!', 'Abgestürzt!': 'Crashed!', 'In den Dschungel gestürzt!': 'Crashed into the jungle!',
-  'In die Pappeln gestürzt!': 'Crashed into the poplars!', 'Linker': 'Left', 'Rechter': 'Right',
+  'In die Pappeln gestürzt!': 'Crashed into the poplars!', 'Linker Schütze': 'Left gunner', 'Rechter Schütze': 'Right gunner', 'Boeing CH-47F „Chinook“ (Luftwaffe)': 'Boeing CH-47F “Chinook” (German Air Force)',
   'Verbunden – warte auf den Host …': 'Connected – waiting for the host …', 'Verbindung fehlgeschlagen.': 'Connection failed.',
 
   // ------------------------------------------------------------ Luftunterstützung
@@ -238,7 +238,7 @@ const EN_T = {
   '{0}: Munition für diesen Einsatz verschossen. Hog verlässt das Gebiet.': '{0}: Winchester for this sortie. Hog is leaving the area.',
   '{0}: Auf Station. Halten Sie die Köpfe unten.': '{0}: on station. Keep your heads down.',
   '{0}: Treibstoff und Munition knapp – kehren zur FOB zurück.': '{0}: low on fuel and ammo – returning to the FOB.',
-  '{0} Schütze: Munition leer!': '{0} gunner: out of ammo!',
+  '{0}: Munition leer!': '{0}: out of ammo!', '{0}: Magazinwechsel!': '{0}: changing ammo can!',
   '{0} · {1} % Treibstoff · Kabine {2}/{3}': '{0} · {1} % fuel · cabin {2}/{3}', 'wieder bereit in {0} s': 'ready again in {0} s', 'FOB {0}': 'FOB {0}',
   'Sie sind Waffensystemoffizier: {0}-Kanone, Zoom mit Rechtsklick / ZL. {1}.': 'You are the gunner (CPG): {0} cannon, zoom with right click / ZL. {1}.',
   'Sie bedienen {0} {1}{2}. {3}.': 'You man {0} {1}{2}. {3}.', '{0} fliegt': '{0} is flying', '{0} fliegt.': '{0} is flying.',

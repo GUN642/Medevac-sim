@@ -1305,7 +1305,12 @@ class Game {
       }
       for (const side of GUN_SEATS) {
         const gu = hh.gunners[side];
-        if (gu.mode === 'player' || gu.mode === 'ai') gu.ammo = Math.min(gu.gun.ammo, gu.ammo + Math.ceil(400 * dt));
+        if (gu.mode === 'player' || gu.mode === 'ai') {
+          // erst die Ersatzmagazine, dann den Gurt auffüllen
+          if (gu.mags < (gu.gun.mags || 1) - 1 && rand() < dt * 0.5) gu.mags++;
+          else gu.ammo = Math.min(gu.gun.ammo, gu.ammo + Math.ceil(400 * dt));
+          if (gu.ammo > 0 && gu.reloadUntil) gu.reloadUntil = 0;
+        }
         if (hh.spec.rockets && hh.rockets < hh.spec.rockets && rand() < dt * 4) hh.rockets++;
       }
       if (hh === h) {

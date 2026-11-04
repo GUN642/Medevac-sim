@@ -182,6 +182,8 @@ export class Gunner {
   reset() {
     this.gun = this.heli.spec.gun;
     this.ammo = this.gun.ammo;
+    this.mags = (this.gun.mags || 1) - 1;   // Ersatzmagazine
+    this.reloadUntil = 0;
     this.cool = 0;
     this.burst = 0;
     this.pause = 0;
@@ -296,10 +298,25 @@ export class Gunner {
     }
   }
 
+  crewName() { return this.side === 'left' ? 'Linker Schütze' : this.side === 'right' ? 'Rechter Schütze' : 'Heckschütze'; }
+
+  // Munitionsanzeige: Gurt + Ersatzmagazine bzw. Magazinwechsel
+  ammoText() { return this.reloadUntil ? '⟳' : this.ammo + (this.mags > 0 ? '+' + this.mags * this.gun.ammo : ''); }
+
   tryFire(game, spread) {
     if (this.cool > 0) return false;
+    // Magazinwechsel (z. B. M3M: 2 Kästen à 400 Schuss)
+    if (this.reloadUntil) {
+      if (performance.now() / 1000 < this.reloadUntil) return false;
+      this.reloadUntil = 0; this.ammo = this.gun.ammo; this.mags--;
+    }
+    if (this.ammo <= 0 && this.mags > 0) {
+      this.reloadUntil = performance.now() / 1000 + 6;
+      game.radio(`${this.crewName()}: Magazinwechsel!`, 'Crew', false, true);
+      return false;
+    }
     if (this.ammo <= 0) {
-      if (!this.emptyWarned) { this.emptyWarned = true; game.radio(`${this.side === 'left' ? 'Linker' : 'Rechter'} Schütze: Munition leer!`, 'Crew', false, true); }
+      if (!this.emptyWarned) { this.emptyWarned = true; game.radio(`${this.crewName()}: Munition leer!`, 'Crew', false, true); }
       return false;
     }
     this.emptyWarned = false;

@@ -475,6 +475,20 @@ export class Helicopter {
       r.ang += clamp(tgt - r.ang, -0.18 * dt, 0.18 * dt);
       r.obj.rotation.x = r.ang;
     }
+    // Einziehfahrwerk (CH-53): ab 60 kt beim Beschleunigen ein, beim Verzögern unter 80 kt wieder aus.
+    // Unter 60 kt oder dicht am Boden immer ausgefahren.
+    if (m.retract && !this.crashed) {
+      const r = m.retract, kt = this.speed * 1.944;
+      const acc = dt > 0 ? (kt - (this._kt ?? kt)) / dt : 0;
+      this._kt = kt;
+      this._ktAcc = (this._ktAcc || 0) + (acc - (this._ktAcc || 0)) * Math.min(1, dt * 2);
+      if (this.agl < 8 || this.contact || kt < 60) r.up = false;
+      else if (!r.up && (kt > 80 || this._ktAcc > 0.3)) r.up = true;
+      else if (r.up && kt < 80 && this._ktAcc < -0.3) r.up = false;
+      r.k = clamp(r.k + (r.up ? dt : -dt) / 2.5, 0, 1);   // 2,5 s Ein-/Ausfahrzeit
+      r.obj.position.y = r.k * r.lift;
+      r.obj.visible = r.k < 0.999;
+    }
     m.beaconMat.color.setHex(!this.crashed && (t % 1.2) < 0.12 ? 0xff2020 : 0x400000);
     // Schatten
     const gnd = this.agl;

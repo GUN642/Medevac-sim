@@ -505,7 +505,7 @@ function buildBlackhawk({ static: isStatic = false, number = '08-20112' } = {}) 
 }
 
 // ================================================================= CH-47 Chinook
-function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
+function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   const group = new THREE.Group();
   const cockpitWin = [
     { z0: -8.45, z1: -7.15, a0: 0.42, a1: PI - 0.42 },
@@ -558,13 +558,13 @@ function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
     { keys: sponson(1), capStart: true, capEnd: true, radial: 20 },
     { keys: engineNac(-1), capStart: true, radial: 20 },
     { keys: engineNac(1), capStart: true, radial: 20 },
-  ], { base: '#464a39', frames: 30, stringers: 10, soot: [[0.82, 1.0, 0.1, 0.45]] });
+  ], { base: '#50575c', frames: 30, stringers: 10, soot: [[0.82, 1.0, 0.1, 0.45]] });
 
   const parts = [];
   parts.push(P(box(3.2, 0.06, 13.8), 0x25271e, [0, -1.08, -0.3]));
   for (const sx of [-1, 1]) {
-    parts.push(P(box(0.45, 0.08, 9.8), 0x55553f, [sx * 1.35, -0.6, 0.6]));
-    parts.push(P(box(0.06, 0.55, 9.8), 0x4c4c38, [sx * 1.6, -0.3, 0.6]));
+    parts.push(P(box(0.45, 0.08, 9.8), 0x4a5054, [sx * 1.35, -0.6, 0.6]));
+    parts.push(P(box(0.06, 0.55, 9.8), 0x454b4f, [sx * 1.6, -0.3, 0.6]));
     for (const z of [-4.6, 4.6]) {
       wheel(parts, 0.45, 0.3, [sx * 1.6, -1.3, z]);
       if (z > 0) wheel(parts, 0.45, 0.3, [sx * 1.6, -1.3, z + 0.95]);
@@ -576,14 +576,21 @@ function buildChinook({ static: isStatic = false, number = '10-08046' } = {}) {
   }
   // Heckrampe: Scharnier am Kabinenboden, abgesenkt bis zum Boden
   // Scharnier am Ende des Kabinenbodens (z 6.95), hinteres Ende liegt auf dem Boden auf
-  const ramp = rampPart(group, { y: -1.12, z: 6.95, w: 2.6, len: 2.3, col: 0x34372a, open: 0.28 });
-  parts.push(P(box(3.0, 1.9, 0.06), 0x34372c, [0, 0.0, -6.55]));
+  const ramp = rampPart(group, { y: -1.12, z: 6.95, w: 2.6, len: 2.3, col: 0x3c4246, open: 0.28 });
+  parts.push(P(box(3.0, 1.9, 0.06), 0x353a3e, [0, 0.0, -6.55]));
   cockpit(parts, group, { z: -8.0, w: 2.5, y: -0.25, seatX: 0.65, seatZ: -7.15, seatY: -0.45 });
   parts.push(P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 2.6, -6.0]), P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 3.35, 6.8]));
   parts.push(P(box(0.04, 0.5, 0.25), 0x111111, [0, 1.9, -2.0], [0.35, 0, 0]));
   parts.push(P(cyl(0.03, 0.03, 1.6, 6), 0x111111, [0.4, -1.0, -8.0], [1.2, 0, 0]));
+  // Luftbetankungssonde (deutsche CH-47F): rechts unten am Bug, weit über die Nase hinaus
+  parts.push(P(cyl(0.075, 0.075, 7.4, 10), 0x2c3033, [1.78, -0.55, -8.0], [HALFPI, 0, 0]));
+  parts.push(P(cyl(0.11, 0.075, 0.45, 12), 0x1e2123, [1.78, -0.55, -11.9], [HALFPI, 0, 0]));
+  parts.push(P(cyl(0.05, 0.11, 0.18, 12), 0x8a8f92, [1.78, -0.55, -12.2], [HALFPI, 0, 0]));
+  parts.push(P(box(0.26, 0.26, 1.1), 0x464c50, [1.72, -0.55, -4.6]));
+  for (const z of [-5.6, -7.0]) parts.push(P(box(0.32, 0.07, 0.14), 0x2c3033, [1.6, -0.55, z]));
   for (const s of [-1, 1]) {
-    decal(group, 'U.S. ARMY', 3.0, 0.6, [h.X(1.6), 0.95, 1.6], s);
+    decal(group, 'LUFTWAFFE', 2.8, 0.55, [h.X(1.6), 0.95, 1.6], s);
+    ironCross(group, 1.0, [h.X(4.9), 0.45, 4.9], s);
     decal(group, number, 1.2, 0.3, [0.79, 2.65, 6.1], s);
   }
   const front = new THREE.Group();
@@ -676,19 +683,26 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
     { keys: tank(1), radial: 18 },
   ], { base: '#4b5141', camo: ['#3c4734', '#2c3029', '#5a5c45'], frames: 26, stringers: 10, soot: [[0.4, 0.6, 0.05, 0.3]] }, [fin, stab]);
 
-  const parts = [];
+  const parts = [], gearParts = [];
   parts.push(P(box(2.8, 0.06, 9.6), 0x25271e, [0, -1.02, -0.2]));
   for (const sx of [-1, 1]) {
     parts.push(P(box(0.45, 0.08, 7.5), 0x55553f, [sx * 1.15, -0.55, 0.3]));
-    wheel(parts, 0.42, 0.32, [sx * 1.95, -1.23, 0.4]);
-    parts.push(P(box(0.18, 0.5, 0.2), COL.metal, [sx * 1.95, -0.95, 0.4]));
+    wheel(gearParts, 0.42, 0.32, [sx * 1.95, -1.23, 0.4]);
+    gearParts.push(P(box(0.18, 0.5, 0.2), COL.metal, [sx * 1.95, -0.95, 0.4]));
+    // Fahrwerksschacht unten in der Stummelfläche
+    parts.push(P(box(0.5, 0.03, 1.0), 0x1d1f19, [sx * 1.95, -1.03, 0.4]));
     parts.push(P(tor(0.4, 0.07, 14), 0x2a2a2a, [sx * 1.36, 1.98, -2.1]));
     parts.push(P(cyl(0.4, 0.34, 0.45, 14), 0x1b1b19, [sx * 1.45, 1.98, 1.95], [HALFPI, 0, sx * -0.4]));
     parts.push(P(box(0.3, 0.04, 0.3), 0x2a2b2b, [sx * 1.55, -0.95, -4.0]));
   }
-  wheel(parts, 0.32, 0.22, [-0.3, -1.33, -5.6]);
-  wheel(parts, 0.32, 0.22, [0.3, -1.33, -5.6]);
-  parts.push(P(box(0.15, 0.55, 0.15), COL.metal, [0, -1.0, -5.6]));
+  wheel(gearParts, 0.32, 0.22, [-0.3, -1.33, -5.6]);
+  wheel(gearParts, 0.32, 0.22, [0.3, -1.33, -5.6]);
+  gearParts.push(P(box(0.15, 0.55, 0.15), COL.metal, [0, -1.0, -5.6]));
+  // Einziehfahrwerk: Räder fahren in Stummelflächen und Bug ein
+  const gearObj = new THREE.Group();
+  gearObj.add(new THREE.Mesh(merge(gearParts), detailMat));
+  group.add(gearObj);
+  const retract = { obj: gearObj, lift: 0.72, k: 0, up: false };
   // Heckrampe: Scharnier am Kabinenboden (z 4.6), hinteres Ende auf dem Boden
   const ramp = rampPart(group, { y: -1.05, z: 4.6, w: 2.3, len: 2.3, col: 0x353a2c, open: 0.26 });
   parts.push(P(box(2.9, 2.2, 0.06), 0x34372c, [0, 0.1, -4.75]));
@@ -730,7 +744,7 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
   for (let i = 0; i < 6; i++) seatList.push([(i % 2 - 0.5) * 0.7, -1.5 + Math.floor(i / 2) * 2.0, 0, 'floor']);
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
-    guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.45]), isStatic, ramp,
+    guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.45]), isStatic, ramp, retract,
     eyePilot: new THREE.Vector3(0.6, 0.45, -5.7),
     spin: [[mainRotor, 'y', 17], [tailRotor, 'x', 60]],
     exhaust: new THREE.Vector3(1.45, 2.0, 2.1),

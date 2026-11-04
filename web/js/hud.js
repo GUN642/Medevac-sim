@@ -148,7 +148,7 @@ export class HUD {
     this.el.pax.innerHTML = h.spec.capacity ? `<span class="lbl">KABINE</span> ${pc}/${h.spec.capacity}` : `<span class="lbl">RAKETEN</span> ${h.rockets ?? 0}`;
     const L = h.gunners.left, R = h.gunners.right;
     const Rp = h.gunners.ramp;
-    this.el.ammo.innerHTML = R.disabled ? `<span class="lbl">${h.spec.gun.name}</span> ${L.ammo}` : `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammo} · R ${R.ammo}${Rp && !Rp.disabled ? ` · H ${Rp.ammo}` : ''}`;
+    this.el.ammo.innerHTML = R.disabled ? `<span class="lbl">${h.spec.gun.name}</span> ${L.ammoText()}` : `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammoText()} · R ${R.ammoText()}${Rp && !Rp.disabled ? ` · H ${Rp.ammoText()}` : ''}`;
     // Infanterie
     const fh = document.getElementById('foot-hud');
     if (g.seat === 'foot') {
