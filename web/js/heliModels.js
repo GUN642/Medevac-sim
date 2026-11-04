@@ -565,9 +565,9 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   for (const sx of [-1, 1]) {
     parts.push(P(box(0.45, 0.08, 9.8), 0x4a5054, [sx * 1.35, -0.6, 0.6]));
     parts.push(P(box(0.06, 0.55, 9.8), 0x454b4f, [sx * 1.6, -0.3, 0.6]));
-    for (const z of [-4.6, 4.6]) {
+    // vorne und hinten je ein Rad pro Seite
+    for (const z of [-4.6, 5.05]) {
       wheel(parts, 0.45, 0.3, [sx * 1.6, -1.3, z]);
-      if (z > 0) wheel(parts, 0.45, 0.3, [sx * 1.6, -1.3, z + 0.95]);
       parts.push(P(box(0.16, 0.65, 0.16), COL.metal, [sx * 1.6, -0.95, z]));
     }
     parts.push(P(cyl(0.36, 0.32, 0.25, 14), 0x1b1b19, [sx * 2.0, 1.55, 7.55], [HALFPI, 0, 0]));
