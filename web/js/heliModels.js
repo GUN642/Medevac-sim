@@ -627,7 +627,7 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   };
 }
 
-// ================================================================= CH-53GS (Heeresflieger)
+// ================================================================= CH-53GS (Luftwaffe)
 function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   const group = new THREE.Group();
   const cockpitWin = [
@@ -717,7 +717,7 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   parts.push(P(box(0.04, 0.5, 0.28), 0x111111, [0, 2.6, 3.0], [0.35, 0, 0]));
   parts.push(P(cyl(0.2, 0.2, 0.5, 10), COL.gun, [-0.25, 3.9, 12.5], [0, 0, HALFPI]));
   for (const s of [-1, 1]) {
-    decal(group, 'HEER', 1.6, 0.42, [h.X(1.8), 0.95, 1.8], s);
+    decal(group, 'LUFTWAFFE', 2.4, 0.48, [h.X(1.8), 0.95, 1.8], s);
     ironCross(group, 0.9, [h.X(-1.4), 0.6, -1.4], s);
     decal(group, number, 1.3, 0.34, [h.X(7.6), 1.3, 7.6], s, '#151511', 'bold 72px Arial', -0.25);
   }
