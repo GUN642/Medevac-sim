@@ -1,5 +1,6 @@
 // Eingabe: Tastatur/Maus, Gamepad (z. B. Nintendo Switch Pro Controller), Touchscreen
 import { clamp } from './util.js';
+import { BINDS, resolveBinds, bindActive } from './binds.js';
 
 const DEAD = 0.14;
 const dz = (v) => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
@@ -25,13 +26,22 @@ export class Input {
     this.sprint = false;
     this.jumpPressed = false;
 
+    this.refreshBinds();
     window.addEventListener('keydown', (e) => this.onKey(e, true));
     window.addEventListener('keyup', (e) => this.onKey(e, false));
     window.addEventListener('blur', () => { this.keys.clear(); this.fire = false; });
     this.mfx = 0; this.mfy = 0; this.mYaw = 0; this.mPitch = 0;
+    // Tastenbelegung ändern: nächste Taste/Maustaste abfangen
+    window.addEventListener('mousedown', (e) => {
+      if (!this.capture) return;
+      e.preventDefault(); e.stopPropagation();
+      const cb = this.capture; this.capture = null; cb('Mouse' + e.button);
+    }, true);
     canvas.addEventListener('mousedown', (e) => {
       this.device = 'keyboard';
       this.mouseDown[e.button] = true;
+      this.pressCode('Mouse' + e.button);
+      this.keys.add('Mouse' + e.button);
       const want = this.mode !== 'pilot' || (this.settings.mouseFly && e.button === 0);
       if (this.mode === 'foot' && e.button === 0 && document.pointerLockElement !== canvas) this.lockClick = true;
       if (want && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
@@ -39,7 +49,7 @@ export class Input {
       }
     });
     document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas) { this.mPitch = 0; this.mYaw = 0; } });
-    window.addEventListener('mouseup', (e) => { this.mouseDown[e.button] = false; });
+    window.addEventListener('mouseup', (e) => { this.mouseDown[e.button] = false; this.keys.delete('Mouse' + e.button); });
     window.addEventListener('mousemove', (e) => {
       const locked = document.pointerLockElement === canvas;
       if (this.mode === 'pax' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
@@ -70,19 +80,31 @@ export class Input {
     this.setupTouch();
   }
 
+  // Belegung neu einlesen (nach Änderung in den Einstellungen)
+  refreshBinds() { this.binds = resolveBinds(this.settings); }
+  held(id) { const c = this.binds[id]; return c && (this.keys.has(c[0]) || (c[1] !== undefined && this.keys.has(c[1]))) ? 1 : 0; }
+  // Taste/Maustaste gedrückt: alle Aktionen auslösen, die im aktuellen Modus darauf liegen
+  pressCode(code) {
+    for (const b of BINDS) {
+      if (b.held || !bindActive(b, this.mode)) continue;
+      if (this.binds[b.id].includes(code)) this.actions.push(b.id);
+    }
+  }
+
   onKey(e, down) {
-    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
     const k = e.code;
+    if (down && this.capture) {
+      e.preventDefault();
+      const cb = this.capture; this.capture = null; cb(k);
+      return;
+    }
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
     if (down) {
       if (this.device !== 'keyboard') { this.device = 'keyboard'; this.onDevice && this.onDevice(); }
       if (!this.keys.has(k)) {
-        const map = {
-          Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'view', KeyM: 'map',
-          Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'magnifier', KeyL: 'airsupport', KeyN: 'nvg',
-          KeyE: 'use', KeyR: 'reload', Digit4: 'num4', Digit5: 'num5', KeyG: 'pickup',
-          Equal: 'cam-in', NumpadAdd: 'cam-in', BracketRight: 'cam-in', Minus: 'cam-out', NumpadSubtract: 'cam-out', Slash: 'cam-out',
-        };
-        if (map[k]) { this.actions.push(map[k]); if (k === 'Tab') e.preventDefault(); }
+        if (k === 'Escape') this.actions.push('pause');
+        this.pressCode(k);
+        if (k === 'Tab') e.preventDefault();
         const nav = { ArrowUp: 'nav-up', ArrowDown: 'nav-down', ArrowLeft: 'nav-left', ArrowRight: 'nav-right' }[k];
         if (nav) this.pushNav(nav, 'key');
       }
@@ -211,10 +233,11 @@ export class Input {
     this.zoomHeld = false;
 
     // Tastatur (geglättet)
-    const kp = this.key('KeyW', 'ArrowUp') - this.key('KeyS', 'ArrowDown');
-    const kr = this.key('KeyD', 'ArrowRight') - this.key('KeyA', 'ArrowLeft');
-    const ky = this.key('KeyE') - this.key('KeyQ');
-    const kc = this.key('Space', 'KeyR', 'PageUp') - this.key('ShiftLeft', 'ShiftRight', 'KeyF', 'PageDown');
+    const fly = this.mode !== 'foot';
+    const kp = fly ? this.held('fly-fwd') - this.held('fly-back') : 0;
+    const kr = fly ? this.held('fly-right') - this.held('fly-left') : 0;
+    const ky = fly ? this.held('yaw-right') - this.held('yaw-left') : 0;
+    const kc = fly ? this.held('coll-up') - this.held('coll-down') : 0;
     if (!this.kb) this.kb = { pitch: 0, roll: 0, yaw: 0, collective: 0 };
     const sm = (cur, tgt, rate) => cur + clamp(tgt - cur, -rate * dt, rate * dt);
     this.kb.pitch = sm(this.kb.pitch, kp, kp ? 2.5 : 5);
@@ -238,26 +261,26 @@ export class Input {
     this.mfx = 0; this.mfy = 0;
     const mv = { x: 0, y: 0 };
     this.sprint = false;
-    const jump = this.keys.has('Space');
+    const jump = this.mode === 'foot' && !!this.held('jump');
     if (this.mode === 'foot') {
       // Zu Fuß: WASD laufen, Pfeiltasten umsehen, Maus zielen, Shift sprinten, Leertaste springen
-      mv.x = this.key('KeyD') - this.key('KeyA');
-      mv.y = this.key('KeyW') - this.key('KeyS');
-      this.sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+      mv.x = this.held('walk-right') - this.held('walk-left');
+      mv.y = this.held('walk-fwd') - this.held('walk-back');
+      this.sprint = !!this.held('sprint');
       const ax = this.key('ArrowRight') - this.key('ArrowLeft');
       const ay = this.key('ArrowDown') - this.key('ArrowUp');
       this.aim.dx += ax * dt * 1.6;
       this.aim.dy += ay * dt * 1.2;
-      fire = fire || (this.mouseDown[0] && !this.lockClick);
-      this.zoomHeld = this.mouseDown[2];
+      fire = fire || (!!this.held('fire') && !this.lockClick);
+      this.zoomHeld = !!this.held('aim');
     } else if (this.mode === 'left' || this.mode === 'right' || this.mode === 'ramp') {
       // Im Schützensitz: Pfeiltasten zum Zielen, Leertaste/Maus zum Feuern
       const ax = this.key('ArrowRight', 'KeyD') - this.key('ArrowLeft', 'KeyA');
       const ay = this.key('ArrowDown', 'KeyS') - this.key('ArrowUp', 'KeyW');
       this.aim.dx += ax * dt * 1.2;
       this.aim.dy += ay * dt * 1.0;
-      fire = fire || this.mouseDown[0] || this.keys.has('Space');
-      this.zoomHeld = this.mouseDown[2];
+      fire = fire || !!this.held('gun-fire');
+      this.zoomHeld = !!this.held('gun-zoom');
     }
     this.jumpPressed = jump && !this.prevJump && this.mode === 'foot';
     this.prevJump = jump;

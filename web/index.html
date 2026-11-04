@@ -214,6 +214,7 @@
         <tr><th>Zu Fuß</th><td>WASD laufen · Maus zielen · Linksklick feuern · Rechtsklick zoomen · Shift sprinten · Leertaste springen · C ducken · R nachladen · 1–5 / Mausrad Waffe · V Ego-Perspektive (Rechtsklick = über Kimme und Korn zielen) · E ein-/aussteigen · G Hubschrauber rufen</td></tr>
         <tr><th>Rechte Maustaste halten</th><td>Kamera schwenken · Mausrad Zoom · Esc gibt die Maus frei</td></tr>
         <tr><th>+ / − · Mausrad</th><td>Außenansicht: Abstand zum Hubschrauber</td></tr>
+        <tr><th>Eigene Belegung</th><td>Einstellungen → Tastenbelegung: alle Tasten und Maustasten frei belegbar</td></tr>
         <tr><th>X</th><td>Besatzung / Platz wechseln (Mehrspieler)</td></tr>
         <tr><th>C</th><td>Außenansicht / Cockpit</td></tr>
         <tr><th>M</th><td>Karte</td></tr>
@@ -296,7 +297,17 @@
       <select id="set-diff"><option value="0.6">Leicht</option><option value="1">Normal</option><option value="1.5">Schwer</option></select>
     </label>
     <label class="check"><input id="set-fps" type="checkbox"> FPS anzeigen</label>
+    <button id="btn-binds">TASTENBELEGUNG (TASTATUR / MAUS)</button>
     <button data-close="settings" class="primary">SCHLIESSEN</button>
+  </div>
+</div>
+
+<div id="binds" class="overlay dim hidden">
+  <div class="panel-inner">
+    <h2>TASTENBELEGUNG</h2>
+    <p class="note">Feld anklicken, dann die neue Taste oder Maustaste drücken. Entf / ⌫ löscht die Belegung, Esc bricht ab.</p>
+    <table id="binds-table"></table>
+    <div class="row-buttons"><button id="btn-binds-reset">STANDARD WIEDERHERSTELLEN</button> <button data-close="binds" class="primary">SCHLIESSEN</button></div>
   </div>
 </div>
 

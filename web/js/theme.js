@@ -37,7 +37,7 @@ export const HELI_TYPES = {
     rotorAudio: 1.4, rotorCut: 1.1, camDist: 24, shadow: 10, door: 'side', numbers: ['09-05601', '10-09012'],
   },
   ch53: {
-    id: 'ch53', model: 'ch53', name: 'Sikorsky CH-53GS', short: 'CH-53GS', callsign: 'Hummel 1-2',
+    id: 'ch53', model: 'ch53', name: 'Sikorsky CH-53GS', short: 'CH-53GS', callsign: 'Nazgul 61',
     emptyMass: 10900, fuelMassFull: 2900, paxMass: 100, capacity: 36, maxThrust: 26000 * G,
     skidH: 1.65, rotorRadius: 11, rotorTop: 3.0, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 8, yawRate: 1.3,
     vmax: 127, vlimit: 130, agility: 1.15, burn: 0.9, drag: 0.9, armor: 0.5, gun: { name: 'M3M .50', rpm: 1050, ammo: 400, mags: 2, muzzleVel: 890, range: 1300, heavy: true, tracerEvery: 3 },

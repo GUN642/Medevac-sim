@@ -19,6 +19,7 @@ import { FUEL } from './config.js';
 import { clamp, damp, dist2, rand, wrapAngle } from './util.js';
 import * as PF from './platform.js';
 import { setLang, defaultLang } from './i18n.js';
+import { BIND_DEFS, resolveBinds, keyName } from './binds.js';
 
 const $ = (id) => document.getElementById(id);
 const SEATS = ['pilot', 'left', 'right', 'ramp'];
@@ -718,6 +719,8 @@ class Game {
     bind('set-fps', 'showFps', Boolean, (v) => $('fps').classList.toggle('hidden', !v));
     $('fps').classList.toggle('hidden', !s.showFps);
     on('btn-reload', () => location.reload());
+    on('btn-binds', () => { this.renderBinds(); this.openPanel('binds'); });
+    on('btn-binds-reset', () => { delete s.binds; PF.saveSettings(s); this.input.refreshBinds(); this.renderBinds(); });
 
     // Mehrspieler-Name
     let nm = '';
@@ -741,6 +744,39 @@ class Game {
       if (!v) { if (!PF.isApp) vEl.textContent = 'Webversion (lokal)'; return; }
       if (!PF.isApp) vEl.textContent = 'Version ' + v.versionName;
     });
+  }
+
+  // Tabelle der Tastenbelegung; Klick auf ein Feld wartet auf die neue Taste
+  renderBinds() {
+    const tbl = $('binds-table'), s = this.settings, cur = resolveBinds(s);
+    tbl.innerHTML = '';
+    for (const d of BIND_DEFS) {
+      const tr = document.createElement('tr');
+      if (d.g) { tr.className = 'grp'; tr.innerHTML = `<th colspan="3">${d.g}</th>`; tbl.appendChild(tr); continue; }
+      const th = document.createElement('th'); th.textContent = d.label; tr.appendChild(th);
+      for (let slot = 0; slot < 2; slot++) {
+        const td = document.createElement('td'), b = document.createElement('button');
+        b.className = 'bk'; b.textContent = keyName(cur[d.id][slot]);
+        b.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (this.input.capture) return;
+          b.classList.add('wait'); b.textContent = 'Taste drücken …';
+          this.input.capture = (code) => {
+            if (code !== 'Escape') {
+              const arr = resolveBinds(s)[d.id].slice();
+              if (code === 'Backspace' || code === 'Delete') arr.splice(slot, 1);
+              else { arr[slot] = code; if (arr[1 - slot] === code) arr.splice(1 - slot, 1); }
+              s.binds = Object.assign({}, s.binds, { [d.id]: arr.filter(Boolean) });
+              PF.saveSettings(s);
+              this.input.refreshBinds();
+            }
+            setTimeout(() => this.renderBinds(), 0);
+          };
+        });
+        td.appendChild(b); tr.appendChild(td);
+      }
+      tbl.appendChild(tr);
+    }
   }
 
   openPanel(id) {
@@ -1151,7 +1187,7 @@ class Game {
   }
 
   topOverlay() {
-    const ids = ['confirm', 'netlost', 'crashscreen', 'crew', 'settings', 'help', 'lobby', 'pause', 'briefing', 'menu'];
+    const ids = ['confirm', 'netlost', 'crashscreen', 'crew', 'binds', 'settings', 'help', 'lobby', 'pause', 'briefing', 'menu'];
     for (const id of ids) { const e = $(id); if (e && !e.classList.contains('hidden')) return e; }
     return null;
   }

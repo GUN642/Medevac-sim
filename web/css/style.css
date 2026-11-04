@@ -57,6 +57,14 @@ html, body {
 .lbl { font-size: 11px; opacity: 0.8; font-weight: normal; margin-right: 4px; }
 
 /* Warnungen am Rand statt in der Bildmitte (Hubschrauber bleibt sichtbar) */
+#binds-table td { padding: 2px 0 2px 6px; }
+#binds-table th { white-space: normal; }
+#binds-table tr.grp th { color: var(--amber); font-weight: bold; padding-top: 10px; }
+#binds-table button.bk { min-width: 120px; padding: 4px 8px; font-size: 13px; margin: 0; }
+#binds-table button.bk.wait { border-color: var(--amber); color: var(--amber); }
+#binds { z-index: 30; background: rgba(8, 10, 5, 0.92); }
+#binds .panel-inner { background: #1d2015; }
+#binds .row-buttons { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 #warnings { position: absolute; top: max(10px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); width: min(28vw, 300px); display: flex; flex-direction: column; gap: 4px; align-items: flex-start; pointer-events: none; }
 .warn { padding: 4px 14px; font-weight: bold; font-size: 16px; letter-spacing: 1px; border: 2px solid var(--amber); color: var(--amber); background: rgba(40, 30, 0, 0.6); border-radius: 3px; }
 .warn.crit { border-color: var(--red); color: #fff; background: rgba(140, 20, 10, 0.7); animation: blink 0.7s infinite; }
