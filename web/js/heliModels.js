@@ -522,7 +522,7 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
     { z: -6.6, w: 3.38, top: 1.52, bot: -1.15, nt: 2.6, nb: 6 },
     { z: 5.6, w: 3.4, top: 1.56, bot: -1.15, nt: 2.6, nb: 6 },
     { z: 6.9, w: 3.32, top: 1.56, bot: -1.15, nt: 2.6, nb: 6 },
-    { z: 7.45, w: 3.1, top: 1.5, bot: 0.1, nt: 2.6, nb: 4 },
+    { z: 7.45, w: 3.2, top: 1.5, bot: -1.15, nt: 2.6, nb: 6 },   // Heck über der Rampe offen
   ];
   const rearPylon = [
     { z: 3.4, w: 0.9, top: 1.6, bot: 1.45 },
@@ -603,7 +603,13 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   group.add(rear);
   const f = finish(group, parts, {
     gunGeo: m134Geo(), spinGeo: m134Barrels(),
-    guns: { x: 1.62, y: 0.15, z: -5.1, figX: 1.15, sitY: -0.35 }, floor: -1.08,
+    gunMounts: [
+      { side: 'left', pos: [-1.62, 0.15, -5.1], baseYaw: HALFPI, fig: [-1.15, 0, -4.85], sitY: -0.35, post: true },
+      { side: 'right', pos: [1.62, 0.15, -5.1], baseYaw: -HALFPI, fig: [1.15, 0, -4.85], sitY: -0.35, post: true },
+      // Heckschütze mit Minigun auf der Rampe, Blick nach hinten
+      { side: 'ramp', pos: [0, -0.4, 7.6], baseYaw: Math.PI, fig: [0, 0, 7.05], sitY: -0.35, eye: [0, 0.32, 0.55], arc: { yaw: 1.15, pmin: -1.0, pmax: 0.25 } },
+    ],
+    floor: -1.08,
     pilots: { x: 0.65, z: -7.25, sitY: -0.35 },
     discs: [{ obj: front, r: 9.1 }, { obj: rear, r: 9.1 }],
     beacon: [0, 3.3, 4.6],

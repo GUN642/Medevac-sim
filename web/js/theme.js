@@ -24,7 +24,8 @@ export const HELI_TYPES = {
     emptyMass: 10600, fuelMassFull: 3100, paxMass: 100, capacity: 33, maxThrust: 26000 * G,
     skidH: 1.75, rotorRadius: 9.1, rotorTop: 3.4, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 8, yawRate: 1.3,
     vmax: 125, agility: 1.15, burn: 0.95, drag: 0.8, armor: 0.55, gun: { name: 'M134 Minigun', rpm: 3000, ammo: 4000, muzzleVel: 850, range: 900, minigun: true, tracerEvery: 5, soundEvery: 3 },
-    rotorAudio: 0.8, rotorCut: 0.75, camDist: 38, shadow: 16, door: 'ramp', rampZ: 8.9, numbers: ['82+01', '82+07'],
+    rotorAudio: 0.8, rotorCut: 0.75, camDist: 38, shadow: 16, seats: ['pilot', 'left', 'right', 'ramp'], seatNames: { ramp: 'Heckschütze (Rampe)' },
+    door: 'ramp', rampZ: 8.9, numbers: ['82+01', '82+07'],
   },
   ah64: {
     id: 'ah64', model: 'apache', name: 'Boeing AH-64E „Apache Guardian“', short: 'AH-64E', callsign: 'Ugly 5-1',
