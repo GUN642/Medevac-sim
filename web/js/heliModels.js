@@ -622,7 +622,7 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
 }
 
 // ================================================================= CH-53GS (Heeresflieger)
-function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
+function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   const group = new THREE.Group();
   const cockpitWin = [
     { z0: -7.0, z1: -5.45, a0: 0.42, a1: PI - 0.42 },
@@ -669,9 +669,8 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
     { z: 3.1, w: 0.1, top: -0.2, bot: -0.3, x: sx * 2.8 },
   ];
   const fin = plate([[11.0, 1.7], [12.3, 1.9], [13.0, 5.6], [12.2, 5.7], [11.5, 3.3]], 0.3, 'zy');
-  fin.rotateZ(-0.2);
   const stab = plate([[0, 12.0], [3.4, 12.25], [3.4, 13.0], [0, 12.95]], 0.09, 'xz');
-  stab.translate(0.75, 5.2, 0);
+  stab.translate(0.15, 5.2, 0);   // Höhenflosse rechts, gerade (CH-53G/GS)
   const h = hull(group, 'ch53', [
     { keys: fus, holes: [...cockpitWin, ...gunWin, ...cabWin, { z0: 4.5, z1: 6.9, a0: PI + 0.45, a1: 2 * PI - 0.45 }], glass: [...cockpitWin, ...cabWin], capEnd: true, radial: 40 },
     { keys: top, capStart: true, capEnd: true, radial: 24 },
@@ -715,7 +714,6 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
     decal(group, 'HEER', 1.6, 0.42, [h.X(1.8), 0.95, 1.8], s);
     ironCross(group, 0.9, [h.X(-1.4), 0.6, -1.4], s);
     decal(group, number, 1.3, 0.34, [h.X(7.6), 1.3, 7.6], s, '#151511', 'bold 72px Arial', -0.25);
-    crossDecal(group, 0.8, [h.X(3.4), 0.6, 3.4], s);
   }
   const mainRotor = new THREE.Group();
   mainRotor.position.set(0, 3.1, 0);
@@ -723,7 +721,6 @@ function buildCH53({ static: isStatic = false, number = '84+05' } = {}) {
   group.add(mainRotor);
   const tailRotor = new THREE.Group();
   tailRotor.position.set(-0.45, 3.9, 12.6);
-  tailRotor.rotation.z = 0.2;
   tailRotor.add(new THREE.Mesh(tailRotorGeo(4, 3.0, 0.32), detailMat));
   group.add(tailRotor);
   const f = finish(group, parts, {
