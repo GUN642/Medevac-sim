@@ -80,6 +80,7 @@ export class Input {
           Digit1: 'seat-pilot', Digit2: 'seat-left', Digit3: 'seat-right', KeyC: 'camera', KeyV: 'view', KeyM: 'map',
           Escape: 'pause', KeyP: 'pause', Enter: 'confirm', NumpadEnter: 'confirm', KeyH: 'help', Tab: 'seat-next', KeyT: 'radio', KeyX: 'crew', KeyB: 'magnifier', KeyL: 'airsupport', KeyN: 'nvg',
           KeyE: 'use', KeyR: 'reload', Digit4: 'num4', Digit5: 'num5', KeyG: 'pickup',
+          Equal: 'cam-in', NumpadAdd: 'cam-in', BracketRight: 'cam-in', Minus: 'cam-out', NumpadSubtract: 'cam-out', Slash: 'cam-out',
         };
         if (map[k]) { this.actions.push(map[k]); if (k === 'Tab') e.preventDefault(); }
         const nav = { ArrowUp: 'nav-up', ArrowDown: 'nav-down', ArrowLeft: 'nav-left', ArrowRight: 'nav-right' }[k];
@@ -274,6 +275,7 @@ export class Input {
       if (any && this.device !== 'gamepad') { this.device = 'gamepad'; this.onDevice && this.onDevice(); }
       if (this.mode === 'pilot') {
         if (pressed(10)) this.actions.push('nvg');
+        if (pressed(11)) this.actions.push('cam-dist');   // rechten Stick drücken: Kameraabstand
         f.roll += lx; f.pitch += -ly; f.yaw += rx;
         f.collective += -ry + b(7) - b(6);
       } else if (this.mode === 'foot') {

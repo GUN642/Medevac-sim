@@ -1,5 +1,6 @@
 // HUD, Kompass, Minikarte, Funk, Overlays
 import * as THREE from './lib/three.module.min.js';
+import { tr } from './i18n.js';
 import { HALF, WORLD_SIZE, HELI } from './config.js';
 import { SUPPORT, supportKinds } from './airsupport.js';
 import { clamp, bearing, headingFromYaw, fmtDist, fmtBearing, dist2, dirShort, fmtTime } from './util.js';
@@ -131,7 +132,7 @@ export class HUD {
     const burn = h.burnRate > 0 ? h.burnRate : 0.12;
     this.el['fuel-min'].textContent = h.engineOn ? '≈ ' + fmtTime(fuel / burn) + ' min' : 'TRIEBWERK AUS';
     const hf = this.el['hp-fill'];
-    hf.style.setProperty('--v', h.hp + '%');
+    hf.style.setProperty('--v', Math.min(100, Math.max(0, h.hp)) + '%');
     hf.className = 'fill ' + (h.hp < 25 ? 'crit' : h.hp < 55 ? 'warn' : 'ok');
     this.el['hp-val'].textContent = Math.round(h.hp) + ' %';
     // Instrumente (Fuß, Knoten)
@@ -166,7 +167,7 @@ export class HUD {
     const c = g.crews[g.myHeli];
     const pilotTxt = g.seat === 'pilot' || g.seat === 'foot' ? '' : c.pilot == null ? ' · KI-Pilot fliegt' : c.pilot !== g.myId ? ' · Pilot: ' + g.playerName(c.pilot) : '';
     const sn = g.heli.spec.seatNames && g.heli.spec.seatNames[g.seat];
-    this.el['seat-label'].textContent = (g.helis.length > 1 && g.seat !== 'foot' ? `#${g.myHeli + 1} ` : '') + (sn ? sn.toUpperCase() : seatNames[g.seat]) + pilotTxt + (info.cameraLabel ? ' · ' + info.cameraLabel : '');
+    this.el['seat-label'].textContent = (g.helis.length > 1 && g.seat !== 'foot' ? `#${g.myHeli + 1} ` : '') + (sn ? tr(sn).toUpperCase() : tr(seatNames[g.seat])) + tr(pilotTxt) + (info.cameraLabel ? ' · ' + tr(info.cameraLabel) : '');
     if (this.crewOpen) this.updateCrew();
     this.el.crosshair.style.display = g.seat === 'pilot' || g.seat === 'pax' ? 'none' : 'block';
     const ms = document.getElementById('mouse-stick');
@@ -199,7 +200,7 @@ export class HUD {
       c.moveTo(x, H);
       c.lineTo(x, H - (major ? 12 : 6));
       c.stroke();
-      if (names[dd] !== undefined) { c.fillStyle = dd === 0 ? '#ffd257' : '#e8f0d0'; c.fillText(names[dd], x, 16); c.fillStyle = '#d8e0c0'; }
+      if (names[dd] !== undefined) { c.fillStyle = dd === 0 ? '#ffd257' : '#e8f0d0'; c.fillText(tr(names[dd]), x, 16); c.fillStyle = '#d8e0c0'; }
       else if (dd % 30 === 0) c.fillText(String(dd / 10).padStart(2, '0'), x, 16);
     }
     const mark = (b, color, label) => {

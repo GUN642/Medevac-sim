@@ -1,0 +1,443 @@
+// Sprachumschaltung Deutsch / Englisch.
+// Das Spiel ist auf Deutsch geschrieben; bei Englisch werden alle angezeigten Texte zur Laufzeit übersetzt
+// (DOM-Textknoten per MutationObserver, dazu tr() für Canvas-Texte und Dialoge).
+// Schlüssel mit {0}, {1} … sind Vorlagen: die Platzhalter werden wieder übersetzt (z. B. Himmelsrichtungen).
+
+let lang = 'de';
+export const getLang = () => lang;
+
+const EN = {
+  // ------------------------------------------------------------ Menü / Oberfläche (index.html)
+  'Hot LZ – Hubschrauber-Einsätze': 'Hot LZ – Helicopter Missions',
+  'HUBSCHRAUBER-EINSÄTZE': 'HELICOPTER MISSIONS',
+  'TREIBST.': 'FUEL', 'STRUKTUR': 'AIRFRAME', 'HÖHE': 'ALT', 'FAHRT': 'SPEED', 'STEIG': 'V/S', 'KURS': 'HDG',
+  '▲ Steigen · ▼ Sinken': '▲ Climb · ▼ Descend', '◀ ▶ Pedale': '◀ ▶ Pedals',
+  'Laufen (ganz außen: sprinten)': 'Move (push to edge: sprint)', 'Zyklisch (Neigen)': 'Cyclic (tilt)', 'Wischen zum Zielen': 'Swipe to aim',
+  'SITZ': 'SEAT', 'KAMERA': 'CAMERA', 'ABSTAND': 'DISTANCE', 'KARTE': 'MAP', 'AUFTRAG': 'MISSION', 'ABHOLUNG': 'PICKUP',
+  'RAKETE': 'ROCKET', 'CREW': 'CREW', 'WAFFE': 'WEAPON', 'LADEN': 'RELOAD', 'ZOOM': 'ZOOM', 'DUCKEN': 'CROUCH',
+  'ANSICHT': 'VIEW', 'FEUER': 'FIRE', 'EIN/AUS': 'BOARD/EXIT', 'Lade …': 'Loading …',
+  'EINSATZ BEGINNEN': 'START MISSION', 'ALS INFANTERIE BEGINNEN': 'START AS INFANTRY',
+  'FORTSETZEN': 'RESUME', 'STEUERUNG': 'CONTROLS', 'MEHRSPIELER (LAN)': 'MULTIPLAYER (LAN)', 'EINSTELLUNGEN': 'SETTINGS',
+  'NACH UPDATES SUCHEN': 'CHECK FOR UPDATES', 'ANDROID-APP (APK)': 'ANDROID APP (APK)', 'AUFTRAG ANNEHMEN': 'ACCEPT MISSION',
+  'Antippen': 'Tap', 'PAUSE': 'PAUSE', 'HAUPTMENÜ': 'MAIN MENU', 'SPIEL BEENDEN': 'QUIT GAME',
+  'Mehrspieler: Das Spiel läuft weiter, Ihr Hubschrauber schwebt solange auf der Stelle.': 'Multiplayer: the game keeps running, your helicopter hovers in place meanwhile.',
+  'MEHRSPIELER IM LOKALEN NETZWERK': 'MULTIPLAYER ON THE LOCAL NETWORK',
+  'Der LAN-Mehrspieler funktioniert in der': 'LAN multiplayer works in the', 'Android-App': 'Android app',
+  '(Handy, Tablet, Android TV). Alle Geräte müssen im selben WLAN sein.': '(phone, tablet, Android TV). All devices must be on the same Wi-Fi.',
+  'Browser können aus Sicherheitsgründen keine direkten Netzwerkverbindungen öffnen. Zum Ausprobieren auf einem PC: Seite mit': 'For security reasons, browsers cannot open direct network connections. To try it on a PC: open the page with',
+  'in zwei Tabs öffnen.': 'in two tabs.', 'Ihr Name': 'Your name', 'Zweiter Hubschrauber': 'Second helicopter', 'keiner': 'none',
+  'SPIEL ERÖFFNEN': 'HOST GAME', 'Gefundene Spiele': 'Games found', 'Oder IP-Adresse': 'Or IP address', 'VERBINDEN': 'CONNECT',
+  'Einer eröffnet das Spiel, die anderen treten bei. Neue Mitspieler können jederzeit dazukommen.': 'One player hosts, the others join. New players can join at any time.',
+  'Zusammen fliegen: einer ist Pilot, die anderen sitzen an den Bord-MGs. Freie Plätze übernimmt die KI.': 'Fly together: one is the pilot, the others man the door guns. The AI takes any free seats.',
+  'Mit dem zweiten Hubschrauber fliegen zwei Piloten gemeinsam. Über': 'With the second helicopter, two pilots fly together. Via',
+  '(Taste X, Controller ⊖) wechseln Sie den Platz – auch in die andere Maschine, wenn beide nebeneinander gelandet sind.': '(key X, controller ⊖) you change seats – even into the other aircraft when both have landed side by side.',
+  'Gäste-WLANs mit „Client-Isolation“ verhindern die Verbindung.': 'Guest Wi-Fi networks with “client isolation” prevent the connection.',
+  'ZURÜCK': 'BACK', 'BESATZUNG': 'CREW', 'SCHLIESSEN': 'CLOSE', 'JA, BEENDEN': 'YES, QUIT', 'ABBRECHEN': 'CANCEL',
+  'VERBINDUNG GETRENNT': 'CONNECTION LOST', 'Die Verbindung zum Host wurde unterbrochen.': 'The connection to the host was lost.',
+  'ZUM HAUPTMENÜ': 'TO MAIN MENU', 'Karte schließen: M / Ⓧ / Antippen': 'Close map: M / Ⓧ / tap',
+  'Tastatur / Maus': 'Keyboard / mouse', 'Switch-Controller': 'Switch controller', 'Touch': 'Touch',
+  'Maus ↑ / ↓ · W / S': 'Mouse ↑ / ↓ · W / S',
+  'Vorwärts / rückwärts (Nase senken = beschleunigen). Erst ins Bild klicken.': 'Forward / backward (nose down = accelerate). Click into the view first.',
+  'Maus ← / → · Q / E': 'Mouse ← / → · Q / E', 'Drehen (Pedale)': 'Turn (pedals)',
+  'Seitlich neigen (im Vorwärtsflug: Kurve)': 'Bank sideways (in forward flight: turn)', 'Leertaste / R': 'Space / R',
+  'Kollektiv: steigen': 'Collective: climb', 'Kollektiv: sinken / landen': 'Collective: descend / land',
+  'Sitz: Pilot / linker Schütze / rechter Schütze': 'Seat: pilot / left gunner / right gunner', 'Maus (Schütze)': 'Mouse (gunner)',
+  'Zielen (Klick sperrt den Zeiger) · Linksklick feuern · Rechtsklick Zoom': 'Aim (click locks the pointer) · left click fire · right click zoom',
+  'Zu Fuß': 'On foot',
+  'WASD laufen · Maus zielen · Linksklick feuern · Rechtsklick zoomen · Shift sprinten · Leertaste springen · C ducken · R nachladen · 1–5 / Mausrad Waffe · V Ego-Perspektive (Rechtsklick = über Kimme und Korn zielen) · E ein-/aussteigen · G Hubschrauber rufen': 'WASD move · mouse aim · left click fire · right click zoom · Shift sprint · Space jump · C crouch · R reload · 1–5 / mouse wheel weapon · V first person (right click = aim down sights) · E board/exit · G call helicopter',
+  'Rechte Maustaste halten': 'Hold right mouse button',
+  'Kamera schwenken · Mausrad Zoom · Esc gibt die Maus frei': 'Pan camera · mouse wheel zoom · Esc releases the mouse',
+  'Besatzung / Platz wechseln (Mehrspieler)': 'Crew / change seat (multiplayer)', 'Außenansicht / Cockpit': 'Outside view / cockpit',
+  'Karte': 'Map', 'Aktuellen Auftrag anzeigen': 'Show current mission', 'Auftrag annehmen': 'Accept mission', 'Pause': 'Pause',
+  'Linker Stick': 'Left stick', 'Zyklisch (neigen / beschleunigen)': 'Cyclic (tilt / accelerate)', 'Rechter Stick ↕': 'Right stick ↕',
+  'Kollektiv: steigen / sinken': 'Collective: climb / descend', 'Rechter Stick ↔': 'Right stick ↔', 'Pedale – drehen': 'Pedals – turn',
+  'Steigen / Sinken (als Schütze: ZR feuern, ZL Zoom)': 'Climb / descend (as gunner: ZR fire, ZL zoom)',
+  'Sitz wechseln (Pilot ↔ Schützen)': 'Change seat (pilot ↔ gunners)', 'Steuerkreuz': 'D-pad',
+  '↑ Pilot · ← linker · → rechter Schütze · ↓ Auftrag': '↑ pilot · ← left · → right gunner · ↓ mission',
+  'Bestätigen / Auftrag annehmen': 'Confirm / accept mission', 'Kamera wechseln': 'Change camera',
+  'Pause / Besatzung (Platz wechseln, aussteigen)': 'Pause / crew (change seat, exit)',
+  'Linker Stick laufen (L3 sprinten) · rechter Stick zielen · ZR feuern · ZL zoomen · L/R oder ← Waffe · Ⓨ nachladen · → ducken · R3 Visier 3x · ↑ Ego-Perspektive · Ⓐ ein-/aussteigen · Ⓧ oder ↓ Hubschrauber rufen': 'Left stick move (L3 sprint) · right stick aim · ZR fire · ZL zoom · L/R or ← weapon · Ⓨ reload · → crouch · R3 3x magnifier · ↑ first person · Ⓐ board/exit · Ⓧ or ↓ call helicopter',
+  'Den Switch Pro Controller oder die Joy-Cons per Bluetooth mit PC, TV-Box oder Handy koppeln. Nach dem Koppeln einmal eine Taste drücken, damit der Browser den Controller erkennt.': 'Pair the Switch Pro Controller or the Joy-Cons via Bluetooth with your PC, TV box or phone. After pairing, press any button once so the browser detects the controller.',
+  'Linker Daumen': 'Left thumb', '↑↓ Steigen / Sinken · ←→ Pedale': '↑↓ climb / descend · ←→ pedals', 'Rechter Daumen': 'Right thumb',
+  'Zyklisch: neigen / beschleunigen': 'Cyclic: tilt / accelerate', 'Pilot → linker Schütze → rechter Schütze': 'Pilot → left gunner → right gunner',
+  'Als Schütze': 'As gunner', 'FEUER halten und mit demselben Finger ziehen zum Zielen (oder rechts wischen)': 'Hold FIRE and drag with the same finger to aim (or swipe on the right)',
+  'Links laufen, rechts wischen oder FEUER ziehen zum Zielen · WAFFE · LADEN · ZOOM · DUCKEN · ANSICHT · EIN/AUS · ABHOLUNG': 'Move on the left, swipe on the right or drag FIRE to aim · WEAPON · RELOAD · ZOOM · CROUCH · VIEW · BOARD/EXIT · PICKUP',
+  'KAMERA · KARTE · AUFTRAG': 'CAMERA · MAP · MISSION', 'Ansicht wechseln · Karte · Briefing zeigen': 'Change view · map · show briefing',
+  "So geht's": 'How to play', 'Der': 'The', 'Flugassistent': 'flight assistant',
+  'hält Höhe und bremst automatisch ab, wenn Sie den Stick loslassen.': 'holds altitude and brakes automatically when you release the stick.',
+  'Fliegen Sie zum gelben Wegpunkt. Richtung und Entfernung stehen oben am Kompass.': 'Fly to the yellow waypoint. Bearing and distance are shown at the compass on top.',
+  'Landen Sie sanft (Steigrate < 800 ft/min) in der Landezone beim farbigen Rauch. Die Soldaten steigen selbst ein.': 'Land gently (sink rate < 800 ft/min) in the landing zone at the colored smoke. The soldiers board by themselves.',
+  'In': 'In', 'heißen LZs': 'hot LZs', 'schießen die Bordschützen selbstständig auf erkannte Feinde (Mündungsfeuer, grüne Leuchtspur).': 'the door gunners engage spotted enemies on their own (muzzle flashes, green tracers).',
+  'Behalten Sie den': 'Keep an eye on your', 'Treibstoff': 'fuel', 'im Blick: Auf Pad': ': on pad',
+  '(gelber Rand, Tankwagen) wird getankt, repariert und Munition aufgefüllt.': '(yellow border, fuel truck) you refuel, repair and rearm.',
+  'Verwundete und gerettete Piloten auf Pad': 'Deliver wounded and rescued pilots to pad', '(rotes Kreuz) abliefern.': '(red cross).',
+  'Infanterie:': 'Infantry:',
+  'Über CREW → „Aussteigen“ oder „Als Infanterie beginnen“ spielen Sie einen Soldaten. Steigen Sie als Passagier ein – ist kein Mensch am Steuer, fliegt der KI-Pilot den Auftrag und setzt Sie an der LZ ab. Mit „Abholung“ (G) holt er Sie wieder.': 'Via CREW → “Exit” or “Start as infantry” you play a soldier. Board as a passenger – if no human is flying, the AI pilot flies the mission and drops you at the LZ. “Pickup” (G) brings him back for you.',
+  'Waffen zu Fuß – Vietnam: M16A1, M60, M79, Ithaca 37, M1911 · Afghanistan: M4A1, M249, M320, Mossberg 590, M9. Munition und Gesundheit füllen sich in der FOB auf.': 'Weapons on foot – Vietnam: M16A1, M60, M79, Ithaca 37, M1911 · Afghanistan: M4A1, M249, M320, Mossberg 590, M9. Ammo and health refill at the FOB.',
+  'Nachtflug': 'Night flying',
+  ': Im Hauptmenü ZEIT: NACHT wählen. Nachtsichtgerät mit N (Controller: linker Stick drücken, zu Fuß Steuerkreuz oben; Touch NVG). Landezonen sind nachts mit Blitzlicht markiert, der Landescheinwerfer geht unter 60 m automatisch an (mit NVG aus).': ': choose TIME: NIGHT in the main menu. Night vision with N (controller: press left stick, on foot D-pad up; touch NVG). Landing zones are marked with strobes at night, the landing light switches on automatically below 60 m (off with NVG).',
+  '(Taste L, Controller ⊖ → CREW, Touch CREW): AH-64E, F-16C oder A-10C (Vietnam: F-4 Napalm) greifen Feinde im Umkreis von ca. 700 m um Ihre Position an. Danach braucht jede Maschine 2–2,5 Minuten Pause.': '(key L, controller ⊖ → CREW, touch CREW): AH-64E, F-16C or A-10C (Vietnam: F-4 napalm) attack enemies within about 700 m of your position. Afterwards each aircraft needs a 2–2.5 minute break.',
+  ': Pilot feuert Raketen (G, Controller R, Touch RAKETE), der Waffensystemoffizier die 30-mm-Kanone. Mit dem Apache gibt es Luftnahunterstützungs-Aufträge.': ': the pilot fires rockets (G, controller R, touch ROCKET), the gunner (CPG) the 30 mm cannon. The Apache gets close air support missions.',
+  'EOTech-Rotpunktvisier': 'EOTech red dot sight',
+  'auf M4 und M249: Vergrößerer 3x mit B (Controller: rechten Stick drücken, Touch 3x) auf- und wegklappen.': 'on M4 and M249: flip the 3x magnifier in and out with B (controller: press right stick, touch 3x).',
+  'Karte und Hubschrauber': 'Map and helicopter',
+  'wählen Sie im Hauptmenü: Vietnam 1968 mit der UH-1D oder Afghanistan 2010 mit UH-60 Black Hawk, CH-47 Chinook oder CH-53GS. In Afghanistan wirbeln die Rotoren beim Landen viel Staub auf (Brownout) und Böen schütteln den Hubschrauber.': 'are chosen in the main menu: Vietnam 1968 with the UH-1D or Afghanistan 2010 with UH-60 Black Hawk, CH-47 Chinook or CH-53GS. In Afghanistan the rotors kick up a lot of dust when landing (brownout) and gusts shake the helicopter.',
+  'Grafikqualität': 'Graphics quality', 'Niedrig (Handy)': 'Low (phone)', 'Mittel': 'Medium', 'Hoch': 'High',
+  'Wird nach dem Neuladen aktiv.': 'Takes effect after reloading.', 'JETZT NEU LADEN': 'RELOAD NOW',
+  'Ansicht zu Fuß': 'View on foot', 'Schulterkamera (3. Person)': 'Shoulder camera (3rd person)', 'Ego-Perspektive (Kimme und Korn)': 'First person (iron sights)',
+  'Zielhilfe (Controller/Touch)': 'Aim assist (controller/touch)', 'Aus': 'Off', 'Leicht': 'Easy', 'Stark': 'Strong',
+  'Lautstärke': 'Volume', 'Ziel-Empfindlichkeit': 'Aim sensitivity', 'Zielen: Y-Achse invertieren': 'Aim: invert Y axis',
+  'Zielen: X-Achse invertieren': 'Aim: invert X axis', 'Pilot: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)': 'Pilot: mouse flying (mouse ←→ turn, ↑↓ forward/back)',
+  'Maussteuerung: vor/zurück umkehren': 'Mouse flying: invert forward/back', 'Feindstärke': 'Enemy strength', 'Normal': 'Normal', 'Schwer': 'Hard',
+  'FPS anzeigen': 'Show FPS',
+  'Außenansicht: Abstand zum Hubschrauber': 'Outside view: distance to the helicopter', '+ / − · Mausrad': '+ / − · mouse wheel', 'R3 (Pilot)': 'R3 (pilot)',
+
+  // ------------------------------------------------------------ HUD
+  'Der Auftrag ist gescheitert.': 'The mission has failed.', 'NEUER HUBSCHRAUBER': 'NEW HELICOPTER', 'ABGESTÜRZT': 'CRASHED', 'GEFALLEN': 'KILLED IN ACTION',
+  'TRIEBWERK AUS': 'ENGINE OFF', 'KABINE': 'CABIN', 'RAKETEN': 'ROCKETS', 'GESUNDHEIT': 'HEALTH', '3x AN': '3x ON', '· 3x aus': '· 3x off',
+  'LÄDT …': 'RELOADING …', 'GEDUCKT': 'CROUCHED', 'STEHEND': 'STANDING', '· ZIELEN': '· AIMING', 'PILOT': 'PILOT',
+  'SCHÜTZE LINKS': 'LEFT GUNNER', 'SCHÜTZE RECHTS': 'RIGHT GUNNER', 'HECKSCHÜTZE': 'RAMP GUNNER', 'PASSAGIER': 'PASSENGER', 'INFANTERIE': 'INFANTRY',
+  '· KI-Pilot fliegt': '· AI pilot flying', '· Pilot:': '· Pilot:', 'ZIEL': 'TARGET', 'Sie': 'You', 'Pilot': 'Pilot',
+  'Schütze links': 'Left gunner', 'Schütze rechts': 'Right gunner', 'Heckschütze': 'Ramp gunner', 'abgestürzt': 'crashed', 'in der Luft': 'airborne',
+  'frei (KI-Pilot)': 'free (AI pilot)', 'frei (KI-Schütze)': 'free (AI gunner)', 'Kabine': 'Cabin', 'Passagier': 'Passenger', 'Aussteigen': 'Exit',
+  'zu Fuß (nur am Boden)': 'on foot (only on the ground)', 'Luftunterstützung': 'Air support',
+  'wirkt auf Feinde im Umkreis von ca. 700 m um Ihre Position · Taste L': 'hits enemies within about 700 m of your position · key L',
+  'im Einsatz': 'on mission',
+  'Sie sind zu Fuß unterwegs. Einsteigen: an einen gelandeten Hubschrauber herangehen und E / Ⓐ drücken oder hier einen Platz wählen.': 'You are on foot. To board: walk up to a landed helicopter and press E / Ⓐ, or pick a seat here.',
+  'Umsteigen in den anderen Hubschrauber: beide Maschinen nebeneinander landen (unter 150 m).': 'To switch to the other helicopter: land both aircraft side by side (within 150 m).',
+  'KI-Pilot': 'AI pilot', 'zu Fuß': 'on foot', 'Abholung': 'Pickup', 'Außenansicht': 'Outside view', 'Cockpit': 'Cockpit',
+
+  // ------------------------------------------------------------ Laden / Menü (main.js)
+  'Erzeuge Gelände …': 'Generating terrain …', 'Effekte …': 'Effects …', 'Bereite FOB vor …': 'Preparing FOB …',
+  'Der KI-Pilot fliegt den Auftrag': 'The AI pilot is flying the mission', 'Der KI-Pilot fliegt den Auftrag.': 'The AI pilot is flying the mission.',
+  'das linke': 'the left', 'das rechte': 'the right', 'das': 'the', 'auf der Heckrampe': 'on the rear ramp',
+  'Diesen Hubschrauber gibt es nicht.': 'This helicopter does not exist.', 'Aussteigen geht nur am Boden – erst landen.': 'You can only exit on the ground – land first.',
+  'Die Kabine ist voll.': 'The cabin is full.', 'Einsteigen geht nur, wenn der Hubschrauber gelandet ist.': 'You can only board once the helicopter has landed.',
+  'Zum Einsteigen näher an den Hubschrauber gehen.': 'Move closer to the helicopter to board.',
+  'Umsteigen geht nur, wenn der andere Hubschrauber gelandet ist.': 'You can only switch once the other helicopter has landed.',
+  'Erst landen – dann können Sie umsteigen.': 'Land first – then you can switch.',
+  'Zum Umsteigen müssen beide Hubschrauber nebeneinander landen (unter 150 m).': 'To switch, both helicopters must land side by side (within 150 m).',
+  'Sie tragen schon die volle Anzahl Panzerfäuste.': 'You are already carrying the maximum number of launchers.',
+  'Raketen leer – auf Pad POL nachladen.': 'Rockets empty – reload on pad POL.', 'Nachtsichtgerät gibt es nur bei Nacht.': 'Night vision is only available at night.',
+  'Nachtsichtgerät an': 'Night vision on', 'Nachtsichtgerät aus': 'Night vision off', 'Ihr Mitspieler': 'Your teammate',
+  'Sanitäter! Sie sind gefallen.': 'Medic! You have been killed.', 'Neuer Einsatz zu Fuß – Sie stehen in der FOB bei Pad H1.': 'New deployment on foot – you are at the FOB next to pad H1.',
+  'Webversion (lokal)': 'Web version (local)', 'MEDEVAC': 'MEDEVAC', 'NACHT': 'NIGHT', 'TAG': 'DAY',
+  'MEHRSPIELER BEENDEN': 'END MULTIPLAYER', 'MEHRSPIELER VERLASSEN': 'LEAVE MULTIPLAYER',
+  'Mehrspieler-Spiel beenden? Alle Mitspieler werden getrennt.': 'End the multiplayer game? All players will be disconnected.',
+  'Mehrspieler-Spiel verlassen?': 'Leave the multiplayer game?', 'Laufendes Spiel beenden?': 'Quit the current game?',
+  '2 Hubschrauber': '2 helicopters', '· Karte wird gewechselt': '· map will change', 'Suche nach Spielen im Netzwerk …': 'Searching for games on the network …',
+  'Wir werden beschossen!': 'We are taking fire!', 'Treffer im Heck!': 'Hit in the tail!', 'Feuer von unten!': 'Fire from below!',
+  'Die schießen auf uns!': "They're shooting at us!", 'Hab ihn!': 'Got him!', 'Einer weniger!': 'One less!', 'Ziel ausgeschaltet!': 'Target down!',
+  'Treffer – der ist erledigt!': "Hit – he's done!", 'Schütze': 'Gunner', 'Crew': 'Crew', 'TOC': 'TOC', 'Funk': 'Radio', 'Waffe': 'Weapon',
+  '3x-Vergrößerer aufgeklappt': '3x magnifier flipped up', '3x-Vergrößerer weggeklappt': '3x magnifier flipped away', 'Gefallen': 'Killed in action',
+  'Sie wurden im Gefecht getroffen.': 'You were hit in combat.', 'ZURÜCK IN DIE FOB': 'BACK TO THE FOB', 'Triebwerk wieder gestartet.': 'Engine restarted.',
+  'Betankt, repariert und aufmunitioniert – startklar!': 'Refueled, repaired and rearmed – ready to go!',
+  'Tankwart: Schlauch ist dran – wir füllen auf!': "Fuel crew: hose is connected – filling up!",
+  'SCHWER VERWUNDET – IN DECKUNG!': 'BADLY WOUNDED – TAKE COVER!', 'TREFFER!': 'HIT!',
+  'Hubschrauber noch in der Luft – warten bis er gelandet ist': 'Helicopter still airborne – wait until it has landed',
+  'Nachladen …': 'Reloading …', 'Keine Munition – in der FOB auffüllen oder Waffe wechseln': 'No ammo – resupply at the FOB or switch weapons',
+  'TRIEBWERK AUS – AUTOROTATION': 'ENGINE OFF – AUTOROTATE', 'TREIBSTOFF KRITISCH': 'FUEL CRITICAL', 'TREIBSTOFF NIEDRIG – TANKEN': 'FUEL LOW – REFUEL',
+  'BINGO FUEL – SOFORT ZUR FOB': 'BINGO FUEL – RETURN TO FOB NOW', 'TANKLECK': 'FUEL LEAK', 'STRUKTUR KRITISCH': 'AIRFRAME CRITICAL',
+  'ROTOR IN DEN BÄUMEN – STEIGEN!': 'ROTOR IN THE TREES – CLIMB!', 'TREFFER – BESCHUSS!': 'HIT – TAKING FIRE!', 'SINKRATE – ZIEHEN!': 'SINK RATE – PULL UP!',
+  'EINSATZGEBIET VERLASSEN – UMKEHREN': 'LEAVING AREA OF OPERATIONS – TURN BACK',
+  'Zum Tanken auf Pad POL (gelber Rand, neben dem Tankwagen) landen': 'Land on pad POL (yellow border, next to the fuel truck) to refuel',
+  'Kabine voll!': 'Cabin full!', 'Raketen: R · Kanone: KI-Waffensystemoffizier': 'Rockets: R · cannon: AI gunner (CPG)',
+  'Raketen: Taste RAKETE': 'Rockets: ROCKET button', 'Raketen: G · Kanone schießt der Waffensystemoffizier': 'Rockets: G · the gunner (CPG) fires the cannon',
+  'Linksklick ins Bild: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)': 'Left click into the view: mouse flying (mouse ←→ turn, ↑↓ forward/back)',
+  'FOB WIRD ANGEGRIFFEN': 'FOB UNDER ATTACK', 'Autsch! Das war eine harte Landung!': 'Ouch! That was a hard landing!',
+  'TRIEBWERK AUS! Treibstoff leer – Autorotation einleiten!': 'ENGINE OUT! Out of fuel – enter autorotation!',
+  'Wir verlieren Treibstoff – Tank getroffen!': "We're losing fuel – tank hit!", 'Gelände zu steil – wir rutschen!': "Ground too steep – we're sliding!",
+  'Wir stehen im Wasser!': "We're standing in the water!",
+  'Abgeschossen!': 'Shot down!', 'Hubschrauber zerstört!': 'Helicopter destroyed!', 'Notwasserung im Fluss!': 'Ditched in the river!',
+  'Absturz – zu harte Landung!': 'Crash – landing too hard!', 'Abgestürzt!': 'Crashed!', 'In den Dschungel gestürzt!': 'Crashed into the jungle!',
+  'In die Pappeln gestürzt!': 'Crashed into the poplars!', 'Linker': 'Left', 'Rechter': 'Right',
+  'Verbunden – warte auf den Host …': 'Connected – waiting for the host …', 'Verbindung fehlgeschlagen.': 'Connection failed.',
+
+  // ------------------------------------------------------------ Luftunterstützung
+  'kreist 75 s über Ihrer Position, Kanone und Raketen': 'orbits your position for 75 s, cannon and rockets',
+  'lasergelenkte 250-kg-Bombe (GBU-12)': 'laser-guided 500 lb bomb (GBU-12)', 'zwei Tiefflug-Angriffe mit der 30-mm-Kanone': 'two low-level gun runs with the 30 mm cannon',
+  'Napalm-Abwurf entlang der Feindstellung': 'napalm drop along the enemy position', 'DANGER CLOSE – in Deckung gehen!': 'DANGER CLOSE – take cover!',
+  'übernehme Ihren Sektor': 'taking over your sector', 'Kanonenangriff': 'gun run', 'Napalm': 'napalm', 'eine GBU-12': 'one GBU-12',
+
+  // ------------------------------------------------------------ Aufträge
+  'grün': 'green', 'gelb': 'yellow', 'rot': 'red', 'violett': 'violet',
+  'Gelber': 'Yellow', 'Roter': 'Red', 'Grüner': 'Green', 'Violetter': 'Violet',
+  'TRUPPENTRANSPORT': 'TROOP TRANSPORT', 'Verstärkung': 'reinforcements', 'Ablösung': 'relief', 'Umgruppierung': 'regrouping',
+  'SPEZIALKRÄFTE – INFILTRATION': 'SPECIAL FORCES – INFILTRATION', 'SPEZIALKRÄFTE – EXFILTRATION': 'SPECIAL FORCES – EXFILTRATION',
+  'NACHSCHUB': 'RESUPPLY', 'VIP-TRANSPORT': 'VIP TRANSPORT', 'AUFKLÄRUNG': 'RECONNAISSANCE', 'LUFTNAHUNTERSTÜTZUNG': 'CLOSE AIR SUPPORT',
+  'HEISS – Feindkontakt!': 'HOT – enemy contact!', 'KALT – keine Feindberührung': 'COLD – no enemy contact', 'Auftrag': 'Task',
+  'Verwundetenbergung (Dustoff)': 'Casualty evacuation (Dustoff)', 'Aufnahme': 'Pickup', 'Richtung / Entfernung': 'Bearing / distance',
+  'Verwundete': 'Casualties', 'LZ-Status': 'LZ status', 'Markierung': 'Marking', 'Ablieferung': 'Drop-off',
+  'einen Verwundeten': 'one casualty', 'Tragefall': 'litter case', 'Tragefälle': 'litter cases', '(Tragefall)': '(litter case)',
+  'Wir stehen unter Beschuss!': 'We are under fire!', 'Die Lage ist ruhig.': 'The situation is quiet.',
+  'Punkt A – Aufnahme': 'Point A – pickup', 'Punkt B – Absetzen': 'Point B – drop-off', 'Soldaten': 'Soldiers', 'Punkt A': 'point A', 'Punkt B': 'point B',
+  'KALT – beide LZs ruhig': 'COLD – both LZs quiet', 'Rechnen Sie mit Feindfeuer!': 'Expect enemy fire!',
+  'Spezialkräfte verdeckt absetzen': 'Covert special forces insertion', 'Spezialkräfte herausholen': 'Special forces extraction', 'Team': 'Team',
+  'Absetzpunkt': 'Insertion point', 'Aufnahmepunkt': 'Extraction point', 'Lage': 'Situation',
+  'Feind am Absetzpunkt möglich!': 'Enemy possible at the insertion point!', 'Feind in der Gegend – tief und unauffällig anfliegen': 'Enemy in the area – approach low and quiet',
+  'Team entdeckt – Feind verfolgt es!': 'Team compromised – enemy in pursuit!', 'Team wartet versteckt': 'Team waiting in hiding',
+  'keine – das Team zeigt sich erst bei der Landung': 'none – the team only shows itself when you land',
+  'Wir sind aufgeflogen und werden verfolgt!': "We've been compromised and are being pursued!", 'Auftrag erfüllt.': 'Mission complete.',
+  'Nachschubflug (Munition, Wasser, Verpflegung)': 'Resupply flight (ammo, water, rations)', 'Ladung': 'Cargo', 'Ziel': 'Destination',
+  'HEISS – Außenposten unter Feuer!': 'HOT – outpost under fire!', 'KALT': 'COLD', 'HEISS': 'HOT', 'Wir liegen unter Feuer!': "We're under fire!",
+  'Personentransport (VIP)': 'Passenger transport (VIP)', 'Fluggast': 'Passenger', 'Hinweis': 'Note',
+  'Ruhig fliegen und sanft landen – Bonus ohne Schaden': 'Fly smoothly and land gently – bonus without damage',
+  'Bewaffnete Aufklärung – drei Punkte überfliegen': 'Armed reconnaissance – overfly three points', 'Vorgabe': 'Requirement',
+  'Jeden Punkt unter 180 m über Grund in max. 180 m Abstand überfliegen': 'Overfly each point below 180 m AGL within 180 m',
+  'Feindbewegungen gemeldet': 'Enemy movement reported', 'Luftnahunterstützung – Truppe im Gefecht (TIC)': 'Close air support – troops in contact (TIC)',
+  'Einsatzort': 'Location', 'Eigene Truppe': 'Friendly forces', 'Feind im Umkreis von 500 m niederkämpfen': 'Destroy the enemy within 500 m',
+  'Bergung abgeschossener Besatzung': 'Rescue of a downed crew', 'Maschine': 'Aircraft', 'Absturzort (ca.)': 'Crash site (approx.)', 'Besatzung': 'Crew',
+  'HEISS – Feind in der Nähe!': 'HOT – enemy nearby!', 'KALT – unklar, Vorsicht': 'COLD – unclear, be careful',
+  'Pilot ist': 'The pilot is', 'Besatzung ist': 'The crew is',
+  'Alle Verwundeten': 'All casualties', 'Alle Überlebenden': 'All survivors', 'Alle Soldaten': 'All soldiers',
+  'Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.': 'Crew: cabin full! The rest has to go with the second helicopter.',
+  'Suchgebiet': 'Search area', 'keine Feindbewegung.': 'no enemy movement.',
+  'Sanitäter: Wir übernehmen! Bringt sie ins Lazarett!': 'Medic: we take over! Get them to the hospital!', 'Crew: Absetzen – alle raus!': 'Crew: drop-off – everybody out!',
+  'Sanitäter': 'Medic', 'Lazarett': 'Hospital', 'Besatzungsmitglieder': 'crew members', 'AUFTRAG ERFÜLLT': 'MISSION COMPLETE', 'Heiße LZ': 'Hot LZ',
+  'Zeitbonus': 'Time bonus', 'Ohne Schaden': 'No damage', 'Schaden genommen': 'Damage taken', 'Gesamt': 'Total',
+  'TOC: Der Auftrag ist gescheitert. Neuer Auftrag folgt.': 'TOC: The mission has failed. A new mission will follow.',
+  'Warte auf neuen Auftrag…': 'Waiting for a new mission…', 'Neuer Auftrag – Briefing bestätigen': 'New mission – confirm briefing',
+  'Kiste': 'crate', 'Kisten': 'crates', 'Personen': 'persons', 'Spezialkräfte': 'special forces', 'Verwundeter': 'casualty',
+  'Überlebender': 'survivor', 'Überlebende': 'survivors', 'Soldat': 'soldier', 'wartet': 'waiting', 'warten': 'waiting',
+  'Suchgebiet anfliegen – nach Rauchsäule des Wracks Ausschau halten': 'Fly to the search area – look for the smoke column of the wreck',
+  '(rotes Kreuz)': '(red cross)',
+  'TOC: Angriff abgewehrt! Gute Arbeit – die FOB ist sicher.': 'TOC: Attack repelled! Good work – the FOB is secure.',
+  'FOB VERTEIDIGT': 'FOB DEFENDED', 'Angreifer ausgeschaltet': 'Attackers neutralized', 'TOC: Der Feind zieht sich zurück – letzte Angreifer stellen!': 'TOC: The enemy is retreating – hunt down the last attackers!',
+
+  // ------------------------------------------------------------ Waffen, Ränge, Richtungen
+  'Sturmgewehr': 'assault rifle', 'Maschinengewehr': 'machine gun', 'Granatwerfer': 'grenade launcher', 'Schrotflinte': 'shotgun',
+  'Pistole': 'pistol', 'Panzerfaust': 'anti-tank launcher', 'leichtes MG': 'light machine gun',
+  'Norden': 'north', 'Nordosten': 'northeast', 'Osten': 'east', 'Südosten': 'southeast', 'Süden': 'south', 'Südwesten': 'southwest', 'Westen': 'west', 'Nordwesten': 'northwest',
+  'NO': 'NE', 'O': 'E', 'SO': 'SE',
+
+  // ------------------------------------------------------------ Einsatzgebiete / Einheiten
+  'Baumlinie': 'the tree line', 'Dschungel': 'jungle', 'Bäume': 'trees', 'Lehmmauern': 'the mud walls', 'Ortschaft': 'village', 'Pappeln': 'poplars',
+  'Lagebesprechung': 'briefing', 'Frontbesuch': 'visit to the front', 'Gefechtsstandverlegung': 'command post relocation',
+  'ein Kongressabgeordneter': 'a congressman', 'Oberst Moore': 'Colonel Moore', 'der Distriktgouverneur': 'the district governor',
+  'Shura mit den Dorfältesten': 'shura with the village elders', 'der Regionalkommandeur': 'the regional commander', 'ein Polizeichef': 'a police chief',
+  'Waffensystemoffizier (CPG)': 'Gunner (CPG)', 'Heckschütze (Rampe)': 'Ramp gunner', 'SEAL-Zug Bravo': 'SEAL Platoon Bravo',
+  'KSK-Kommandotrupp 2': 'KSK Commando Team 2', 'Ranger-Zug Alpha': 'Ranger Platoon Alpha',
+  'Bravo 6, 2/7. Kavallerie': 'Bravo 6, 2/7 Cavalry', 'Charlie 3, 1/5. Kavallerie': 'Charlie 3, 1/5 Cavalry', 'Alpha 2, 2/12. Infanterie': 'Alpha 2, 2/12 Infantry',
+  'Delta 6, 1/8. Kavallerie': 'Delta 6, 1/8 Cavalry', 'Tiger 4, Fernspäher-Team': 'Tiger 4, LRRP team', 'Echo 1, 173. Luftlandebrigade': 'Echo 1, 173rd Airborne Brigade',
+  'Raider 2, 1/327. Infanterie': 'Raider 2, 1/327 Infantry', 'Mustang 5, 3/21. Infanterie': 'Mustang 5, 3/21 Infantry',
+  'Wolf 2-1, 2/508. Fallschirmjäger': 'Wolf 2-1, 2/508 Parachute Infantry', 'Gator 3, 1/6. Marines': 'Gator 3, 1/6 Marines', 'Kilo 1-3, 3/7. Marines': 'Kilo 1-3, 3/7 Marines',
+  'Spartan 6, 2/87. Infanterie': 'Spartan 6, 2/87 Infantry', 'Falke 2, Ausbildungs- und Schutzbataillon': 'Falke 2, Training and Protection Battalion',
+  'Viking 4, Fernspäher': 'Viking 4, long-range recon', 'Taurus 2, 1/320. Feldartillerie': 'Taurus 2, 1/320 Field Artillery',
+  'Bell UH-1D „Huey“': 'Bell UH-1D “Huey”', 'Sikorsky UH-60 „Black Hawk“': 'Sikorsky UH-60 “Black Hawk”', 'Boeing CH-47F „Chinook“': 'Boeing CH-47F “Chinook”',
+  'Boeing AH-64E „Apache Guardian“': 'Boeing AH-64E “Apache Guardian”',
+};
+
+// Vorlagen mit Platzhaltern
+const EN_T = {
+  '{0} ist noch nicht wieder verfügbar – in {1} s.': '{0} is not available yet – {1} s left.',
+  '{0} ist bereits im Einsatz.': '{0} is already on station.',
+  '{0}: Keine Feindkräfte in Ihrer Nähe aufgeklärt – Anforderung abgebrochen.': '{0}: no enemy forces spotted near you – request cancelled.',
+  '{0}: {1}, verstanden – {2}. Ziel {3} m {4} von Ihnen, Eintreffen in ca. 15 Sekunden.{5}': '{0}: {1}, copy – {2}. Target {3} m {4} of you, time on target about 15 seconds.{5}',
+  '{0}: Bombe ausgeklinkt – 10 Sekunden!': '{0}: bomb away – 10 seconds!', '{0}: Einschlag! Gute Wirkung im Ziel.': '{0}: impact! Good effect on target.',
+  '{0}: Napalm ausgeklinkt!': '{0}: napalm away!', '{0}: Erster Anflug abgeschlossen, komme zurück für den zweiten.': '{0}: first pass complete, coming around for the second.',
+  '{0}: Munition für diesen Einsatz verschossen. Hog verlässt das Gebiet.': '{0}: Winchester for this sortie. Hog is leaving the area.',
+  '{0}: Auf Station. Halten Sie die Köpfe unten.': '{0}: on station. Keep your heads down.',
+  '{0}: Treibstoff und Munition knapp – kehren zur FOB zurück.': '{0}: low on fuel and ammo – returning to the FOB.',
+  '{0} Schütze: Munition leer!': '{0} gunner: out of ammo!',
+  '{0} · {1} % Treibstoff · Kabine {2}/{3}': '{0} · {1} % fuel · cabin {2}/{3}', 'wieder bereit in {0} s': 'ready again in {0} s', 'FOB {0}': 'FOB {0}',
+  'Sie sind Waffensystemoffizier: {0}-Kanone, Zoom mit Rechtsklick / ZL. {1}.': 'You are the gunner (CPG): {0} cannon, zoom with right click / ZL. {1}.',
+  'Sie bedienen {0} {1}{2}. {3}.': 'You man {0} {1}{2}. {3}.', '{0} fliegt': '{0} is flying', '{0} fliegt.': '{0} is flying.',
+  'Sie sitzen in der Kabine von {0} #{1}. {2} Aussteigen: E / Ⓐ – nur am Boden.': 'You are in the cabin of {0} #{1}. {2} Exit: E / Ⓐ – only on the ground.',
+  'Spieler {0}': 'Player {0}', 'Diesen Platz gibt es im {0} nicht.': 'The {0} has no such seat.',
+  'Der {0} hat keine Kabine – nur Pilot und Waffensystemoffizier.': 'The {0} has no cabin – only pilot and gunner (CPG).',
+  'Der Platz {0} ist besetzt ({1}).': 'The seat {0} is taken ({1}).',
+  '{0} aufgenommen – {1} Schuss. Wirksam gegen Fahrzeuge.': '{0} picked up – {1} rounds. Effective against vehicles.',
+  'Anforderung {0} gesendet …': 'Request for {0} sent …', 'Ersatzmaschine startet von der {0}.': 'Replacement aircraft launching from {0}.',
+  'Alle Hubschrauber sind bemannt – {0} #{1} wurde angefunkt und holt Sie bei {2} ab.': 'All helicopters are crewed – {0} #{1} has been called and will pick you up at {2}.',
+  'TOC: {0} braucht Abholung bei {1} (Planquadrat {2}).': 'TOC: {0} needs pickup at {1} (grid {2}).',
+  'Verstanden – {0} #{1} holt Sie bei {2} ab ({3} m von Ihnen).': 'Copy – {0} #{1} will pick you up at {2} ({3} m from you).',
+  'App-Version {0}': 'App version {0}', 'Version {0}': 'Version {0}', 'Wechsle nach {0} …': 'Switching to {0} …',
+  '· {0} PLÄTZE': '· {0} SEATS', '{0} · {1} PLÄTZE · {2}': '{0} · {1} SEATS · {2}', 'KARTE: {0}': 'MAP: {0}', 'HUBSCHRAUBER: {0}': 'HELICOPTER: {0}', 'ZEIT: {0}': 'TIME: {0}',
+  '· {0} Punkte · {1} Einsätze · {2} gerettet · {3} transportiert': '· {0} points · {1} missions · {2} rescued · {3} transported',
+  '{0}, hier TOC {1}. Willkommen in {2}. Halten Sie sich bereit.': '{0}, this is TOC {1}. Welcome to {2}. Stand by.',
+  'Eigene IP: {0}': 'My IP: {0}', '{0} · {1} Spieler · {2}': '{0} · {1} players · {2}',
+  'Spiel konnte nicht eröffnet werden: {0}': 'Could not host the game: {0}',
+  'Mehrspieler-Spiel eröffnet ({0}). Mitspieler im selben WLAN können jetzt beitreten.': 'Multiplayer game hosted ({0}). Players on the same Wi-Fi can join now.',
+  'Verbinde mit {0} …': 'Connecting to {0} …', 'Verbunden mit {0}. Sie sind {1} in {2} #{3}.': 'Connected to {0}. You are {1} in {2} #{3}.',
+  'MAYDAY, MAYDAY! {0}{1} stürzt ab!': 'MAYDAY, MAYDAY! {0}{1} is going down!',
+  'TOC: Eine Ersatzmaschine steht auf Pad {0} bereit.': 'TOC: A replacement aircraft is ready on pad {0}.',
+  '{0}: kein Rotpunktvisier – mit ZL über Kimme und Korn zielen.': '{0}: no red dot – aim down the iron sights with ZL.',
+  'BETANKUNG {0} % · REPARATUR {1} % · MUNITION': 'REFUELING {0} % · REPAIR {1} % · AMMO',
+  '{0}: Panzerfaust aufnehmen': '{0}: pick up launcher', '{0}: In {1} #{2} einsteigen': '{0}: board {1} #{2}', '{0}: Aussteigen': '{0}: exit',
+  'Abholung {0}': 'Pickup {0}', 'Fehler beim Start: {0}': 'Startup error: {0}',
+  '{0} – Pad {1}': '{0} – pad {1}', 'Pad {0}': 'Pad {0}', 'Absetzpunkt {0}': 'Insertion point {0}', 'Punkt {0}': 'Point {0}',
+  '{0} · Planquadrat {1}': '{0} · grid {1}', '{0} ({1} liegend, {2} gehfähig)': '{0} ({1} litter, {2} walking)', '{0} Rauch': '{0} smoke',
+  '{0} – Lazarett (Pad MED)': '{0} – hospital (pad MED)', '{0} Verwundete': '{0} casualties', ', davon {0} {1}': ', {0} of them {1}',
+  '„{0}, hier {1}. Wir haben {2}{3}. {4} Erbitten sofortige Evakuierung bei {5}.“': '“{0}, this is {1}. We have {2}{3}. {4} Request immediate evacuation at {5}.”',
+  'Truppentransport ({0})': 'Troop transport ({0})', '{0} · {1} · {2} ab A': '{0} · {1} · {2} from A', 'HEISS bei {0}!': 'HOT at {0}!',
+  '„{0}, hier TOC {1}. {2} Soldaten von {3} nach {4} verbringen.{5}“': '“{0}, this is TOC {1}. Move {2} soldiers from {3} to {4}.{5}”',
+  '{0} · {1} Mann': '{0} · {1} men',
+  '„{0}, hier TOC. {1} muss verdeckt bei {2} abgesetzt werden. Aufnahme bei {3}, Pad H1. Keine Rauchzeichen.“': '“{0}, this is TOC. {1} needs a covert insertion at {2}. Pickup at {3}, pad H1. No smoke.”',
+  '„{0}, hier {1}. {2} Erbitten Exfil bei {3}, Planquadrat {4}.“': '“{0}, this is {1}. {2} Request exfil at {3}, grid {4}.”',
+  '{0} Kisten – Aufnahme {1}, Pad H1': '{0} crates – pickup {1}, pad H1',
+  '„{0}, hier {1}. Uns gehen Munition und Wasser aus. Bitte {2} Kisten Nachschub.{3}“': '“{0}, this is {1}. We are running out of ammo and water. Request {2} crates of supplies.{3}”',
+  '{0} mit Begleitschutz – {1}': '{0} with escort – {1}', '{0}, Pad H1': '{0}, pad H1',
+  '„{0}, hier TOC. {1} muss zur {2} nach {3}. Bitte ohne Umwege und sanft.“': '“{0}, this is TOC. {1} has to go to {3} for a {2}. Direct and smooth, please.”',
+  '„{0}, hier TOC. Klären Sie {1} auf und melden Sie Feindbewegungen.“': '“{0}, this is TOC. Reconnoiter {1} and report enemy movement.”',
+  'ca. {0} {1}, auch Fahrzeuge möglich': 'about {0} {1}, vehicles possible', '{0} Rauch markiert die eigene Stellung': '{0} smoke marks the friendly position',
+  '„{0}, hier {1}. Wir liegen bei {2} unter schwerem Feuer, ca. {3} {4}. Erbitten sofortige Luftunterstützung!“': '“{0}, this is {1}. We are under heavy fire at {2}, about {3} {4}. Request immediate air support!”',
+  '{0} („{1}“)': '{0} (“{1}”)', 'Planquadrat {0} – Suchradius 400 m': 'Grid {0} – search radius 400 m', '{0} ({1}) · ca. {2}': '{0} ({1}) · approx. {2}',
+  '{0} Überlebende': '{0} survivors', '{0} Rauch, sobald sie Sie hören': '{0} smoke once they hear you', '{0} – Pad MED': '{0} – pad MED',
+  '„Mayday, Mayday! {0} ist runter! {1} am Boden. Achten Sie auf die Rauchsäule des Wracks.“': '“Mayday, Mayday! {0} is down! {1} on the ground. Look for the smoke column of the wreck.”',
+  'Treibstoff knapp ({0} %, benötigt ca. {1} %) – vorher am Tankwagen (POL) tanken!': 'Fuel low ({0} %, about {1} % needed) – refuel at the fuel truck (POL) first!',
+  'AUFTRAG #{0} – {1}': 'MISSION #{0} – {1}',
+  'TOC: Die Truppe wartet neben Pad {0}. Landen Sie dort zum Aufnehmen.': 'TOC: The troops are waiting next to pad {0}. Land there to pick them up.',
+  'Crew: Erster ist an Bord! Noch {0}.': 'Crew: first one is aboard! {0} to go.', '3 Punkte aufgeklärt, {0} Feinde gemeldet': '3 points reconnoitered, {0} enemies reported',
+  '{0} Kisten Nachschub geliefert': '{0} crates of supplies delivered', '{0} sicher abgesetzt': '{0} dropped off safely', '{0} unentdeckt abgesetzt': '{0} inserted undetected',
+  '{0} herausgeholt': '{0} extracted', '{0} Feinde bekämpft': '{0} enemies engaged',
+  'Crew: {0} an Bord – los, los, los! Kurs {1} nach {2}.': 'Crew: {0} aboard – go, go, go! Heading {1} to {2}.',
+  'ca. {0} Feinde gesichtet!': 'about {0} enemies spotted!', '{0}: {1} aufgeklärt – {2}': '{0}: {1} reconnoitered – {2}',
+  '{0}: Wir hören Sie – IR-Blitzer ist an.': '{0}: we hear you – IR strobe is on.',
+  '{0}: {1}, wir hören Sie! Rauch ist geworfen – bestätigen Sie {2}.': '{0}: {1}, we hear you! Smoke is out – confirm {2}.',
+  '{0}: Sehe {1}en Rauch, wir kommen rein.': '{0}: I see {1} smoke, coming in.',
+  '{0}: Achtung, die LZ ist HEISS! Feindfeuer aus Richtung {1}!': '{0}: Caution, the LZ is HOT! Enemy fire from {1}!',
+  '{0}: Wir sehen einen Hubschrauber! Wir sind {1} von ihm auf der Lichtung!': '{0}: We see a helicopter! We are {1} of it in the clearing!',
+  '{0} Verwundete gerettet': '{0} casualties rescued', '{0} {1} gerettet': '{0} {1} rescued', '{0} Soldaten verbracht': '{0} soldiers transported', '{0} Punkte': '{0} points',
+  '{0}: Feind zieht sich zurück – danke für die Unterstützung, {1}!': '{0}: Enemy is withdrawing – thanks for the support, {1}!',
+  'TOC: Gut gemacht, {0}. Auftrag erledigt.': 'TOC: Well done, {0}. Mission complete.', 'Lazarett: Danke, {0}! Ihr habt Leben gerettet.': 'Hospital: Thank you, {0}! You saved lives.',
+  'Feind bei {0} bekämpfen – noch ca. {1} (eigene Truppe: {2}er Rauch)': 'Engage the enemy at {0} – about {1} left (friendlies: {2} smoke)',
+  '{0} · {1} · HEISS': '{0} · {1} · HOT', 'Punkt {0}/3: {1} tief überfliegen (unter 180 m über Grund)': 'Point {0}/3: overfly {1} low (below 180 m AGL)',
+  '{0} · {1}/3 Punkte': '{0} · {1}/3 points', 'Einsteigen: {0}/{1} – Position halten!': 'Boarding: {0}/{1} – hold position!',
+  'Auf Pad {0} landen – Soldaten aufnehmen': 'Land on pad {0} – pick up the soldiers', 'Bei {0} landen ({1}er Rauch) – {2} {3}': 'Land at {0} ({1} smoke) – {2} {3}',
+  'Aussteigen: {0}/{1} – am Boden bleiben': 'Unloading: {0}/{1} – stay on the ground', 'Alle aufgenommen – {0}/{1} abgeliefert': 'All aboard – {0}/{1} delivered',
+  'Zur FOB – auf Pad {0} landen{1}': 'To the FOB – land on pad {0}{1}', 'Nach {0} fliegen und landen': 'Fly to {0} and land',
+  '{0} · {1} {2} · HEISS': '{0} · {1} {2} · HOT', '{0} · {1} {2} · KALT': '{0} · {1} {2} · COLD',
+  '{0} ({1}) · {2}': '{0} ({1}) · {2}', '{0} (Tragefall)': '{0} (litter case)', '{0}, davon {1} {2}': '{0}, {1} of them {2}',
+  '{0} ist dem Einsatz beigetreten.': '{0} has joined the mission.', '{0} hat den Einsatz verlassen.': '{0} has left the mission.',
+  'TOC: ALARM! Feindangriff auf die {0} aus Richtung {1}! Etwa {2} Mann – alle verfügbaren Kräfte zur Verteidigung!': 'TOC: ALERT! Enemy attack on {0} from the {1}! About {2} fighters – all available forces to the defense!',
+  'Feindangriff aus Richtung {0}': 'Enemy attack from the {0}',
+};
+
+const exact = new Map(Object.entries(EN));
+const pats = Object.entries(EN_T).map(([de, en]) => {
+  const parts = de.split(/(\{\d\})/);
+  const order = [];
+  const src = parts.map((p) => { const m = p.match(/^\{(\d)\}$/); if (m) { order.push(+m[1]); return '([\\s\\S]*?)'; } return p.replace(/[.*+?^$()|[\]\\{}]/g, '\\$&'); }).join('');
+  return { re: new RegExp('^' + src + '$'), order, en, lit: de.replace(/\{\d\}/g, '').length };
+}).sort((a, b) => b.lit - a.lit);
+
+const cache = new Map();
+function trCore(s, depth) {
+  if (exact.has(s)) return exact.get(s);
+  if (depth > 3 || !/[A-Za-zÄÖÜäöüß]/.test(s)) return s;
+  for (const p of pats) {
+    const m = p.re.exec(s);
+    if (!m) continue;
+    const vals = [];
+    p.order.forEach((idx, k) => { vals[idx] = trPiece(m[k + 1], depth + 1); });
+    return p.en.replace(/\{(\d)\}/g, (x, i) => vals[+i] ?? '');
+  }
+  // Aufzählungen („A, B und C“) Stück für Stück
+  if (s.includes(', ')) {
+    const parts = s.split(', '), outp = parts.map((x) => trPiece(x, depth + 1));
+    if (outp.some((x, i) => x !== parts[i])) return outp.join(', ');
+  }
+  return s;
+}
+function trPiece(s, depth = 0) {
+  const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s);
+  if (!m[2]) return s;
+  return m[1] + trCore(m[2], depth) + m[3];
+}
+
+// Übersetzt einen deutschen Text (bei Deutsch unverändert)
+export function tr(s) {
+  if (lang === 'de' || typeof s !== 'string' || !s) return s;
+  let r = cache.get(s);
+  if (r === undefined) {
+    r = trPiece(s);
+    if (cache.size > 4000) cache.clear();
+    cache.set(s, r);
+  }
+  return r;
+}
+
+// ---------------------------------------------------------------- DOM
+const orig = new WeakMap();   // Textknoten -> deutscher Originaltext
+const done = new WeakMap();   // Textknoten -> zuletzt gesetzte Übersetzung
+const ATTRS = ['placeholder', 'title', 'aria-label'];
+
+function doText(n) {
+  const cur = n.data;
+  if (done.get(n) === cur) return;           // schon übersetzt (eigene Änderung)
+  orig.set(n, cur);
+  const out = tr(cur);
+  done.set(n, out);
+  if (out !== cur) n.data = out;
+}
+function doEl(el) {
+  for (const a of ATTRS) {
+    if (!el.hasAttribute || !el.hasAttribute(a)) continue;
+    const key = 'i18n' + a;
+    const cur = el.getAttribute(a);
+    if (el[key + 'Out'] === cur) continue;
+    el[key] = cur;
+    const out = tr(cur);
+    el[key + 'Out'] = out;
+    if (out !== cur) el.setAttribute(a, out);
+  }
+}
+function walk(root) {
+  if (root.nodeType === 3) { doText(root); return; }
+  if (root.nodeType !== 1 || root.tagName === 'SCRIPT' || root.tagName === 'STYLE') return;
+  doEl(root);
+  const it = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  let n;
+  while ((n = it.nextNode())) { if (n.nodeType === 3) doText(n); else doEl(n); }
+}
+// Alles auf Deutsch zurücksetzen (für den Sprachwechsel)
+function restore(root) {
+  const it = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  let n;
+  while ((n = it.nextNode())) {
+    if (n.nodeType === 3) {
+      if (orig.has(n) && done.get(n) === n.data) n.data = orig.get(n);
+      done.delete(n);
+    } else for (const a of ATTRS) {
+      const key = 'i18n' + a;
+      if (n[key] !== undefined && n[key + 'Out'] === n.getAttribute(a)) n.setAttribute(a, n[key]);
+      n[key + 'Out'] = undefined;
+    }
+  }
+}
+
+let observer = null;
+export function setLang(l) {
+  const next = l === 'en' ? 'en' : 'de';
+  if (observer) restore(document.body);
+  lang = next;
+  cache.clear();
+  document.documentElement.lang = lang;
+  document.title = lang === 'en' ? 'Hot LZ – Helicopter Missions' : 'Hot LZ – Hubschrauber-Einsätze';
+  if (lang === 'en') {
+    walk(document.body);
+    if (!observer) {
+      observer = new MutationObserver((list) => {
+        if (lang === 'de') return;
+        for (const m of list) {
+          if (m.type === 'characterData') doText(m.target);
+          else if (m.type === 'attributes') doEl(m.target);
+          else for (const n of m.addedNodes) walk(n);
+        }
+      });
+      observer.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+    }
+  }
+}
+
+// Standard: Gerätesprache (Deutsch oder sonst Englisch)
+export function defaultLang() {
+  const l = (navigator.language || 'de').toLowerCase();
+  return l.startsWith('de') ? 'de' : 'en';
+}
+
+// Bestätigungsdialoge mit übersetzen
+const _confirm = window.confirm.bind(window);
+window.confirm = (m) => _confirm(tr(m));
+const _alert = window.alert.bind(window);
+window.alert = (m) => _alert(tr(m));

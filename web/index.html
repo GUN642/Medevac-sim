@@ -62,6 +62,7 @@
   <div id="touch-buttons">
     <button data-action="seat-next" class="no-foot">SITZ</button>
     <button data-action="camera" class="pilot-only">KAMERA</button>
+    <button data-action="cam-dist" class="pilot-only">ABSTAND</button>
     <button data-action="map">KARTE</button>
     <button data-action="radio" class="no-foot">AUFTRAG</button>
     <button data-action="pickup" class="foot-only">ABHOLUNG</button>
@@ -212,6 +213,7 @@
         <tr><th>Maus (Schütze)</th><td>Zielen (Klick sperrt den Zeiger) · Linksklick feuern · Rechtsklick Zoom</td></tr>
         <tr><th>Zu Fuß</th><td>WASD laufen · Maus zielen · Linksklick feuern · Rechtsklick zoomen · Shift sprinten · Leertaste springen · C ducken · R nachladen · 1–5 / Mausrad Waffe · V Ego-Perspektive (Rechtsklick = über Kimme und Korn zielen) · E ein-/aussteigen · G Hubschrauber rufen</td></tr>
         <tr><th>Rechte Maustaste halten</th><td>Kamera schwenken · Mausrad Zoom · Esc gibt die Maus frei</td></tr>
+        <tr><th>+ / − · Mausrad</th><td>Außenansicht: Abstand zum Hubschrauber</td></tr>
         <tr><th>X</th><td>Besatzung / Platz wechseln (Mehrspieler)</td></tr>
         <tr><th>C</th><td>Außenansicht / Cockpit</td></tr>
         <tr><th>M</th><td>Karte</td></tr>
@@ -230,6 +232,7 @@
         <tr><th>Steuerkreuz</th><td>↑ Pilot · ← linker · → rechter Schütze · ↓ Auftrag</td></tr>
         <tr><th>Ⓐ / Ⓑ</th><td>Bestätigen / Auftrag annehmen</td></tr>
         <tr><th>Ⓨ</th><td>Kamera wechseln</td></tr>
+        <tr><th>R3 (Pilot)</th><td>Außenansicht: Abstand zum Hubschrauber</td></tr>
         <tr><th>Ⓧ</th><td>Karte</td></tr>
         <tr><th>⊕ / ⊖</th><td>Pause / Besatzung (Platz wechseln, aussteigen)</td></tr>
         <tr><th>Zu Fuß</th><td>Linker Stick laufen (L3 sprinten) · rechter Stick zielen · ZR feuern · ZL zoomen · L/R oder ← Waffe · Ⓨ nachladen · → ducken · R3 Visier 3x · ↑ Ego-Perspektive · Ⓐ ein-/aussteigen · Ⓧ oder ↓ Hubschrauber rufen</td></tr>
@@ -244,6 +247,7 @@
         <tr><th>Als Schütze</th><td>FEUER halten und mit demselben Finger ziehen zum Zielen (oder rechts wischen)</td></tr>
         <tr><th>Zu Fuß</th><td>Links laufen, rechts wischen oder FEUER ziehen zum Zielen · WAFFE · LADEN · ZOOM · DUCKEN · ANSICHT · EIN/AUS · ABHOLUNG</td></tr>
         <tr><th>KAMERA · KARTE · AUFTRAG</th><td>Ansicht wechseln · Karte · Briefing zeigen</td></tr>
+        <tr><th>ABSTAND</th><td>Außenansicht: Abstand zum Hubschrauber</td></tr>
       </table>
     </div>
     <h3>So geht's</h3>
@@ -269,6 +273,9 @@
 <div id="settings" class="overlay dim hidden">
   <div class="panel-inner">
     <h2>EINSTELLUNGEN</h2>
+    <label>Sprache / Language
+      <select id="set-lang"><option value="de">Deutsch</option><option value="en">English</option></select>
+    </label>
     <label>Grafikqualität
       <select id="set-quality"><option value="low">Niedrig (Handy)</option><option value="medium">Mittel</option><option value="high">Hoch</option></select>
     </label>

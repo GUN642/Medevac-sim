@@ -274,7 +274,9 @@ export class Gunner {
       this.anglesTo(_v, a);
       if (this.inArc(a)) {
         tyaw = a.yaw; tpitch = a.pitch;
-        aligned = Math.abs(wrapAngle(tyaw - this.yaw)) < 0.04 && Math.abs(tpitch - this.pitch) < 0.04;
+        // Während eines Feuerstoßes wird nachgeführt statt abgesetzt
+        const tol = this.burst > 0 ? 0.14 : 0.04;
+        aligned = Math.abs(wrapAngle(tyaw - this.yaw)) < tol && Math.abs(tpitch - this.pitch) < tol;
       } else this.target = null;
     }
     const rate = 2.4 * dt;
@@ -283,7 +285,12 @@ export class Gunner {
     if (t && aligned) {
       if (this.burst <= 0) {
         this.pause -= dt;
-        if (this.pause <= 0) { this.burst = (6 + Math.floor(rand() * 8)) * (this.gun.minigun ? 4 : 1); this.pause = 0.8 + rand() * 1.2; }
+        // Lange Feuerstöße: MG 2,5–5 s, Minigun 1,5–3 s
+        if (this.pause <= 0) {
+          const secs = this.gun.minigun ? 1.5 + rand() * 1.5 : 2.5 + rand() * 2.5;
+          this.burst = Math.round(this.gun.rpm / 60 * secs);
+          this.pause = 1.0 + rand() * 1.5;
+        }
       }
       for (let n = 0; this.burst > 0 && this.cool <= 0 && n < (this.gun.minigun ? 10 : 4); n++) if (this.tryFire(game, 0.03)) this.burst--; else break;
     }
@@ -308,7 +315,8 @@ export class Gunner {
     game.combat.fire(muzzle, dir, this.heli.vel, tracer, false, this.gun.muzzleVel, this.mode === 'ai', !!this.gun.he, !!this.gun.heavy);
     if (tracer && game.net) game.net.gunFire(this.heli.index, this.side, muzzle, dir);
     game.effects.muzzle(muzzle.x + dir.x * 0.3, muzzle.y + dir.y * 0.3, muzzle.z + dir.z * 0.3, true);
-    if (this.shots % (this.gun.soundEvery || 1) === 0) game.audio.shot(this.gun.he || this.gun.heavy ? 'dshk' : this.gun.minigun ? 'm16' : 'm60', game.camera.position.distanceTo(muzzle));
+    if (this.gun.minigun) game.audio.loopShot(this, game.camera.position.distanceTo(muzzle));   // durchgehendes „BRRRT“
+    else if (this.shots % (this.gun.soundEvery || 1) === 0) game.audio.shot(this.gun.he || this.gun.heavy ? 'dshk' : this.gun.minigun ? 'm16' : 'm60', game.camera.position.distanceTo(muzzle));
     return true;
   }
 }

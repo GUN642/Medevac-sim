@@ -18,6 +18,7 @@ import { Soldier, WEAPONS, setWeaponSet } from './soldier.js';
 import { FUEL } from './config.js';
 import { clamp, damp, dist2, rand, wrapAngle } from './util.js';
 import * as PF from './platform.js';
+import { setLang, defaultLang } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const SEATS = ['pilot', 'left', 'right', 'ramp'];
@@ -29,6 +30,8 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 class Game {
   constructor() {
     this.settings = PF.loadSettings();
+    if (!this.settings.lang) this.settings.lang = defaultLang();
+    setLang(this.settings.lang);
     this.stats = PF.loadStats();
     this.state = 'loading';
     this.time = 0;
@@ -711,6 +714,7 @@ class Game {
     bind('set-mouse-fly', 'mouseFly', Boolean);
     bind('set-mouse-inv', 'mouseFlyInvert', Boolean);
     bind('set-diff', 'difficulty', Number);
+    bind('set-lang', 'lang', String, (v) => setLang(v));
     bind('set-fps', 'showFps', Boolean, (v) => $('fps').classList.toggle('hidden', !v));
     $('fps').classList.toggle('hidden', !s.showFps);
     on('btn-reload', () => location.reload());
@@ -1116,6 +1120,18 @@ class Game {
           if (this.seat === 'pilot') this.camMode = this.camMode === 'chase' ? 'cockpit' : 'chase';
           break;
         case 'zoom': this.zoomToggle = !this.zoomToggle; break;
+        // Außenansicht: Abstand zum Hubschrauber (Stufen bzw. +/−)
+        case 'cam-dist': case 'cam-in': case 'cam-out': {
+          if (this.seat !== 'pilot' || this.camMode !== 'chase') break;
+          const o = this.orbit, base = this.heli.spec.camDist;
+          if (a === 'cam-dist') {
+            const steps = [0.5, 0.75, 1, 1.5, 2.2], cur = o.dist / base;
+            const i = steps.findIndex((s) => s > cur + 0.05);
+            o.dist = base * steps[i < 0 ? 0 : i];
+          } else o.dist *= a === 'cam-in' ? 0.82 : 1.22;
+          o.dist = clamp(o.dist, base * 0.45, base * 2.6);
+          break;
+        }
         case 'seat-pilot': case 'dpad-up': this.wantSeat(this.myHeli, 'pilot'); break;
         case 'seat-left': case 'dpad-left': this.wantSeat(this.myHeli, 'left'); break;
         case 'seat-right': case 'dpad-right': this.wantSeat(this.myHeli, 'right'); break;
@@ -1467,7 +1483,7 @@ class Game {
     } else {
       const o = this.orbit;
       o.yaw -= look.dx; o.pitch = clamp(o.pitch + look.dy, -0.15, 1.2);
-      o.dist = clamp(o.dist + look.zoom * 3, 12, 95);
+      o.dist = clamp(o.dist * (1 + look.zoom * 0.12), h.spec.camDist * 0.45, h.spec.camDist * 2.6);
       if (!this.input.mouseDown[2]) o.yaw *= 1 - damp(0.8, dt);
       const yaw = h.yaw + o.yaw;
       const tx = h.pos.x + Math.sin(yaw) * Math.cos(o.pitch) * o.dist;

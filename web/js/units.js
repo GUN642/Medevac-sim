@@ -4,6 +4,9 @@ import { Figure, buildLitter, vcMat, merge } from './models.js';
 import { vehicleParts } from './afgModels.js';
 import { HALF, HELI } from './config.js';
 import { rand, clamp, dist2, bearing, dirName } from './util.js';
+
+// Feinde eröffnen das Feuer erst innerhalb von 400 m (darüber trifft mit Handwaffen niemand)
+const ENEMY_RANGE = 400;
 import { T, figFor } from './theme.js';
 
 const _a = new THREE.Vector3();
@@ -167,7 +170,7 @@ export class Units {
         id: uid++, kind: 'enemy', alive: true, heavy,
         fireT: 1 + rand() * 4, burst: 0, shotT: 0, reveal: 0, suppress: 0, deadT: 0,
         x: 0, z: 0, y: 0, missionId: opts.missionId, patrol: opts.patrol || null,
-        range: heavy ? 1100 : 480,
+        range: ENEMY_RANGE,
       });
       this.place(e, x, z);
       e.cover = w.coverAt(x, z);
@@ -195,7 +198,7 @@ export class Units {
       Object.assign(e, {
         id: uid++, kind: 'enemy', alive: true, heavy: true, vehicle: true, hp: 10,
         fireT: 2 + rand() * 3, burst: 0, shotT: 0, reveal: 0, suppress: 0, deadT: 0,
-        x: 0, z: 0, y: 0, missionId: opts.missionId, range: 1200, speed: 9, cover: 0,
+        x: 0, z: 0, y: 0, missionId: opts.missionId, range: ENEMY_RANGE, speed: 9, cover: 0,
       });
       this.place(e, x, z);
       // anfahren bis auf etwa 150–220 m an den Einsatzort
@@ -237,7 +240,7 @@ export class Units {
       if (w.sites.some((s) => dist2(s.x, s.z, x, z) < 220)) continue;
       const p = { x, z, members: [] };
       p.members = this.spawnEnemies(x, z, 3 + Math.floor(rand() * 5), { rMin: 0, rMax: 35, patrol: p, heavy: rand() < 0.25 });
-      for (const e of p.members) e.range = e.heavy ? 900 : 420;
+      for (const e of p.members) e.range = ENEMY_RANGE;
       this.patrols.push(p);
     }
   }
@@ -293,7 +296,7 @@ export class Units {
     for (const e of members) {
       const aa = a + rand.range(-0.4, 0.4), rr = 228 + rand() * 40;
       e.advance = { x: f.x + Math.cos(aa) * rr, z: f.z + Math.sin(aa) * rr };
-      e.range = e.heavy ? 900 : 520;
+      e.range = ENEMY_RANGE;
       e.fireT = 6 + rand() * 6;
       this.setPose(e, 0);
     }
@@ -495,7 +498,7 @@ export class Units {
         for (const ft of g.footTargets()) {
           const sp = ft.s.pos;
           const ds = Math.hypot(sp.x - e.x, sp.y - e.y, sp.z - e.z);
-          if (ds < Math.min(bestD, 380) && w.los(e.x, e.y + 1.5, e.z, sp.x, sp.y + 1.4, sp.z)) { bestD = ds; e.tgt = ft; }
+          if (ds < Math.min(bestD, ENEMY_RANGE) && w.los(e.x, e.y + 1.5, e.z, sp.x, sp.y + 1.4, sp.z)) { bestD = ds; e.tgt = ft; }
         }
         if (!e.tgt && m) {
           let best = 350;

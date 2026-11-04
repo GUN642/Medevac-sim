@@ -144,7 +144,7 @@ export class Helicopter {
   }
 
   takeDamage(n, kind = 'bullet') {
-    if (this.crashed) return;
+    if (this.crashed || !(n > 0)) return;   // nie „heilen“ (z. B. harte Landung mit Restfahrt)
     if (kind === 'bullet') n *= this.spec.armor || 1;   // Kampfhubschrauber sind gepanzert
     this.hp -= n;
     this.damageTaken += n;
@@ -279,7 +279,7 @@ export class Helicopter {
         if (water && (vy < -1.5 || h2 > 4)) { this.crash('Notwasserung im Fluss!'); }
         else if (vy < -9 || h2 > 22 || tilt > 0.75) this.crash('Absturz – zu harte Landung!');
         else if (vy < -4.2 || h2 > 9) {
-          this.takeDamage((-vy - 4.2) * 9 + Math.max(0, h2 - 9) * 2.5, 'impact');
+          this.takeDamage(Math.max(0, -vy - 4.2) * 9 + Math.max(0, h2 - 9) * 2.5, 'impact');
           this.events.push('hardlanding');
         } else this.events.push('touchdown');
       }

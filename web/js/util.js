@@ -1,3 +1,4 @@
+import { tr, getLang } from './i18n.js';
 // Kleine Hilfsfunktionen
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -45,10 +46,10 @@ export const headingFromYaw = (yaw) => ((deg(-yaw) % 360) + 360) % 360;
 const DIRS = ['Norden', 'Nordosten', 'Osten', 'Südosten', 'Süden', 'Südwesten', 'Westen', 'Nordwesten'];
 const DIRS_SHORT = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
 export const dirName = (b) => DIRS[Math.round(b / 45) % 8];
-export const dirShort = (b) => DIRS_SHORT[Math.round(b / 45) % 8];
+export const dirShort = (b) => tr(DIRS_SHORT[Math.round(b / 45) % 8]);
 
 export function fmtDist(m) {
-  if (m >= 1000) return (m / 1000).toFixed(1).replace('.', ',') + ' km';
+  if (m >= 1000) return (m / 1000).toFixed(1).replace('.', getLang() === 'en' ? '.' : ',') + ' km';
   return Math.round(m / 10) * 10 + ' m';
 }
 export const fmtBearing = (b) => String(Math.round(b) % 360).padStart(3, '0') + '°';

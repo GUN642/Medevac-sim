@@ -390,7 +390,9 @@ export class Net {
     const gun = h.spec.gun;
     g.combat.fire(this._a, this._b, h.vel, true, true, gun.muzzleVel, false, !!gun.he);
     g.effects.muzzle(this._a.x + this._b.x * 0.3, this._a.y + this._b.y * 0.3, this._a.z + this._b.z * 0.3, true);
-    g.audio.shot(gun.he ? 'dshk' : 'm60', g.camera.position.distanceTo(this._a));
+    const d = g.camera.position.distanceTo(this._a);
+    if (gun.minigun) g.audio.loopShot('net' + m.i + ':' + m.s, d, 0.16);   // nur jeder 5. Schuss kommt an
+    else g.audio.shot(gun.he ? 'dshk' : gun.heavy ? 'dshk' : 'm60', d);
   }
 }
 

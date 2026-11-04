@@ -33,6 +33,7 @@ export class AudioSys {
       squelch: this.makeSquelch(),
       noise: this.makeNoise(2),
       brrt: this.makeBrrt(),
+      brrtLoop: this.makeBrrt(true),
     };
     this.loops = {};
 
@@ -123,14 +124,16 @@ export class AudioSys {
   }
 
   // A-10 GAU-8: 70 Schuss pro Sekunde verschmelzen zu einem tiefen Brummen ("BRRRT")
-  makeBrrt() {
-    const sr = this.ctx.sampleRate, len = Math.floor(sr * 1.6);
+  // Gatling-Kanone (A-10) bzw. Minigun: verschmolzene Schussfolge als tiefes Knattern.
+  // loop = nahtlos wiederholbare Sekunde ohne Ein-/Ausblenden
+  makeBrrt(loop = false) {
+    const sr = this.ctx.sampleRate, dur = loop ? 1 : 1.6, len = Math.floor(sr * dur);
     const b = this.ctx.createBuffer(1, len, sr);
     const d = b.getChannelData(0);
     let lp = 0;
     for (let i = 0; i < len; i++) {
-      const t = i / sr, ph = (t * 65) % 1;
-      const env = Math.min(1, t * 30) * Math.min(1, (1.6 - t) * 6);
+      const t = i / sr, ph = (t * (loop ? 50 : 65)) % 1;
+      const env = loop ? 1 : Math.min(1, t * 30) * Math.min(1, (1.6 - t) * 6);
       lp += ((Math.random() * 2 - 1) - lp) * 0.15;
       d[i] = (Math.exp(-ph * 6) * (lp * 1.6 + Math.sin(ph * 40) * 0.5)) * env * 0.9;
     }
@@ -242,6 +245,31 @@ export class AudioSys {
     if (g < 0.02) return;
     const delay = Math.min(1.5, dist / 343);
     this.play(type, { gain: g * (type === 'm60' ? 0.55 : type === 'click' ? 0.3 : 0.9), rate: 0.92 + Math.random() * 0.16, delay, lowpass: dist > 150 ? 1800 : 0 });
+  }
+  // Dauerton für schnell feuernde Waffen: jeder Schuss hält den Ton kurz am Leben, danach klingt er aus
+  loopShot(key, dist, hold = 0.07) {
+    if (!this.ctx) return;
+    const g0 = Math.min(1, 50 / Math.max(10, dist));
+    const L = this.gunLoops || (this.gunLoops = new Map());
+    let v = L.get(key);
+    const t = this.ctx.currentTime;
+    if (!v) {
+      if (g0 < 0.02) return;
+      const s = this.ctx.createBufferSource();
+      s.buffer = this.buffers.brrtLoop; s.loop = true;
+      const f = this.ctx.createBiquadFilter(); f.type = 'lowpass';
+      const g = this.ctx.createGain(); g.gain.value = 0;
+      s.connect(f).connect(g).connect(this.sfx);
+      s.start();
+      v = { s, f, g };
+      L.set(key, v);
+    }
+    v.f.frequency.value = dist > 150 ? 1600 : 6000;
+    v.g.gain.cancelScheduledValues(t);
+    v.g.gain.setTargetAtTime(g0 * 0.9, t, 0.01);
+    v.g.gain.setTargetAtTime(0, t + hold, 0.035);
+    clearTimeout(v.stop);
+    v.stop = setTimeout(() => { try { v.s.stop(); } catch (e) { /* schon gestoppt */ } L.delete(key); }, 1500);
   }
   hit() { this.play('hit', { gain: 0.6, rate: 0.8 + Math.random() * 0.5 }); }
   boom(dist = 0) { this.play('boom', { gain: Math.min(1, 200 / Math.max(50, dist)), delay: Math.min(2, dist / 343) }); }

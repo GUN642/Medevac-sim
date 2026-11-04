@@ -61,6 +61,8 @@ der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wech
   E / Ⓐ / EIN-AUS eine **AT4** (Vietnam: **M72 LAW**) mit 3 Schuss auf – ein Treffer zerstört ein Fahrzeug.
   Nachschub gibt es nur an den Ablagen.
 - **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller rechten Stick drücken (R3), Touch 3x).
+- **Sprache** Deutsch oder Englisch (Einstellungen → Sprache / Language).
+- **Kameraabstand** in der Außenansicht: Mausrad oder + / −, Controller R3 (als Pilot), Touch ABSTAND.
 - Alle modernen Hubschrauber erreichen mindestens **120 Knoten**, der Apache etwa 145.
 
 ### Auftragsarten
