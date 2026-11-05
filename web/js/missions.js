@@ -22,6 +22,8 @@ export class Missions {
     this.stale = [];
     this.boats = [];
     this.lastSite = null;
+    this.recentPts = [];    // zuletzt angeflogene Orte (nicht gleich wieder dorthin)
+    this.recentTypes = [];  // zuletzt vergebene Auftragsarten
     this.unloadT = 0;
   }
 
@@ -33,12 +35,28 @@ export class Missions {
     return { name: site.name, short: site.name, x: site.x, z: site.z, y: site.y, kind: 'site', site, radius: 65 };
   }
 
-  pickSite(exclude = []) {
+  // Ort war kürzlich schon Einsatzort?
+  isRecent(x, z, d = 550) { return this.recentPts.some((p) => dist2(p.x, p.z, x, z) < d); }
+  remember(p) {
+    if (!p || p.kind === 'fob') return;
+    this.recentPts.push({ x: p.x, z: p.z });
+    if (this.recentPts.length > 10) this.recentPts.shift();
+  }
+
+  // Landezone wählen: keine der letzten Einsatzorte, schwierige LZs (Gipfel, Sattel, Schlucht, Wadi) bevorzugt
+  pickSite(exclude = [], preferHard = 0.45) {
     const w = this.game.world;
     const maxD = 3900 + this.count * 300;
-    let cands = w.sites.filter((s) => s !== this.lastSite && !exclude.includes(s) && dist2(s.x, s.z, w.fob.x, w.fob.z) < maxD);
-    if (cands.length < 2) cands = w.sites.filter((s) => s !== this.lastSite && !exclude.includes(s));
-    const s = rand.pick(cands);
+    const ok = (s) => s !== this.lastSite && !exclude.includes(s) && !this.isRecent(s.x, s.z);
+    let cands = w.sites.filter((s) => ok(s) && dist2(s.x, s.z, w.fob.x, w.fob.z) < maxD);
+    if (cands.length < 3) cands = w.sites.filter(ok);
+    if (!cands.length) {
+      // alle Orte kürzlich benutzt: den am längsten nicht angeflogenen (weitesten von den letzten Orten) nehmen
+      const far = (s) => Math.min(...this.recentPts.map((p) => dist2(p.x, p.z, s.x, s.z)));
+      cands = w.sites.filter((s) => s !== this.lastSite && !exclude.includes(s)).sort((a, b) => far(b) - far(a)).slice(0, 4);
+    }
+    const hard = cands.filter((s) => s.hard);
+    const s = hard.length && rand() < preferHard ? rand.pick(hard) : rand.pick(cands);
     this.lastSite = s;
     return s;
   }
@@ -53,12 +71,14 @@ export class Missions {
     const anyGunship = g.helis.some((h) => h.spec.capacity === 0);
     let type = 'medevac';
     if (this.count > 1) {
-      let x = r * TYPE_WEIGHTS.reduce((a, t) => a + t[1], 0);
-      for (const [t, wgt] of TYPE_WEIGHTS) { if ((x -= wgt) <= 0) { type = t; break; } }
+      // nicht dieselbe Auftragsart wie bei den letzten beiden Aufträgen
+      const pool = TYPE_WEIGHTS.filter(([t]) => !this.recentTypes.slice(-2).includes(t));
+      let x = r * pool.reduce((a, t) => a + t[1], 0);
+      for (const [t, wgt] of pool) { if ((x -= wgt) <= 0) { type = t; break; } }
     }
     if (noCabin || (anyGunship && rand() < 0.3)) type = 'cas';
     // Bootstrupp: nur wenn es in Reichweite breites Wasser gibt
-    const water = type === 'boat' ? w.findWater(rand) : null;
+    const water = type === 'boat' ? w.findWater(rand, 2500, 5600, this.recentPts) : null;
     if (type === 'boat' && !water) type = 'medevac';
     const hotChance = clamp(0.3 + this.count * 0.05, 0.3, 0.7);
     const m = {
@@ -106,8 +126,9 @@ export class Missions {
       }
     } else if (type === 'insert' || type === 'exfil') {
       const cap = Math.max(...g.helis.map((x) => x.spec.capacity));
-      const c = w.findClearing(rand);
-      const site = c ? null : this.pickSite();
+      const hardFree = w.sites.filter((s) => s.hard && !this.isRecent(s.x, s.z));
+      const c = hardFree.length && rand() < 0.55 ? null : w.findClearing(rand, 3000, 5600, this.recentPts);
+      const site = c ? null : this.pickSite([], 0.85);
       const pt = c ? { name: `Absetzpunkt ${rand.pick(NATO)}`, x: c.x, z: c.z, y: c.y } : site;
       const p = { name: pt.name, short: pt.name, x: pt.x, z: pt.z, y: pt.y, kind: 'site', site: pt, radius: 45, remote: !!c };
       m.unit = rand.pick(T.sofUnits);
@@ -161,7 +182,7 @@ export class Missions {
       const cand = w.villages.filter((v) => dist2(v.x, v.z, w.fob.x, w.fob.z) > 2500);
       for (let k = 0; k < 3; k++) {
         let q = cand.length && rand() < 0.5 ? rand.pick(cand.filter((v) => !pts.some((p) => p.name === v.name)) || cand) : null;
-        if (!q) { const c = w.findClearing(rand, 3000, 5600, pts); if (c) q = { name: `Punkt ${rand.pick(NATO)}`, ...c }; }
+        if (!q) { const c = w.findClearing(rand, 3000, 5600, pts.concat(this.recentPts)); if (c) q = { name: `Punkt ${rand.pick(NATO)}`, ...c }; }
         if (!q) q = this.pickSite();
         pts.push({ name: q.name, short: q.name, x: q.x, z: q.z, y: q.y ?? w.height(q.x, q.z), kind: 'recon', radius: 150 });
       }
@@ -195,6 +216,10 @@ export class Missions {
       const a = rand() * Math.PI * 2, d = 220 + rand() * 180;
       m.approx = { x: site.x + Math.cos(a) * d, z: site.z + Math.sin(a) * d };
     }
+    // merken, damit die nächsten Aufträge woanders hinführen
+    this.recentTypes.push(type);
+    if (this.recentTypes.length > 4) this.recentTypes.shift();
+    for (const p of m.points || [m.from, m.to]) this.remember(p);
     this.current = m;
     this.phase = 'briefing';
     g.hud.showBriefing(m, this.describe(m));
@@ -295,7 +320,8 @@ export class Missions {
     // Schwierige Landezonen
     for (const p of [m.from, m.to]) {
       const hs = p && p.site && p.site.hard;
-      if (hs) rows.push(['Schwierige LZ', hs === 'peak' ? `${p.name}: Gipfel-LZ – kleine Landefläche, Fallwinde, steile Hänge` : `${p.name}: enges Flusstal – hohe Hänge, wenig Platz`, 'hot']);
+      const txt = { peak: 'Gipfel-LZ – kleine Landefläche, Fallwinde, steile Hänge', valley: 'enges Flusstal – hohe Hänge, wenig Platz', ridge: 'Hang-LZ – schmaler Absatz am Steilhang, Rotor frei halten', wadi: 'Wadi – enges Trockental zwischen Böschungen, starker Staub' };
+      if (hs) rows.push(['Schwierige LZ', `${p.name}: ${txt[hs]}`, 'hot']);
     }
     const need = this.fuelNeeded(m);
     if (g.heli.fuel < need) rows.push(['Hinweis', `Treibstoff knapp (${Math.round(g.heli.fuel)} %, benötigt ca. ${Math.round(need)} %) – vorher am Tankwagen (POL) tanken!`, 'hot']);

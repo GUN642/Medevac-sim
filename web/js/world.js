@@ -129,6 +129,7 @@ export class World {
       this.flatten(x, z, 46, 75, h, 'site');
     }
     this.addHardSites(['Hill 875', 'Hill 881', 'Hill 950', 'Hill 1338'], ['LZ Gorge', 'LZ Canyon', 'LZ Rapids'], 100);
+    this.addRidgeSites(['LZ Saddle', 'LZ Ledge', 'LZ Shelf', 'LZ Crow'], [], 80);
 
     // Dörfer
     const vnames = VILLAGE_NAMES.slice();
@@ -193,6 +194,40 @@ export class World {
     }
   }
 
+  // Weitere schwierige LZs: schmale Absätze am Steilhang (Sattel) und enge Wadis (Trockentäler)
+  addRidgeSites(ridgeNames, wadiNames, minH) {
+    const rng = this.rng, F = this.fob;
+    const free = (x, z) => !this.sites.some((s) => dist2(s.x, s.z, x, z) < 420) && dist2(x, z, F.x, F.z) > 2600 && dist2(x, z, F.x, F.z) < 6000;
+    const rn = ridgeNames.slice();
+    for (let i = 0; i < 16000 && rn.length; i++) {
+      const x = rng.range(-HALF + 500, HALF - 500), z = rng.range(-HALF + 500, HALF - 500);
+      if (!free(x, z)) continue;
+      const o = {};
+      const h = this.rawHeight(x, z, o);
+      if (h < minH || o.mountain < 0.35) continue;
+      // deutlich geneigter Hang: auf einer Seite steil hoch, auf der anderen steil runter
+      let up = 0, down = 0;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2, d = this.rawHeight(x + Math.cos(a) * 60, z + Math.sin(a) * 60) - h; up = Math.max(up, d); down = Math.min(down, d); }
+      if (up < 25 || down > -25 || up > 120) continue;
+      this.sites.push({ name: rn.shift(), x, z, y: h, r: 15, hard: 'ridge' });
+      this.flatten(x, z, 15, 20, h, 'site');
+    }
+    const wn = (wadiNames || []).slice();
+    for (let i = 0; i < 16000 && wn.length; i++) {
+      const x = rng.range(-HALF + 500, HALF - 500), z = rng.range(-HALF + 500, HALF - 500);
+      if (!free(x, z)) continue;
+      const o = {};
+      const h = this.rawHeight(x, z, o);
+      if (!(o.wadi > 0.7) || h < 2) continue;
+      // Wadi-Grund mit Uferböschung ringsum
+      let banks = 0;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; if (this.rawHeight(x + Math.cos(a) * 45, z + Math.sin(a) * 45) > h + 7) banks++; }
+      if (banks < 3) continue;
+      this.sites.push({ name: wn.shift(), x, z, y: h, r: 16, hard: 'wadi' });
+      this.flatten(x, z, 16, 8, h, 'site');
+    }
+  }
+
   // Gipfel-LZ in der Nähe (für Fallwinde)
   peakNear(x, z) {
     for (const s of this.sites) if (s.hard === 'peak' && dist2(s.x, s.z, x, z) < 220) return s;
@@ -200,13 +235,13 @@ export class World {
   }
 
   // Wasserfläche für das Absetzen von Booten (breit und tief genug)
-  findWater(rand, minD = 2500, maxD = 5600) {
+  findWater(rand, minD = 2500, maxD = 5600, avoid = []) {
     const F = this.fob;
     for (let i = 0; i < 3000; i++) {
       const a = rand() * Math.PI * 2, r = minD + rand() * (maxD - minD);
       const x = F.x + Math.cos(a) * r, z = F.z + Math.sin(a) * r;
       if (Math.abs(x) > HALF - 400 || Math.abs(z) > HALF - 400) continue;
-      if (this.height(x, z) > -1.2) continue;
+      if (this.height(x, z) > -1.2 || avoid.some((p) => dist2(p.x, p.z, x, z) < 900)) continue;
       let ok = true;
       for (let k = 0; k < 8 && ok; k++) { const b = (k / 8) * Math.PI * 2; if (this.height(x + Math.cos(b) * 9, z + Math.sin(b) * 9) > -0.4) ok = false; }
       if (ok) return { x, z };

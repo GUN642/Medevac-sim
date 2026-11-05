@@ -113,6 +113,7 @@ export class AfghanWorld extends World {
       this.flatten(x, z, 50, 80, h, 'site');
     }
     this.addHardSites(["OP Eagle's Nest", 'OP Restrepo', 'OP Vegas', 'OP Mustang'], ['HLZ Korengal', 'HLZ Pech River', 'HLZ Watapur'], 260);
+    this.addRidgeSites(['HLZ Saddle', 'HLZ Ledge', 'HLZ Shelf', 'HLZ Kowkh'], ['HLZ Wadi Doab', 'HLZ Wadi Khar', 'HLZ Dry Creek'], 160);
 
     const vnames = VILLAGE_NAMES.slice();
     tries = 0;
