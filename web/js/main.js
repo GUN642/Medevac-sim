@@ -1174,7 +1174,10 @@ class Game {
         case 'seat-left': case 'dpad-left': this.wantSeat(this.myHeli, 'left'); break;
         case 'seat-right': case 'dpad-right': this.wantSeat(this.myHeli, 'right'); break;
         case 'num4': if ((this.heli.spec.seats || []).includes('ramp')) this.wantSeat(this.myHeli, 'ramp'); break;
-        case 'seat-next': if (this.seat === 'pilot' && this.heli.spec.rockets) this.fireRocket(); else this.cycleSeat(1); break;
+        // SITZ / Tab wechselt immer den Platz; Controller R feuert als Apache-Pilot Raketen
+        case 'seat-next': this.cycleSeat(1); break;
+        case 'rocket-tap': if (this.seat === 'pilot' && this.heli.spec.rockets) this.fireRocket(); break;
+        case 'pad-r': if (this.seat === 'pilot' && this.heli.spec.rockets) this.fireRocket(); else this.cycleSeat(1); break;
         case 'pickup': case 'rocket': if (this.seat === 'pilot' && this.heli.spec.rockets) this.fireRocket(); break;
         case 'seat-prev': this.cycleSeat(-1); break;
         case 'dpad-down': case 'radio': {
@@ -1391,7 +1394,7 @@ class Game {
       if (h.boundaryWarn) warnings.push({ text: 'EINSATZGEBIET VERLASSEN – UMKEHREN', level: 'warn' });
       if (!hint && h.fuel < 35 && dF < 600) hint = 'Zum Tanken auf Pad POL (gelber Rand, neben dem Tankwagen) landen';
       if (!hint && h.spec.capacity > 0 && this.missions.target(h) === 'from' && this.heliLoad(h) >= h.spec.capacity) hint = 'Kabine voll!';
-      if (!hint && this.seat === 'pilot' && h.spec.rockets && this.time < 90) hint = this.input.device === 'gamepad' ? 'Raketen: R · Kanone: KI-Waffensystemoffizier' : this.input.device === 'touch' ? 'Raketen: Taste RAKETE' : 'Raketen: G · Kanone schießt der Waffensystemoffizier';
+      if (!hint && this.seat === 'pilot' && h.spec.rockets && this.time < 90) hint = this.input.device === 'gamepad' ? 'Raketen: R · Kanone: KI-Waffensystemoffizier' : this.input.device === 'touch' ? 'Raketen: linken Stick kurz antippen (oder RAKETE)' : 'Raketen: G · Kanone schießt der Waffensystemoffizier';
       if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)';
     }
     if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });

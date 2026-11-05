@@ -154,7 +154,7 @@ export class Input {
         st.base.style.left = t.clientX - rect.left + 'px';
         st.base.style.top = t.clientY - rect.top + 'px';
         st.base.classList.add('active');
-        this.touch[side] = { id: t.identifier, x: 0, y: 0 };
+        this.touch[side] = { id: t.identifier, x: 0, y: 0, t0: e.timeStamp, moved: 0 };
         st.knob.style.transform = 'translate(-50%,-50%)';
       }, { passive: false });
       st.zone.addEventListener('touchmove', (e) => {
@@ -174,6 +174,7 @@ export class Input {
           const l = Math.hypot(dx, dy);
           if (l > R) { dx *= R / l; dy *= R / l; }
           tt.x = dx / R; tt.y = dy / R;
+          tt.moved = Math.max(tt.moved, Math.hypot(dx, dy));
           st.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
         }
       }, { passive: false });
@@ -182,6 +183,8 @@ export class Input {
           if (this.touch.aim && this.touch.aim.id === t.identifier) this.touch.aim = null;
           const tt = this.touch[side];
           if (tt && tt.id === t.identifier) {
+            // Kurzes Antippen des linken Sticks (ohne Steuerausschlag) feuert als Pilot eine Rakete
+            if (side === 'left' && this.mode === 'pilot' && e.timeStamp - tt.t0 < 250 && tt.moved < 10) this.actions.push('rocket-tap');
             this.touch[side] = null;
             st.knob.style.transform = 'translate(-50%,-50%)';
             st.base.classList.remove('active');
@@ -329,7 +332,7 @@ export class Input {
       if (pressed(3)) this.actions.push(this.mode === 'foot' ? 'pickup' : 'map');
       if (pressed(2)) this.actions.push(this.mode === 'foot' ? 'reload' : 'camera');
       if (pressed(4)) this.actions.push('seat-prev');
-      if (pressed(5)) this.actions.push('seat-next');
+      if (pressed(5)) this.actions.push(this.mode === 'foot' ? 'seat-next' : 'pad-r');
       if (pressed(9)) this.actions.push('pause');
       if (pressed(8)) this.actions.push('crew');
       if (pressed(12)) { this.pushDpad('up'); this.pushNav('nav-up', 'pad'); }
