@@ -116,6 +116,16 @@ const FIG_TYPES = {
   vipA:     { uni: 0xdcd6c6, skin: 0xb98560, hat: 'karakul', hatCol: 0x3a3028, pack: null, gun: null, robe: true, vest: 0x4a4a52, beard: 0x2a2a2a },
   vipV:     { uni: 0x5a6340, skin: 0xd2a07a, hat: 'cap', hatCol: 0x4a5236, pack: null, gun: null },
   tal:      { uni: 0x8d887c, skin: 0xb98560, hat: 'turban', hatCol: 0x1f1f1f, pack: null, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
+  // Hochwasser: Zivilisten, Helfer, Besatzung
+  civ:      { uni: 0xb03a2e, skin: 0xe0b08a, hat: null, pack: null, gun: null },
+  civ2:     { uni: 0x3a5a8a, skin: 0xd8a882, hat: null, pack: null, gun: null },
+  civ3:     { uni: 0xd8c040, skin: 0xe0b08a, hat: 'cap', hatCol: 0xd8c040, pack: null, gun: null },
+  woundedF: { uni: 0x5a6a7a, skin: 0xe0b08a, hat: 'band', hatCol: 0xeeeeee, pack: null, gun: null, blood: true },
+  thw:      { uni: 0x1f3a7a, skin: 0xd8a882, hat: 'helmet', hatCol: 0x1f3a7a, pack: null, gun: null, vest: 0xd8c43a },
+  fw:       { uni: 0x1c2638, skin: 0xd2a07a, hat: 'helmet', hatCol: 0xe8e0b0, pack: null, gun: null, vest: 0xc9c27a },
+  dlrg:     { uni: 0xc02a20, skin: 0xd8a882, hat: 'helmet', hatCol: 0xe8e8e8, pack: null, gun: null, vest: 0xe8d23a },
+  crewF:    { uni: 0x5a5e58, skin: 0xd8a882, hat: 'flight', hatCol: 0x4a4e4a, pack: null, gun: null },
+  vipF:     { uni: 0x2a2e38, skin: 0xe0b08a, hat: null, pack: null, gun: null },
   tal2:     { uni: 0x6e5f4a, skin: 0xb07a55, hat: 'turban', hatCol: 0xd8d2c0, pack: 0x3d3a30, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
 };
 

@@ -154,6 +154,7 @@ export class Units {
   }
 
   spawnEnemies(cx, cz, n, opts = {}) {
+    if (T.peaceful) return [];   // Katastropheneinsatz: keine Feinde
     const w = this.game.world;
     const list = [];
     let tries = 0;
@@ -186,6 +187,7 @@ export class Units {
 
   // Feindfahrzeuge (Pickup mit DShK bzw. Lkw), fahren an und schießen mit schwerem MG
   spawnVehicles(cx, cz, n, opts = {}) {
+    if (T.peaceful) return [];
     const w = this.game.world;
     const kind = T.id === 'afghanistan' ? 'technical' : 'truck';
     const list = [];
@@ -264,6 +266,7 @@ export class Units {
   // Angriffswellen des Vietcong auf die FOB (Host / Einzelspieler)
   updateFobAttack(dt) {
     const g = this.game;
+    if (T.peaceful) return;
     if (this.attackT === undefined) this.attackT = 150 + rand() * 90;
     if (!this.attack) {
       if (!g.started) return;

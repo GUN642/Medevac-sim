@@ -61,6 +61,7 @@ der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wech
   E / Ⓐ / EIN-AUS eine **AT4** (Vietnam: **M72 LAW**) mit 3 Schuss auf – ein Treffer zerstört ein Fahrzeug.
   Nachschub gibt es nur an den Ablagen.
 - **EOTech-Rotpunktvisier** mit klappbarem **3x-Vergrößerer** auf M4A1 und M249 (Taste B, Controller rechten Stick drücken (R3), Touch 3x).
+- **Karte Hochwasser 2021** (Katastrophenhilfe im fiktiven Lindental, keine Feinde): überflutete Dörfer, eingestürzte Brücken, Hochspannungsleitungen quer übers Tal, Dauerregen und Böen. Hubschrauber: CH-53GS mit Rettungswinde (ohne Bordwaffen) und neu der **Airbus H145M LUH SAR**. Neuer Auftrag **Windenrettung**: über dem Dach schweben, die Winde zieht die Menschen einzeln hoch; außerdem Bootstrupps, Versorgungsflüge, Lageerkundung, Krankentransport.
 - **Schwierige Landezonen**: enge Gipfel-LZs (z. B. Hill 875, OP Eagle's Nest) mit Fallwinden, schmale Absätze am Steilhang (Sattel/Ledge), Landeplätze tief im Flusstal und Wadis – mit Bonus ×1,3. Sie werden bevorzugt ausgewählt.
 - **Abwechslung**: dieselbe Auftragsart kommt nie zweimal hintereinander, kürzlich angeflogene Orte werden gemieden.
 - **Bootstrupp (Helocast)**: Spezialkräfte mit Schlauchboot auf den Fluss bringen – unter 4 m über dem Wasser schweben, das Team springt ab und fährt mit dem Boot davon.

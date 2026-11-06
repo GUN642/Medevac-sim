@@ -44,6 +44,19 @@ export const HELI_TYPES = {
     seats: ['pilot', 'left', 'right', 'ramp'], seatNames: { ramp: 'Heckschütze (Rampe)' },
     rotorAudio: 1.7, rotorCut: 0.9, camDist: 40, shadow: 18, door: 'ramp', rampZ: 7.2, numbers: ['85+12', '84+05'],
   },
+  h145: {
+    id: 'h145', model: 'h145', name: 'Airbus H145M LUH SAR', short: 'H145M', callsign: 'SAR 41',
+    emptyMass: 2000, fuelMassFull: 560, paxMass: 95, capacity: 6, maxThrust: 3900 * G,
+    skidH: 1.3, rotorRadius: 5.5, rotorTop: 1.95, maxPitch: 0.5, maxRoll: 0.66, climbRate: 11, sinkRate: 8, yawRate: 1.55,
+    vmax: 132, agility: 1.4, burn: 0.8, drag: 0.8, armor: 1,
+    gun: { name: '–', rpm: 1, ammo: 0, muzzleVel: 800, range: 10 }, noGuns: true, hoist: true,
+    seats: ['pilot'], rotorAudio: 1.8, rotorCut: 1.3, camDist: 17, shadow: 7, door: 'side', numbers: ['77+05', '77+12'],
+  },
+};
+// CH-53GS im Katastropheneinsatz: ohne Bordwaffen, mit Rettungswinde
+HELI_TYPES.ch53f = {
+  ...HELI_TYPES.ch53, id: 'ch53f', name: 'Sikorsky CH-53GS (Rettungswinde)', gun: { name: '–', rpm: 1, ammo: 0, muzzleVel: 800, range: 10 },
+  noGuns: true, hoist: true, seats: ['pilot'], seatNames: {},
 };
 
 // ---------------------------------------------------------------- Einsatzgebiete
@@ -90,6 +103,23 @@ export const THEMES = {
     sky: { top: 0x6d93c0, horizon: 0xd9ccb0, fog: 0xd6c8a8, fogDensity: 0.00058, hemiSky: 0xeae4d6, hemiGround: 0x8a6e4a, hemi: 1.15, sun: 0xfff2dc, sunI: 2.8, clouds: 8 },
     dust: 2.4, gusts: 1,
   },
+  flood: {
+    id: 'flood', name: 'Hochwasser 2021', country: 'Lindental', sub: 'HOCHWASSER · KATASTROPHENHILFE',
+    fobName: 'Einsatzbasis Hohenfeld', helis: ['ch53f', 'h145'], peaceful: true,
+    missionWeights: [['winch', 40], ['medevac', 14], ['resupply', 13], ['boat', 12], ['transport', 9], ['recon', 7], ['vip', 5]],
+    enemyName: 'Unbekannte', enemyFrom: 'Norden', enemyCover: 'Ortschaft', trees: 'Bäume', crashTrees: 'In die Bäume gestürzt!',
+    friend: () => (rand() < 0.5 ? 'thw' : 'fw'), enemy: () => 'civ',
+    wounded: 'woundedF', crew: 'crewF', player: 'crewF', pilot: 'crewF', sof: 'dlrg', vip: 'vipF',
+    sofUnits: ['DLRG-Strömungsretter Altenbrück', 'Wasserwacht-Bootstrupp 3', 'THW-Fachgruppe Wassergefahren', 'Feuerwehr-Bootstrupp Lindenau'],
+    vips: [{ who: 'die Ministerpräsidentin', why: 'Lageerkundung' }, { who: 'der Landrat', why: 'Krisenstabssitzung' }, { who: 'ein Baufachberater des THW', why: 'Begutachtung der Brücken' }],
+    units: [
+      'Feuerwehr Altenbrück', 'THW-Ortsverband Lindenau', 'DRK-Bereitschaft Mühlbach', 'Rettungsleitstelle Lindental',
+      'Polizei Lindental', 'Feuerwehr Kirchheim', 'Wasserwacht Steinbach', 'Ortsbürgermeister Rosenau',
+    ],
+    aircraft: [{ kind: 'huey', name: 'H135 Christoph 23', crew: 3, call: 'Christoph 23' }],
+    sky: { top: 0x6c7682, horizon: 0xa9aeb2, fog: 0xa3a8ab, fogDensity: 0.00095, hemiSky: 0xc4cad0, hemiGround: 0x3a4232, hemi: 1.2, sun: 0xdde2e8, sunI: 1.1, clouds: 70 },
+    dust: 0, gusts: 0.7,
+  },
 };
 
 export const T = Object.assign({}, THEMES.vietnam);
@@ -110,5 +140,7 @@ export function figFor(kind) {
   if (kind === 'sof') return T.sof;
   if (kind === 'vip') return T.vip;
   if (kind === 'cargo') return 'cargo';
+  if (kind === 'civ') return rand.pick(['civ', 'civ2', 'civ3']);
+  if (T.peaceful) return T.friend();
   return T.id === 'afghanistan' ? (rand() < 0.5 ? 'isaf' : 'bw') : kind === 'us2' ? 'us2' : 'us';
 }

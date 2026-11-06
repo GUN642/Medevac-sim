@@ -2,6 +2,7 @@
 import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
 import { AfghanWorld } from './worldAfg.js';
+import { FloodWorld } from './worldFlood.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
 import { NightSys } from './night.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
@@ -108,7 +109,7 @@ class Game {
     }
 
     await this.step('Erzeuge Gelände …', 10);
-    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : new World(this.scene, q);
+    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : new World(this.scene, q);
     await this.step('Effekte …', 60);
     this.effects = new Effects(this.scene, q);
     this.combat = new Combat(this);
@@ -257,9 +258,10 @@ class Game {
     this.input.setMode(seat);
     this.zoomToggle = false;
     this.helis.forEach((h, k) => {
-      for (const s of GUN_SEATS) h.model.guns[s].gunner.group.visible = !(k === i && seat === s);
+      for (const s of GUN_SEATS) h.model.guns[s].gunner.group.visible = !h.spec.noGuns && !(k === i && seat === s);
     });
     if (changedHeli) this.camInit = false;
+    if (seat === 'foot' && T.peaceful) return 'Im Katastropheneinsatz bleibt die Besatzung an Bord.';
     if (seat === 'foot') {
       if (prevSeat !== 'foot' || !this.soldier.active) {
         const h = this.helis[prevHeli];
@@ -566,6 +568,7 @@ class Game {
     const glide = gy + 22 + Math.max(0, d - 20) * 0.15;
     let targetY = Math.min(hmax + 60, glide);
     if (d > 60) targetY = Math.max(targetY, hnear + 26);
+    if (goal.winch) targetY = Math.max(targetY, goal.hoverY);   // Windenrettung: über dem Dach bleiben
     // Geschwindigkeit: ab 300 m gleichmäßig abbremsen (ca. 1,5 m/s²)
     const cruise = h.spec.vmax ? h.spec.vmax * 0.5144 * 0.9 : 50;
     const brakeD = Math.max(300, cruise * cruise / 3 * 0.75);
@@ -584,6 +587,7 @@ class Game {
     let collective = clamp((targetY - h.pos.y) * 0.08 - h.vel.y * 0.12, -1, 1);
     if (d < 28) collective = h.speed < 6 ? -0.8 : 0; // senkrecht aufsetzen
     // Bootstrupp: über dem Wasser in 3 m Höhe schweben statt wassern
+    if (goal.winch && d < 60) collective = clamp((goal.hoverY - h.pos.y) * 0.15 - h.vel.y * 0.25, -1, 1);
     if (goal.water && d < 60) collective = clamp((3 - h.agl) * 0.15 - h.vel.y * 0.25, -1, 1);
     return { pitch, roll, yaw, collective };
   }
@@ -845,7 +849,7 @@ class Game {
     $('menu').classList.remove('hidden');
     $('btn-continue').classList.toggle('hidden', !this.started);
     $('btn-start').classList.toggle('hidden', !!this.started);
-    $('btn-start-foot').classList.toggle('hidden', !!this.started);
+    $('btn-start-foot').classList.toggle('hidden', !!this.started || !!T.peaceful);
     $('btn-mp').classList.toggle('hidden', false);
     $('btn-quit').classList.toggle('hidden', !this.started);
     $('btn-quit').textContent = this.role === 'solo' ? 'SPIEL BEENDEN' : this.role === 'host' ? 'MEHRSPIELER BEENDEN' : 'MEHRSPIELER VERLASSEN';
@@ -1398,6 +1402,7 @@ class Game {
       if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)';
     }
     if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });
+    if (h.wireDist < 110 && !h.crashed) warnings.push({ text: 'STROMLEITUNG – ABSTAND HALTEN!', level: h.wireDist < 55 ? 'crit' : 'warn' });
     const critical = warnings.some((x) => x.level === 'crit');
 
     this.effects.update(dt, this.camera.position);

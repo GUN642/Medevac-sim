@@ -3,6 +3,7 @@ import * as THREE from './lib/three.module.min.js';
 import { tr } from './i18n.js';
 import { HALF, WORLD_SIZE, HELI } from './config.js';
 import { SUPPORT, supportKinds } from './airsupport.js';
+import { T } from './theme.js';
 import { clamp, bearing, headingFromYaw, fmtDist, fmtBearing, dist2, dirShort, fmtTime } from './util.js';
 
 const $ = (id) => document.getElementById(id);
@@ -148,7 +149,9 @@ export class HUD {
     this.el.pax.innerHTML = h.spec.capacity ? `<span class="lbl">KABINE</span> ${pc}/${h.spec.capacity}` : `<span class="lbl">RAKETEN</span> ${h.rockets ?? 0}`;
     const L = h.gunners.left, R = h.gunners.right;
     const Rp = h.gunners.ramp;
-    this.el.ammo.innerHTML = R.disabled ? `<span class="lbl">${h.spec.gun.name}</span> ${L.ammoText()}` : `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammoText()} · R ${R.ammoText()}${Rp && !Rp.disabled ? ` · H ${Rp.ammoText()}` : ''}`;
+    this.el.ammo.style.display = h.spec.noGuns ? 'none' : '';
+    if (h.spec.noGuns) this.el.ammo.innerHTML = '';
+    else this.el.ammo.innerHTML = R.disabled ? `<span class="lbl">${h.spec.gun.name}</span> ${L.ammoText()}` : `<span class="lbl">${h.spec.gun.name}</span> L ${L.ammoText()} · R ${R.ammoText()}${Rp && !Rp.disabled ? ` · H ${Rp.ammoText()}` : ''}`;
     // Infanterie
     const fh = document.getElementById('foot-hud');
     if (g.seat === 'foot') {
@@ -354,18 +357,18 @@ export class HUD {
       const paxNames = c.pax.map((x) => esc(name(x))).join(', ');
       if (h.spec.capacity) html += `<button data-heli="${i}" data-seat="pax" class="${paxMine ? 'mine' : ''}">Passagier<small>${paxNames || 'Kabine'} · ${g.heliLoad(h)}/${h.spec.capacity}</small></button>`;
       const me = g.seatOf(g.myId);
-      if (me && me.i === i) html += `<button data-heli="${i}" data-seat="foot">Aussteigen<small>zu Fuß (nur am Boden)</small></button>`;
+      if (me && me.i === i && !T.peaceful) html += `<button data-heli="${i}" data-seat="foot">Aussteigen<small>zu Fuß (nur am Boden)</small></button>`;
       html += '</div>';
     });
     // Luftunterstützung
     const kinds = supportKinds();
-    html += `<div class="crew-heli cas"><h3>Luftunterstützung <small>wirkt auf Feinde im Umkreis von ca. 700 m um Ihre Position · Taste L</small></h3>`;
+    if (kinds.length) html += `<div class="crew-heli cas"><h3>Luftunterstützung <small>wirkt auf Feinde im Umkreis von ca. 700 m um Ihre Position · Taste L</small></h3>`;
     for (const k of kinds) {
       const left = Math.ceil(g.air.remaining(k));
       const busy = g.air.list.some((a) => a.kind === k) || [...g.air.mirror.values()].some((a) => a.kind === k);
       html += `<button data-cas="${k}" class="${left > 0 || busy ? 'taken' : ''}">${SUPPORT[k].name}<small>${busy ? 'im Einsatz' : left > 0 ? `wieder bereit in ${left} s` : SUPPORT[k].desc}</small></button>`;
     }
-    html += '</div>';
+    if (kinds.length) html += '</div>';
     if (g.seat === 'foot') html += '<p class="note">Sie sind zu Fuß unterwegs. Einsteigen: an einen gelandeten Hubschrauber herangehen und E / Ⓐ drücken oder hier einen Platz wählen.</p>';
     if (g.helis.length > 1) html += '<p class="note">Umsteigen in den anderen Hubschrauber: beide Maschinen nebeneinander landen (unter 150 m).</p>';
     if (html === this.lastCrewHtml) return;

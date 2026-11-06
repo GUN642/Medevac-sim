@@ -303,11 +303,102 @@ function hull(group, key, list, paint, extraSkin = []) {
 const both = (z0, z1, a0, a1) => [{ z0, z1, a0, a1 }, { z0, z1, a0: PI - a1, a1: PI - a0 }];
 
 export function buildHeliModel(spec, opts = {}) {
-  if (spec.model === 'blackhawk') return buildBlackhawk(opts);
-  if (spec.model === 'chinook') return buildChinook(opts);
-  if (spec.model === 'ch53') return buildCH53(opts);
-  if (spec.model === 'apache') return buildApache(opts);
-  return buildHuey(opts);
+  const m = spec.model === 'blackhawk' ? buildBlackhawk(opts) : spec.model === 'chinook' ? buildChinook(opts) : spec.model === 'ch53' ? buildCH53(opts)
+    : spec.model === 'apache' ? buildApache(opts) : spec.model === 'h145' ? buildH145(opts) : buildHuey(opts);
+  // Katastropheneinsatz: Bordwaffen und Schützen ausblenden
+  if (spec.noGuns) for (const g of Object.values(m.guns)) { g.mount.visible = false; if (g.gunner) g.gunner.group.visible = false; }
+  return m;
+}
+
+// ================================================================= Airbus H145M LUH SAR
+function buildH145({ static: isStatic = false, number = '77+05' } = {}) {
+  const group = new THREE.Group();
+  const cockpitWin = [
+    { z0: -3.78, z1: -2.35, a0: 0.4, a1: PI - 0.4 },
+    { z0: -3.72, z1: -3.0, a0: PI + 0.7, a1: 2 * PI - 0.7 },
+    ...both(-3.05, -1.95, -0.3, 0.55),
+  ];
+  const cabWin = [...both(-1.55, 0.55, 0.02, 0.55), ...both(0.95, 1.5, 0.15, 0.5)];
+  const fus = [
+    { z: -4.05, w: 0.35, top: -0.25, bot: -0.55 },
+    { z: -3.75, w: 1.25, top: 0.3, bot: -0.8, nt: 2.1, nb: 2.4 },
+    { z: -3.1, w: 1.62, top: 0.75, bot: -0.92, nt: 2.4, nb: 3.2 },
+    { z: -2.2, w: 1.75, top: 1.0, bot: -0.95, nt: 3.2, nb: 4.5 },
+    { z: 0.9, w: 1.75, top: 1.02, bot: -0.95, nt: 3.4, nb: 4.5 },
+    { z: 1.7, w: 1.6, top: 0.98, bot: -0.6, nt: 3, nb: 3 },
+    { z: 2.3, w: 1.0, top: 0.95, bot: 0.15, nt: 2.4, nb: 2.4 },
+    { z: 3.0, w: 0.62, top: 0.95, bot: 0.45, nt: 2.2, nb: 2.2 },
+    { z: 6.4, w: 0.36, top: 0.98, bot: 0.66, nt: 2.2, nb: 2.2 },
+    { z: 6.7, w: 0.3, top: 0.95, bot: 0.72 },
+  ];
+  const cowl = [
+    { z: -1.95, w: 0.7, top: 1.15, bot: 1.0 },
+    { z: -1.5, w: 1.35, top: 1.62, bot: 0.98, nt: 3, nb: 4 },
+    { z: 1.4, w: 1.3, top: 1.56, bot: 0.98, nt: 3, nb: 4 },
+    { z: 2.15, w: 0.7, top: 1.3, bot: 1.0 },
+  ];
+  // Fenestron-Seitenleitwerk (Mantelpropeller)
+  const fin = plate([[5.95, 0.62], [6.95, 0.42], [7.45, 1.05], [7.35, 2.7], [6.85, 2.8], [6.3, 1.7]], 0.24, 'zy');
+  const h = hull(group, 'h145', [
+    { keys: fus, holes: [...cockpitWin, ...cabWin], glass: [...cockpitWin, ...cabWin], capEnd: true },
+    { keys: cowl, capStart: true, capEnd: true, radial: 24 },
+  ], { base: '#596066', frames: 14, stringers: 8, soot: [[0.4, 0.55, 0.05, 0.25]] }, [fin]);
+
+  const parts = [];
+  parts.push(P(box(1.6, 0.06, 3.4), 0x2b2d2e, [0, -0.75, -0.5]));
+  cockpit(parts, group, { z: -3.05, w: 1.45, y: -0.25, seatX: 0.42, seatZ: -2.2, seatY: -0.42 });
+  // Mantelring und Leitschaufeln des Fenestron
+  parts.push(P(tor(0.55, 0.11, 18), 0x4c5257, [0, 1.15, 6.95], [0, HALFPI, 0]));
+  parts.push(P(cyl(0.5, 0.5, 0.26, 18), 0x1d1f21, [0, 1.15, 6.95], [0, 0, HALFPI]));
+  // Höhenleitwerk mit Endscheiben
+  parts.push(P(box(2.7, 0.06, 0.62), 0x50575c, [0, 0.82, 5.55]));
+  for (const sx of [-1, 1]) parts.push(P(box(0.06, 0.62, 0.55), 0x50575c, [sx * 1.35, 0.92, 5.55]));
+  // Kufen
+  for (const sx of [-1, 1]) {
+    parts.push(tube([[sx * 1.0, -1.3, 1.6], [sx * 1.0, -1.3, -2.2], [sx * 1.0, -1.2, -2.65], [sx * 1.0, -0.98, -2.85]], 0.05, COL.metal));
+    for (const z of [-1.6, 0.8]) parts.push(tube([[sx * 1.0, -1.28, z], [sx * 0.98, -1.1, z], [sx * 0.75, -0.96, z], [0, -0.95, z]], 0.05, COL.metal, 10));
+  }
+  // Rettungswinde rechts über der Schiebetür
+  parts.push(P(box(0.75, 0.12, 0.14), 0x3a3d40, [1.15, 1.08, -0.9]));
+  parts.push(P(cyl(0.14, 0.14, 0.5, 10), 0xd8d8d0, [1.5, 1.02, -0.9], [HALFPI, 0, 0]));
+  parts.push(P(box(0.05, 0.3, 0.05), 0x222222, [1.55, 0.82, -0.9]));
+  parts.push(P(cyl(0.16, 0.2, 0.5, 12), COL.metal, [0, 1.8, -0.2]));
+  parts.push(P(cyl(0.035, 0.035, 1.1, 6), 0x111111, [0.35, -0.55, -3.95], [1.2, 0, 0]));
+  // Suchscheinwerfer und Antennen
+  parts.push(P(cyl(0.16, 0.16, 0.2, 10), 0xdedede, [0.3, -0.98, -2.6]));
+  parts.push(P(box(0.04, 0.4, 0.12), 0x111111, [0, 1.25, 2.6], [0.4, 0, 0]));
+  for (const s of [-1, 1]) {
+    decal(group, 'SAR', 0.95, 0.3, [h.X(-0.6), 0.55, -0.6], s, '#e8c020', 'bold 96px Arial');
+    ironCross(group, 0.55, [h.X(4.4), 0.72, 4.4], s);
+    decal(group, number, 1.0, 0.24, [h.X(1.4), 0.62, 1.4], s);
+  }
+  const mainRotor = new THREE.Group();
+  mainRotor.position.set(0, 2.05, -0.2);
+  mainRotor.add(new THREE.Mesh(rotorGeo(4, 5.5, 0.36, { hubR: 0.26 }), detailMat));
+  group.add(mainRotor);
+  const tailRotor = new THREE.Group();
+  tailRotor.position.set(0.14, 1.15, 6.95);
+  tailRotor.add(new THREE.Mesh(tailRotorGeo(8, 0.46, 0.12), detailMat));
+  group.add(tailRotor);
+  const f = finish(group, parts, {
+    gunMounts: [], floor: -0.75,
+    pilots: { x: 0.42, z: -2.25, sitY: -0.35 },
+    discs: [{ obj: mainRotor, r: 5.5 }],
+    beacon: [0, 1.62, 1.6],
+  });
+  const seats = seatsGrid([
+    [-0.45, -1.1, 0, 'floor'], [0.45, -1.1, 0, 'floor'], [-0.45, -0.1, Math.PI, 'floor'],
+    [0.45, -0.1, Math.PI, 'floor'], [-0.45, 0.8, 0, 'floor'], [0.45, 0.8, 0, 'floor'],
+  ]);
+  return {
+    group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
+    guns: f.guns, pilots: f.pilots, seats, isStatic,
+    eyePilot: new THREE.Vector3(0.42, 0.56, -2.55),
+    spin: [[mainRotor, 'y', 26], [tailRotor, 'x', 90]],
+    exhaust: new THREE.Vector3(0, 1.4, 2.2),
+    hoist: new THREE.Vector3(1.55, 0.7, -0.9),
+    gear: [[-1.0, -1.3, -1.9], [1.0, -1.3, -1.9], [-1.0, -1.3, 1.3], [1.0, -1.3, 1.3]],   // Aufsetzpunkte (Kufen) für den Bodenkontakt
+  };
 }
 
 // ================================================================= UH-1D „Huey“
@@ -710,6 +801,8 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   group.add(gearObj);
   const retract = { obj: gearObj, lift: 0.72, k: 0, up: false };
   // Heckrampe: Scharnier am Kabinenboden (z 4.6), hinteres Ende auf dem Boden
+  // Rettungswinde über der rechten vorderen Tür
+  parts.push(P(box(0.6, 0.14, 0.16), 0x3a3d40, [1.5, 1.35, -3.9]), P(cyl(0.15, 0.15, 0.5, 10), 0xd8d8d0, [1.78, 1.28, -3.9], [HALFPI, 0, 0]));
   const ramp = rampPart(group, { y: -1.05, z: 4.6, w: 2.3, len: 2.3, col: 0x353a2c, open: 0.26 });
   parts.push(P(box(2.9, 2.2, 0.06), 0x34372c, [0, 0.1, -4.75]));
   cockpit(parts, group, { z: -6.45, w: 2.3, y: -0.2, seatX: 0.6, seatZ: -5.45, seatY: -0.42 });
@@ -748,6 +841,7 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
     guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.45]), isStatic, ramp, retract,
+    hoist: new THREE.Vector3(1.75, 1.0, -3.9),
     eyePilot: new THREE.Vector3(0.6, 0.76, -5.92),
     spin: [[mainRotor, 'y', 17], [tailRotor, 'x', 60]],
     exhaust: new THREE.Vector3(1.45, 2.0, 2.1),

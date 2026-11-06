@@ -323,6 +323,12 @@ export class Helicopter {
     this.onGround = this.contact && this.speed < 1.6 && Math.abs(this.vel.y) < 0.8;
     this.groundTime = this.onGround ? this.groundTime + dt : 0;
 
+    // Hochwasser: Hochspannungsleitungen und Gebäude
+    if (world.wireDistance) {
+      this.wireDist = world.wireDistance(this.pos);
+      if (this.wireDist < S.rotorRadius * 0.9) { this.crash('In die Hochspannungsleitung geflogen!'); return; }
+      if (world.houseHit(this.pos.x, this.pos.z, S.rotorRadius * 0.55, this.pos.y - S.skidH)) { this.crash('Mit einem Gebäude kollidiert!'); return; }
+    }
     // Bäume
     let tc = null;
     for (const rc of this.model.rotorCenters) {
