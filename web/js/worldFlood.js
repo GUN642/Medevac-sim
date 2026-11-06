@@ -160,7 +160,7 @@ export class FloodWorld extends World {
   buildWater() {
     super.buildWater();
     // trübes Hochwasser, aber mit Glanz, damit es als Wasserfläche erkennbar bleibt
-    this.water.material.color.set(0x857655);
+    this.water.material.color.set(0x968a6a);
     this.water.material.opacity = 0.9;
     this.water.material.specular.set(0x8a8a80);
     this.water.material.shininess = 90;
@@ -170,10 +170,11 @@ export class FloodWorld extends World {
   buildSky() {
     super.buildSky();
     for (const c of this.clouds.children) {
-      c.material.color.set(0x8f969c);
+      c.material.color.set(0xc4c9cd);
       c.position.y = 420 + (c.position.y - 850) * 0.5;
       c.scale.multiplyScalar(1.4);
     }
+    if (!this.rainOn) return;   // Regen ist abgeschaltet
     const N = 2200;
     this.rainN = N;
     this.rainPos = new Float32Array(N * 6);

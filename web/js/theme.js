@@ -117,7 +117,7 @@ export const THEMES = {
       'Polizei Lindental', 'Feuerwehr Kirchheim', 'Wasserwacht Steinbach', 'Ortsbürgermeister Rosenau',
     ],
     aircraft: [{ kind: 'huey', name: 'H135 Christoph 23', crew: 3, call: 'Christoph 23' }],
-    sky: { top: 0x6c7682, horizon: 0xa9aeb2, fog: 0xa3a8ab, fogDensity: 0.00095, hemiSky: 0xc4cad0, hemiGround: 0x3a4232, hemi: 1.2, sun: 0xdde2e8, sunI: 1.1, clouds: 70 },
+    sky: { top: 0x7d9ab8, horizon: 0xc9d0d4, fog: 0xc4cbcf, fogDensity: 0.0007, hemiSky: 0xdde3e8, hemiGround: 0x4a5640, hemi: 1.45, sun: 0xfff3e0, sunI: 2.0, clouds: 55 },
     dust: 0, gusts: 0.7,
   },
 };
