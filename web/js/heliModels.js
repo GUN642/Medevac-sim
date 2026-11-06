@@ -346,6 +346,11 @@ function buildH145({ static: isStatic = false, number = '77+05' } = {}) {
 
   const parts = [];
   parts.push(P(box(1.6, 0.06, 3.4), 0x2b2d2e, [0, -0.75, -0.5]));
+  // zwei Sitzreihen gegenüber (Blick zueinander)
+  for (const [x, z, r] of [[-0.55, -1.2, Math.PI], [0, -1.2, Math.PI], [0.55, -1.2, Math.PI], [-0.55, 0.8, 0], [0, 0.8, 0], [0.55, 0.8, 0]]) {
+    parts.push(P(box(0.46, 0.07, 0.45), 0x3a3d40, [x, -0.42, z + (r ? -0.05 : 0.05)]));
+    parts.push(P(box(0.46, 0.55, 0.06), 0x3a3d40, [x, -0.12, z + (r ? -0.3 : 0.3)]));
+  }
   cockpit(parts, group, { z: -3.05, w: 1.45, y: -0.25, seatX: 0.42, seatZ: -2.2, seatY: -0.42 });
   // Mantelring und Leitschaufeln des Fenestron
   parts.push(P(tor(0.55, 0.11, 18), 0x4c5257, [0, 1.15, 6.95], [0, HALFPI, 0]));
@@ -386,10 +391,9 @@ function buildH145({ static: isStatic = false, number = '77+05' } = {}) {
     discs: [{ obj: mainRotor, r: 5.5 }],
     beacon: [0, 1.62, 1.6],
   });
-  const seats = seatsGrid([
-    [-0.45, -1.1, 0, 'floor'], [0.45, -1.1, 0, 'floor'], [-0.45, -0.1, Math.PI, 'floor'],
-    [0.45, -0.1, Math.PI, 'floor'], [-0.45, 0.8, 0, 'floor'], [0.45, 0.8, 0, 'floor'],
-  ]);
+  // Kabinensitze: aufrecht sitzend, Beine bleiben in der Kabine
+  const seatPos = [[-0.55, -1.2, Math.PI], [0, -1.2, Math.PI], [0.55, -1.2, Math.PI], [-0.55, 0.8, 0], [0, 0.8, 0], [0.55, 0.8, 0]];
+  const seats = seatsGrid(seatPos.map(([x, z, r]) => [x, z, r, 'seat']), [1.3, -0.33]);
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
     guns: f.guns, pilots: f.pilots, seats, isStatic,

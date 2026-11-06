@@ -720,6 +720,12 @@ class Game {
     bind('set-invertx', 'invertX', Boolean);
     bind('set-mouse-fly', 'mouseFly', Boolean);
     bind('set-mouse-inv', 'mouseFlyInvert', Boolean);
+    if (s.gyroSens == null) s.gyroSens = 1;
+    bind('set-gyro', 'gyro', Boolean, (v) => { if (v) this.input.requestGyro(); document.body.classList.toggle('gyro-on', !!v); });
+    bind('set-gyro-sens', 'gyroSens', Number);
+    bind('set-gyro-inv', 'gyroInvert', Boolean);
+    document.body.classList.toggle('gyro-on', !!s.gyro);
+    on('btn-gyro-cal', () => { this.input.calibrateGyro(); this.radio('Gyro neu ausgerichtet – aktuelle Haltung ist neutral.', 'Crew', false, true); });
     bind('set-diff', 'difficulty', Number);
     bind('set-lang', 'lang', String, (v) => setLang(v));
     bind('set-fps', 'showFps', Boolean, (v) => $('fps').classList.toggle('hidden', !v));
@@ -881,6 +887,7 @@ class Game {
   }
 
   startGame() {
+    if (this.settings.gyro && this.input) this.input.calibrateGyro();   // beim Start: aktuelle Haltung = neutral
     PF.enterFullscreen();
     this.audio.init();
     $('menu').classList.add('hidden');
@@ -1162,6 +1169,7 @@ class Game {
           if (this.seat === 'pilot') this.camMode = this.camMode === 'chase' ? 'cockpit' : 'chase';
           break;
         case 'zoom': this.zoomToggle = !this.zoomToggle; break;
+        case 'gyro-cal': this.input.calibrateGyro(); this.radio('Gyro neu ausgerichtet – aktuelle Haltung ist neutral.', 'Crew', false, true); break;
         // Außenansicht: Abstand zum Hubschrauber (Stufen bzw. +/−)
         case 'cam-dist': case 'cam-in': case 'cam-out': {
           if (this.seat !== 'pilot' || this.camMode !== 'chase') break;

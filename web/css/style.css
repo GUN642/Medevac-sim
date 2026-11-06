@@ -57,6 +57,7 @@ html, body {
 .lbl { font-size: 11px; opacity: 0.8; font-weight: normal; margin-right: 4px; }
 
 /* Warnungen am Rand statt in der Bildmitte (Hubschrauber bleibt sichtbar) */
+body:not(.gyro-on) .gyro-only { display: none !important; }
 #binds-table td { padding: 2px 0 2px 6px; }
 #binds-table th { white-space: normal; }
 #binds-table tr.grp th { color: var(--amber); font-weight: bold; padding-top: 10px; }

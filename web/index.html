@@ -60,6 +60,7 @@
   <div id="stick-left" class="stick-zone"><div class="base"><div class="knob"></div></div><div class="stick-hint no-foot">▲ Steigen · ▼ Sinken<br>◀ ▶ Pedale</div><div class="stick-hint foot-only">Laufen (ganz außen: sprinten)</div></div>
   <div id="stick-right" class="stick-zone"><div class="base"><div class="knob"></div></div><div class="stick-hint pilot-only">Zyklisch (Neigen)</div><div class="stick-hint aim-only">Wischen zum Zielen</div></div>
   <div id="touch-buttons">
+    <button data-action="gyro-cal" class="gyro-only pilot-only">GYRO 0</button>
     <button data-action="seat-next" class="no-foot">SITZ</button>
     <button data-action="camera" class="pilot-only">KAMERA</button>
     <button data-action="cam-dist" class="pilot-only">ABSTAND</button>
@@ -249,6 +250,7 @@
         <tr><th>Zu Fuß</th><td>Links laufen, rechts wischen oder FEUER ziehen zum Zielen · WAFFE · LADEN · ZOOM · DUCKEN · ANSICHT · EIN/AUS · ABHOLUNG</td></tr>
         <tr><th>KAMERA · KARTE · AUFTRAG</th><td>Ansicht wechseln · Karte · Briefing zeigen</td></tr>
         <tr><th>ABSTAND</th><td>Außenansicht: Abstand zum Hubschrauber</td></tr>
+        <tr><th>Gyro (Einstellungen)</th><td>Handy neigen = zyklisch steuern, GYRO 0 richtet neu aus – die Sticks funktionieren weiterhin</td></tr>
       </table>
     </div>
     <h3>So geht's</h3>
@@ -294,6 +296,10 @@
     <label class="check"><input id="set-invertx" type="checkbox"> Zielen: X-Achse invertieren</label>
     <label class="check"><input id="set-mouse-fly" type="checkbox"> Pilot: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)</label>
     <label class="check"><input id="set-mouse-inv" type="checkbox"> Maussteuerung: vor/zurück umkehren</label>
+    <label class="check"><input id="set-gyro" type="checkbox"> Pilot: Steuerung durch Neigen des Handys (Gyro)</label>
+    <label>Gyro-Empfindlichkeit <input id="set-gyro-sens" type="range" min="0.4" max="2.5" step="0.1"></label>
+    <label class="check"><input id="set-gyro-inv" type="checkbox"> Gyro: vor/zurück umkehren</label>
+    <button id="btn-gyro-cal">GYRO NEU AUSRICHTEN (aktuelle Haltung = neutral)</button>
     <label>Feindstärke
       <select id="set-diff"><option value="0.6">Leicht</option><option value="1">Normal</option><option value="1.5">Schwer</option></select>
     </label>

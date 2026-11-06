@@ -27,6 +27,14 @@ export class Input {
     this.jumpPressed = false;
 
     this.refreshBinds();
+    // Gyro: Neigung des Handys (Lagesensor)
+    this.gyro = null;      // letzte Werte { beta, gamma }
+    this.gyroZero = null;  // Neutralstellung
+    window.addEventListener('deviceorientation', (e) => {
+      if (e.beta == null || e.gamma == null) return;
+      this.gyro = { beta: e.beta, gamma: e.gamma };
+      if (this.settings.gyro && !this.gyroZero) this.calibrateGyro();
+    });
     window.addEventListener('keydown', (e) => this.onKey(e, true));
     window.addEventListener('keyup', (e) => this.onKey(e, false));
     window.addEventListener('blur', () => { this.keys.clear(); this.fire = false; });
@@ -78,6 +86,31 @@ export class Input {
     window.addEventListener('gamepadconnected', () => { this.gpConnected = true; this.device = 'gamepad'; this.onDevice && this.onDevice(); });
     window.addEventListener('gamepaddisconnected', () => { this.gpConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((g) => g); });
     this.setupTouch();
+  }
+
+  // Aktuelle Haltung des Handys als Neutralstellung übernehmen
+  calibrateGyro() { if (this.gyro) this.gyroZero = { ...this.gyro }; }
+  // Für iOS: Zugriff auf den Lagesensor erfragen (muss aus einer Nutzeraktion heraus passieren)
+  requestGyro() {
+    const D = window.DeviceOrientationEvent;
+    if (D && typeof D.requestPermission === 'function') D.requestPermission().catch(() => {});
+    this.gyroZero = null;
+  }
+  // Neigung in Steuerausschlag umrechnen (Querformat: Kippen nach links/rechts = Rollen, oben weg/her = Nicken)
+  gyroControl() {
+    if (!this.settings.gyro || !this.gyro || !this.gyroZero) return null;
+    const ang = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 90;
+    let db = this.gyro.beta - this.gyroZero.beta, dg = this.gyro.gamma - this.gyroZero.gamma;
+    if (db > 180) db -= 360; if (db < -180) db += 360;
+    // Gamma springt bei fast senkrecht gehaltenem Gerät von +90 auf -90: Sprung abfangen
+    if (dg > 90) dg -= 180; if (dg < -90) dg += 180;
+    let roll, pitch;
+    if (ang === 90) { roll = db; pitch = dg; }
+    else if (ang === 270 || ang === -90) { roll = -db; pitch = -dg; }
+    else { roll = this.gyro.gamma - this.gyroZero.gamma; pitch = -db; }   // Hochformat
+    const full = 22 / (this.settings.gyroSens || 1), dead = 1.5;
+    const k = (v) => (Math.abs(v) < dead ? 0 : clamp((v - Math.sign(v) * dead) / full, -1, 1));
+    return { roll: k(roll), pitch: k(pitch) * (this.settings.gyroInvert ? -1 : 1) };
   }
 
   // Belegung neu einlesen (nach Änderung in den Einstellungen)
@@ -248,6 +281,11 @@ export class Input {
     this.kb.yaw = sm(this.kb.yaw, ky, 5);
     this.kb.collective = sm(this.kb.collective, kc, 4);
     f.pitch += this.kb.pitch; f.roll += this.kb.roll; f.yaw += this.kb.yaw; f.collective += this.kb.collective;
+    // Gyro-Steuerung als Pilot (Touch-Sticks bleiben zusätzlich nutzbar)
+    if (this.mode === 'pilot') {
+      const gc = this.gyroControl();
+      if (gc) { f.roll += gc.roll; f.pitch += gc.pitch; }
+    }
     // Maus als Steuerknüppel (nur Pilot, Zeiger gesperrt)
     this.mouseFlying = this.mode === 'pilot' && this.settings.mouseFly && document.pointerLockElement === this.canvas;
     if (this.mouseFlying) {

@@ -48,7 +48,7 @@ export const HELI_TYPES = {
     id: 'h145', model: 'h145', name: 'Airbus H145M LUH SAR', short: 'H145M', callsign: 'SAR 41',
     emptyMass: 2000, fuelMassFull: 560, paxMass: 95, capacity: 6, maxThrust: 3900 * G,
     skidH: 1.3, rotorRadius: 5.5, rotorTop: 1.95, maxPitch: 0.5, maxRoll: 0.66, climbRate: 11, sinkRate: 8, yawRate: 1.55,
-    vmax: 132, agility: 1.4, burn: 0.8, drag: 0.8, armor: 1,
+    vmax: 118, vlimit: 120, agility: 1.4, burn: 0.8, drag: 0.8, armor: 1,
     gun: { name: '–', rpm: 1, ammo: 0, muzzleVel: 800, range: 10 }, noGuns: true, hoist: true,
     seats: ['pilot'], rotorAudio: 1.8, rotorCut: 1.3, camDist: 17, shadow: 7, door: 'side', numbers: ['77+05', '77+12'],
   },
