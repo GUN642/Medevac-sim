@@ -19,37 +19,136 @@ const glassMat = new THREE.MeshPhongMaterial({
 const discMatProto = new THREE.MeshBasicMaterial({ color: 0x202020, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
 
 // ---------------------------------------------------------------- Instrumententafel
-let panelTex = null;
-function instrumentTexture() {
-  if (panelTex) return panelTex;
+// Statische Textur: 'analog' (Rundinstrumente, ältere Muster) oder 'glass' (Bildschirme, moderne Muster)
+const panelTex = {};
+function instrumentTexture(style) {
+  if (panelTex[style]) return panelTex[style];
   const c = document.createElement('canvas');
-  c.width = 512; c.height = 128;
+  c.width = 1024; c.height = 320;
   const x = c.getContext('2d');
-  x.fillStyle = '#1f2220'; x.fillRect(0, 0, 512, 128);
-  let seed = 3;
+  x.fillStyle = '#1c1f1e'; x.fillRect(0, 0, 1024, 320);
+  let seed = 7;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const gauge = (cx, cy, r) => {
-    x.fillStyle = '#0b0c0c'; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
-    x.strokeStyle = '#9a9a90'; x.lineWidth = 2; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.stroke();
-    x.strokeStyle = '#d8d8cc'; x.lineWidth = 1;
-    for (let i = 0; i < 12; i++) { const a = (i / 12) * 6.28; x.beginPath(); x.moveTo(cx + Math.cos(a) * r * 0.75, cy + Math.sin(a) * r * 0.75); x.lineTo(cx + Math.cos(a) * r * 0.92, cy + Math.sin(a) * r * 0.92); x.stroke(); }
-    const a = rnd() * 6.28;
-    x.strokeStyle = '#f0f0e0'; x.lineWidth = 2; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(a) * r * 0.8, cy + Math.sin(a) * r * 0.8); x.stroke();
+  const screw = (cx, cy) => { x.fillStyle = '#4a4d4a'; x.beginPath(); x.arc(cx, cy, 3, 0, 7); x.fill(); };
+  const attitude = (cx, cy, r) => {
+    x.save(); x.beginPath(); x.arc(cx, cy, r, 0, 7); x.clip();
+    x.fillStyle = '#3d7fc0'; x.fillRect(cx - r, cy - r, 2 * r, r + 4);
+    x.fillStyle = '#7a4a22'; x.fillRect(cx - r, cy + 4, 2 * r, r);
+    x.strokeStyle = '#fff'; x.lineWidth = 2;
+    x.beginPath(); x.moveTo(cx - r, cy + 4); x.lineTo(cx + r, cy + 4); x.stroke();
+    for (const d of [-24, -12, 12, 24]) { x.beginPath(); x.moveTo(cx - r * 0.25, cy + 4 + d); x.lineTo(cx + r * 0.25, cy + 4 + d); x.stroke(); }
+    x.restore();
+    x.strokeStyle = '#f2c230'; x.lineWidth = 4;
+    x.beginPath(); x.moveTo(cx - r * 0.55, cy); x.lineTo(cx - r * 0.15, cy); x.lineTo(cx, cy + 8); x.lineTo(cx + r * 0.15, cy); x.lineTo(cx + r * 0.55, cy); x.stroke();
   };
-  for (let i = 0; i < 7; i++) { gauge(40 + i * 72, 40, 26); gauge(40 + i * 72, 98, 22); }
-  x.fillStyle = '#3a6d9a'; x.beginPath(); x.arc(256, 40, 24, PI, 0); x.fill();
-  x.fillStyle = '#5b3e22'; x.beginPath(); x.arc(256, 40, 24, 0, PI); x.fill();
-  for (let i = 0; i < 10; i++) { x.fillStyle = ['#7a5a10', '#5a1a14', '#1f4a20'][i % 3]; x.fillRect(150 + i * 22, 120, 14, 6); }
-  panelTex = new THREE.CanvasTexture(c);
-  panelTex.colorSpace = THREE.SRGBColorSpace;
-  return panelTex;
+  if (style === 'glass') {
+    // Bildschirme (MFD) mit Tastenrahmen
+    const mfd = (mx, my, w, h, kind) => {
+      x.fillStyle = '#2b2f2e'; x.fillRect(mx - 14, my - 12, w + 28, h + 24);
+      for (let i = 0; i < 5; i++) { x.fillStyle = '#585c58'; x.fillRect(mx - 11, my + 8 + i * (h - 16) / 4.5, 8, 10); x.fillRect(mx + w + 3, my + 8 + i * (h - 16) / 4.5, 8, 10); }
+      x.fillStyle = '#05080a'; x.fillRect(mx, my, w, h);
+      const cx = mx + w / 2, cy = my + h / 2;
+      if (kind === 'pfd') {
+        x.save(); x.beginPath(); x.rect(mx, my, w, h); x.clip();
+        x.fillStyle = '#2f6fb4'; x.fillRect(mx, my, w, h * 0.52);
+        x.fillStyle = '#7c4e24'; x.fillRect(mx, my + h * 0.52, w, h);
+        x.strokeStyle = '#fff'; x.lineWidth = 2; x.beginPath(); x.moveTo(mx, my + h * 0.52); x.lineTo(mx + w, my + h * 0.52); x.stroke();
+        for (const d of [-36, -18, 18, 36]) { x.beginPath(); x.moveTo(cx - 18, my + h * 0.52 + d); x.lineTo(cx + 18, my + h * 0.52 + d); x.stroke(); }
+        x.restore();
+        x.fillStyle = 'rgba(0,0,0,0.55)'; x.fillRect(mx + 4, my + 20, 34, h - 40); x.fillRect(mx + w - 38, my + 20, 34, h - 40);
+        x.fillStyle = '#e8e8e8'; x.font = 'bold 13px Arial';
+        for (let i = 0; i < 6; i++) { x.fillText(String(120 - i * 20), mx + 7, my + 34 + i * (h - 50) / 5); x.fillText(String(800 - i * 100), mx + w - 36, my + 34 + i * (h - 50) / 5); }
+        x.strokeStyle = '#f2c230'; x.lineWidth = 4;
+        x.beginPath(); x.moveTo(cx - 34, cy + 6); x.lineTo(cx - 10, cy + 6); x.moveTo(cx + 10, cy + 6); x.lineTo(cx + 34, cy + 6); x.stroke();
+        x.fillStyle = '#000'; x.fillRect(mx + 4, my + h - 22, w - 8, 18);
+        x.fillStyle = '#e8e8e8'; x.font = '12px Arial'; for (let i = 0; i < 7; i++) x.fillText(['33', 'N', '03', '06', 'E', '12', '15'][i], mx + 10 + i * (w - 24) / 6, my + h - 9);
+      } else if (kind === 'map') {
+        x.fillStyle = '#0d1a10'; x.fillRect(mx, my, w, h);
+        x.strokeStyle = '#2f6b3a'; x.lineWidth = 1;
+        for (let i = 0; i < 9; i++) { x.beginPath(); x.moveTo(mx, my + rnd() * h); x.bezierCurveTo(mx + w * 0.3, my + rnd() * h, mx + w * 0.6, my + rnd() * h, mx + w, my + rnd() * h); x.stroke(); }
+        x.strokeStyle = '#4fa3e0'; x.lineWidth = 3; x.beginPath(); x.moveTo(mx, my + h * 0.7); x.bezierCurveTo(mx + w * 0.4, my + h * 0.5, mx + w * 0.6, my + h * 0.9, mx + w, my + h * 0.6); x.stroke();
+        x.strokeStyle = '#d050d0'; x.lineWidth = 2; x.beginPath(); x.moveTo(cx, cy + 20); x.lineTo(cx + w * 0.25, my + 18); x.stroke();
+        x.strokeStyle = '#e8e8e8'; x.beginPath(); x.arc(cx, cy + 20, h * 0.38, PI * 1.15, PI * 1.85); x.stroke();
+        x.fillStyle = '#e8e8e8'; x.beginPath(); x.moveTo(cx, cy + 10); x.lineTo(cx - 7, cy + 26); x.lineTo(cx + 7, cy + 26); x.fill();
+      } else {
+        // Triebwerksanzeigen: Balken und Zahlen
+        x.fillStyle = '#e8e8e8'; x.font = 'bold 13px Arial';
+        const lab = ['TRQ', 'NR', 'TOT', 'N1'];
+        for (let i = 0; i < 4; i++) {
+          const bx = mx + 12 + i * (w - 24) / 4, bw = (w - 24) / 4 - 14, bh = h - 60;
+          x.fillStyle = '#2a2e2c'; x.fillRect(bx, my + 26, bw, bh);
+          const f = 0.55 + rnd() * 0.3;
+          x.fillStyle = '#3fcf5a'; x.fillRect(bx, my + 26 + bh * (1 - f), bw, bh * f);
+          x.fillStyle = '#f2c230'; x.fillRect(bx - 2, my + 26 + bh * 0.12, bw + 4, 2);
+          x.fillStyle = '#e8e8e8'; x.fillText(lab[i], bx, my + 18); x.fillText(String(Math.round(f * 100)), bx, my + h - 14);
+        }
+      }
+    };
+    mfd(40, 34, 190, 170, 'pfd');
+    mfd(282, 34, 190, 170, 'map');
+    mfd(552, 34, 190, 170, 'eng');
+    mfd(794, 34, 190, 170, 'pfd');
+    // Bedienteile und Warnleuchten
+    for (let i = 0; i < 14; i++) { x.fillStyle = ['#1f4a20', '#7a5a10', '#2b2f2e', '#5a1a14'][i % 4]; x.fillRect(250 + i * 38, 238, 28, 14); }
+    for (let i = 0; i < 3; i++) attitudeSmall(120 + i * 380);
+    function attitudeSmall(cx) { x.fillStyle = '#0b0c0c'; x.beginPath(); x.arc(cx, 272, 24, 0, 7); x.fill(); x.strokeStyle = '#9a9a90'; x.lineWidth = 2; x.stroke(); }
+    attitude(512, 278, 26);
+  } else {
+    const gauge = (cx, cy, r, face = '#0b0c0c') => {
+      x.fillStyle = '#2a2c2a'; x.beginPath(); x.arc(cx, cy, r + 6, 0, 7); x.fill();
+      x.fillStyle = face; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.fill();
+      x.strokeStyle = '#9a9a90'; x.lineWidth = 2; x.beginPath(); x.arc(cx, cy, r, 0, 7); x.stroke();
+      x.strokeStyle = '#d8d8cc'; x.lineWidth = 1.5;
+      for (let i = 0; i < 24; i++) { const a = (i / 24) * 6.28, l = i % 2 ? 0.86 : 0.74; x.beginPath(); x.moveTo(cx + Math.cos(a) * r * l, cy + Math.sin(a) * r * l); x.lineTo(cx + Math.cos(a) * r * 0.94, cy + Math.sin(a) * r * 0.94); x.stroke(); }
+      x.strokeStyle = '#3fae4a'; x.lineWidth = 4; const g0 = rnd() * 3; x.beginPath(); x.arc(cx, cy, r * 0.9, g0, g0 + 1.2); x.stroke();
+      const a = rnd() * 6.28;
+      x.strokeStyle = '#f0f0e0'; x.lineWidth = 3; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(a) * r * 0.8, cy + Math.sin(a) * r * 0.8); x.stroke();
+      x.fillStyle = '#444'; x.beginPath(); x.arc(cx, cy, 4, 0, 7); x.fill();
+      screw(cx - r - 2, cy - r - 2); screw(cx + r + 2, cy - r - 2);
+    };
+    // Pilotenseite (rechts) und Copilotenseite (links), Mitte: Triebwerksinstrumente
+    for (const ox of [0, 640]) {
+      gauge(ox + 70, 80, 46); attitude(ox + 190, 80, 52); gauge(ox + 310, 80, 46);
+      gauge(ox + 70, 210, 42); gauge(ox + 190, 215, 46); gauge(ox + 310, 210, 42);
+      x.strokeStyle = '#9a9a90'; x.lineWidth = 2; x.beginPath(); x.arc(ox + 190, 80, 52, 0, 7); x.stroke();
+    }
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) gauge(450 + i * 62, 70 + j * 92, 26);
+    for (let i = 0; i < 12; i++) { x.fillStyle = ['#7a5a10', '#5a1a14', '#1f4a20'][i % 3]; x.fillRect(420 + (i % 6) * 32, 260 + Math.floor(i / 6) * 22, 24, 14); }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return (panelTex[style] = t);
 }
 
-// Cockpit: Instrumententafel mit Blendschutz, Mittelkonsole, Pilotensitze mit Panzerung, Steuerknüppel
+// Instrumentenbrett mit Blendschutz vor den Piloten (nach Bau des Modells, braucht den Augenpunkt)
+function instrumentPanel(group, eye, ck, style) {
+  const d = Math.max(0.32, eye.z - ck.z);                 // Abstand Auge – Brett
+  const zf = eye.z - d;
+  const top = eye.y - d * 0.62, bot = eye.y - d * 1.65;   // Oberkante ca. 32° unter Augenhöhe: Sicht nach vorn unten bleibt
+  const w = ck.w * 0.92, h = top - bot;
+  const tilt = -0.22;
+  const g = new THREE.Group();
+  g.position.set(0, (top + bot) / 2, zf);
+  g.rotation.x = tilt;
+  const face = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: instrumentTexture(style), polygonOffset: true, polygonOffsetFactor: -1 }));
+  face.position.z = 0.012;
+  g.add(face);
+  const dark = new THREE.MeshPhongMaterial({ color: 0x1a1c1b, shininess: 8 });
+  const back = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, h + 0.04, 0.12), dark);
+  back.position.z = -0.05;
+  g.add(back);
+  // Blendschutz: flache Haube über dem Brett, leicht vorstehend
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.02, 0.2), dark);
+  hood.position.set(0, h / 2 + 0.01, -0.04);
+  hood.rotation.x = -tilt;
+  g.add(hood);
+  group.add(g);
+}
+
+// Cockpit: Mittelkonsole, Pilotensitze mit Panzerung, Steuerknüppel (Instrumentenbrett: instrumentPanel)
 function cockpit(parts, group, { z, w, y, seatX, seatZ, seatY }) {
-  // flache Blendschutzhaube und tief sitzendes Instrumentenbrett, damit der Pilot nach vorn unten sieht
-  parts.push(P(box(w * 0.7, 0.04, 0.26), 0x1a1c1b, [0, y - 0.02, z - 0.08], [0.12, 0, 0]));
-  parts.push(P(box(w * 0.7, 0.36, 0.08), 0x24272a, [0, y - 0.22, z], [-0.5, 0, 0]));
+  group.userData.ck = { z, w };
   parts.push(P(box(0.35, 0.5, 0.9), 0x24272a, [0, y - 0.45, z + 0.5]));
   for (const sx of [-1, 1]) {
     parts.push(P(box(0.55, 0.12, 0.55), 0x2f302b, [sx * seatX, seatY, seatZ]));
@@ -57,10 +156,6 @@ function cockpit(parts, group, { z, w, y, seatX, seatZ, seatY }) {
     parts.push(P(box(0.08, 0.6, 0.5), 0x3a3b33, [sx * (seatX + 0.3), seatY + 0.3, seatZ + 0.1]));
     parts.push(P(cyl(0.02, 0.02, 0.42, 6), 0x111111, [sx * seatX, seatY + 0.16, seatZ - 0.42], [0.35, 0, 0]));
   }
-  const pl = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.66, 0.31), new THREE.MeshBasicMaterial({ map: instrumentTexture() }));
-  pl.position.set(0, y - 0.2, z - 0.05);
-  pl.rotation.set(0.5, PI, 0);
-  group.add(pl);
 }
 
 // Rotorkopf mit verjüngten, profilierten Blättern, Blatthaltern, Steuerstangen und Taumelscheibe
@@ -306,6 +401,9 @@ export function buildHeliModel(spec, opts = {}) {
   const m = spec.model === 'blackhawk' ? buildBlackhawk(opts) : spec.model === 'chinook' ? buildChinook(opts) : spec.model === 'ch53' ? buildCH53(opts)
     : spec.model === 'apache' ? buildApache(opts) : spec.model === 'h145' ? buildH145(opts) : spec.model === 'nh90' ? buildNH90(opts)
     : spec.model === 'tiger' ? buildTiger(opts) : buildHuey(opts);
+  // Instrumentenbrett: Glascockpit bei modernen Mustern, Rundinstrumente bei UH-1D und CH-53
+  const ck = m.group.userData.ck;
+  if (ck && m.eyePilot && !opts.static) instrumentPanel(m.group, m.eyePilot, ck, ['huey', 'ch53'].includes(spec.model) || !spec.model ? 'analog' : 'glass');
   // Katastropheneinsatz: Bordwaffen und Schützen ausblenden
   if (spec.noGuns) for (const g of Object.values(m.guns)) { g.mount.visible = false; if (g.gunner) g.gunner.group.visible = false; }
   return m;

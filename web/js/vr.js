@@ -92,8 +92,8 @@ export class VrView {
       this._tick = 0;
     }
     if (this._tick++ % 2) { this.mirrorMarkers(); return; }   // 30 Hz reichen, Markierungen jedes Bild
-    const src = [document.getElementById('hud'), document.getElementById('touch-controls'),
-      ...document.querySelectorAll('body > .overlay:not(.hidden)')].filter((e) => e && !e.classList.contains('hidden'));
+    const src = [...['brownout', 'nvg', 'magvignette', 'hud', 'touch-controls'].map((id) => document.getElementById(id)),
+      ...document.querySelectorAll('body > .panel:not(.hidden), body > .overlay:not(.hidden)')].filter((e) => e && !e.classList.contains('hidden'));
     const frag = document.createDocumentFragment();
     for (const e of src) {
       const c = e.cloneNode(true);
@@ -114,7 +114,7 @@ export class VrView {
     }
     this._fix.length = 0;
     // gescrollte Fenster (Einstellungen, Hilfe) an der gleichen Stelle zeigen
-    const sa = document.querySelectorAll('body > .overlay:not(.hidden) *'), sb = box.querySelectorAll('.overlay *');
+    const sa = document.querySelectorAll('body > .panel:not(.hidden) *, body > .overlay:not(.hidden) *'), sb = box.querySelectorAll('.panel *, .overlay *');
     for (let i = 0; i < sa.length && i < sb.length; i++) if (sa[i].scrollTop) sb[i].scrollTop = sa[i].scrollTop;
     this._marks = ['marker', 'fob-marker', 'heli-marker'].map((id) => [document.getElementById(id), box.querySelector('#' + id)]);
     this.mirrorMarkers();

@@ -17,6 +17,8 @@ function gable(w, rh, d) {
     -x, 0, -z, 0, rh, -z, 0, rh, z, -x, 0, -z, 0, rh, z, -x, 0, z,
     x, 0, -z, x, 0, z, 0, rh, z, x, 0, -z, 0, rh, z, 0, rh, -z,
   ];
+  // Dreiecke nach außen drehen (sonst sieht man von oben durch das Dach)
+  for (let i = 0; i < v.length; i += 9) for (let k = 0; k < 3; k++) { const t = v[i + 3 + k]; v[i + 3 + k] = v[i + 6 + k]; v[i + 6 + k] = t; }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3));
   g.computeVertexNormals();

@@ -60,7 +60,9 @@ html, body {
 body:not(.gyro-on) .gyro-only { display: none !important; }
 body.snow #brownout { background: radial-gradient(ellipse at 50% 55%, rgba(236, 242, 248, 0.6) 0%, rgba(232, 238, 246, 0.95) 70%); }
 /* VR-Brille im 3D-Modus: Bild nebeneinander, Bedienelemente auf das linke Halbbild zusammengeschoben */
-body.vr3d #hud, body.vr3d .overlay, body.vr3d #touch-controls { transform: scaleX(0.5); transform-origin: 0 0; }
+body.vr3d #hud, body.vr3d .overlay, body.vr3d #touch-controls, body.vr3d #brownout, body.vr3d #nvg, body.vr3d #magvignette { transform: scaleX(0.5); transform-origin: 0 0; }
+/* Fenster (Auftrag, Ergebnis) in der Mitte des linken Halbbilds statt über beide Augen verteilt */
+body.vr3d .panel { left: 25%; transform: translate(-50%, -50%) scaleX(0.5); }
 /* Kopie für das rechte Auge: gleiche Anzeigen, um eine halbe Bildbreite versetzt, nicht bedienbar */
 #vr-mirror { position: fixed; inset: 0; transform: translateX(50%); pointer-events: none !important; z-index: 40; }
 #vr-mirror * { pointer-events: none !important; }
