@@ -202,6 +202,7 @@ public class MainActivity extends Activity {
         // ---- XR-Brille (VITURE)
         @JavascriptInterface public boolean glassesConnected() { return HeadTracking.connected(); }
         @JavascriptInterface public boolean glasses3D(boolean on) { return HeadTracking.set3D(on); }
+        @JavascriptInterface public boolean headRecenter() { return HeadTracking.recenter(); }
 
         @JavascriptInterface public String deviceName() { return Build.MODEL == null ? "Android" : Build.MODEL; }
         @JavascriptInterface public String netHost(String info) { multicast(true); return net.host(info); }

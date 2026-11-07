@@ -37,7 +37,14 @@ export class VrView {
     try { if (window.AndroidApp && window.AndroidApp.glasses3D && window.AndroidApp.glassesConnected()) window.AndroidApp.glasses3D(!!this.settings.vr3d); } catch (e) { /* ohne Brille egal */ }
   }
 
-  recenter() { if (this.head) this.zero = { ...this.head }; this.lastAim = null; }
+  recenter() {
+    this.lastAim = null;
+    // Android-App mit VITURE Pro 2: die App setzt die Neutralstellung selbst und liefert danach Werte um null
+    let native = false;
+    try { native = !!(window.AndroidApp && window.AndroidApp.headRecenter && window.AndroidApp.headRecenter()); } catch (e) { /* egal */ }
+    if (native) this.zero = { yaw: 0, pitch: 0, roll: 0 };
+    else if (this.head) this.zero = { ...this.head };
+  }
 
   // Kopfdrehung relativ zur Neutralstellung (null = keine aktuellen Daten)
   rel() {
