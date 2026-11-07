@@ -766,7 +766,9 @@ class Game {
     if (s.gyroSens == null) s.gyroSens = 1;
     bind('set-gyro', 'gyro', Boolean, (v) => { if (v) this.input.requestGyro(); document.body.classList.toggle('gyro-on', !!v); });
     bind('set-gyro-sens', 'gyroSens', Number);
-    bind('set-vr3d', 'vr3d', Boolean, () => this.vr.apply());
+    if (s.glassOut === undefined) s.glassOut = true;
+    bind('set-vr3d', 'vr3d', Boolean, () => this.vr.apply(true));
+    bind('set-glassout', 'glassOut', Boolean, () => this.vr.apply());
     bind('set-headtrack', 'headTrack', Boolean, () => this.vr.recenter());
     bind('set-head-invx', 'headInvX', Boolean, () => this.vr.recenter());
     bind('set-head-invy', 'headInvY', Boolean, () => this.vr.recenter());

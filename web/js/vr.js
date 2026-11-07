@@ -26,15 +26,24 @@ export class VrView {
       }
     };
     this.apply();
+    // Brille im 3D-Modus als eigenes Display (3840×1080, 32:9): automatisch zwei Halbbilder
+    window.addEventListener('resize', () => { if (this.autoStereo() !== this._auto) this.apply(); });
   }
 
   get settings() { return this.g.settings; }
 
+  autoStereo() { return innerWidth >= innerHeight * 3; }
+  get stereoOn() { return !!this.settings.vr3d || this.autoStereo(); }
+
   // Einstellungen übernehmen (3D-Modus: HUD für das linke Auge zusammenschieben)
-  apply() {
-    document.body.classList.toggle('vr3d', !!this.settings.vr3d);
+  apply(changed3d) {
+    this._auto = this.autoStereo();
+    const on = this.stereoOn;
+    document.body.classList.toggle('vr3d', on);
+    try { if (window.AndroidApp && window.AndroidApp.stereoActive) window.AndroidApp.stereoActive(on); } catch (e) { /* egal */ }
+    try { if (window.AndroidApp && window.AndroidApp.glassOutput && this._glassOut !== (this.settings.glassOut !== false)) { this._glassOut = this.settings.glassOut !== false; window.AndroidApp.glassOutput(this._glassOut); } } catch (e) { /* egal */ }
     // Android-App mit VITURE-Brille: Brille passend in den 3D-Modus schalten
-    try { if (window.AndroidApp && window.AndroidApp.glasses3D && window.AndroidApp.glassesConnected()) window.AndroidApp.glasses3D(!!this.settings.vr3d); } catch (e) { /* ohne Brille egal */ }
+    if (changed3d) try { if (window.AndroidApp && window.AndroidApp.glasses3D && window.AndroidApp.glassesConnected()) window.AndroidApp.glasses3D(!!this.settings.vr3d); } catch (e) { /* ohne Brille egal */ }
   }
 
   recenter() {
@@ -75,7 +84,7 @@ export class VrView {
   // Anzeigen und Menüs für das rechte Auge spiegeln: Kopie des linken Halbbilds (nur zum Ansehen, Bedienung links)
   mirror() {
     let box = this._mirror;
-    if (!this.settings.vr3d) { if (box) { box.remove(); this._mirror = null; } return; }
+    if (!this.stereoOn) { if (box) { box.remove(); this._mirror = null; } return; }
     if (!box) {
       box = this._mirror = document.createElement('div');
       box.id = 'vr-mirror';
@@ -111,7 +120,7 @@ export class VrView {
 
   render(renderer, scene, cam) {
     this.mirror();
-    if (!this.settings.vr3d) { renderer.render(scene, cam); return; }
+    if (!this.stereoOn) { renderer.render(scene, cam); return; }
     cam.updateMatrixWorld();
     this.stereo.update(cam);
     const size = renderer.getSize(this._size || (this._size = new THREE.Vector2()));

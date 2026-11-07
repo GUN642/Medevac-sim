@@ -11,6 +11,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -20,6 +21,7 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 
 import androidx.webkit.WebViewAssetLoader;
 
@@ -35,6 +37,7 @@ public class MainActivity extends Activity {
     private boolean lastKeyFromGamepad;
     private final LanNet net = new LanNet();
     private WifiManager.MulticastLock mcLock;
+    private GlassDisplay glass;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -51,7 +54,9 @@ public class MainActivity extends Activity {
         HeadTracking.attach(web);
         HeadTracking.start(this);
         web.setBackgroundColor(0xFF1B2013);
-        setContentView(web);
+        FrameLayout root = new FrameLayout(this);
+        root.addView(web, new FrameLayout.LayoutParams(-1, -1));
+        setContentView(root);
         hideSystemUi();
 
         final WebViewAssetLoader loader = new WebViewAssetLoader.Builder()
@@ -102,6 +107,12 @@ public class MainActivity extends Activity {
 
         updater = new UpdateManager(this);
         updater.check(false);
+
+        // XR-Brille als eigenes Display: Spiel dort zeigen (Handy wird Touchfläche)
+        try {
+            glass = new GlassDisplay(this, web, root);
+            glass.setEnabled(getSharedPreferences("app", 0).getBoolean("glassOutput", true));
+        } catch (Throwable t) { glass = null; }
     }
 
     @Override
@@ -130,6 +141,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         net.shutdown();
         HeadTracking.stop();
+        if (glass != null) glass.release();
         multicast(false);
         if (web != null) web.destroy();
         super.onDestroy();
@@ -157,7 +169,15 @@ public class MainActivity extends Activity {
         int src = event.getSource();
         lastKeyFromGamepad = (src & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
                 || (src & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK;
+        // Spiel auf der Brille: Tasten und Controller an die WebView dort weiterreichen
+        if (glass != null && glass.active() && web.dispatchKeyEvent(event)) return true;
         return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent event) {
+        if (glass != null && glass.active() && web.dispatchGenericMotionEvent(event)) return true;
+        return super.dispatchGenericMotionEvent(event);
     }
 
     @SuppressWarnings("deprecation")
@@ -203,6 +223,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean glassesConnected() { return HeadTracking.connected(); }
         @JavascriptInterface public boolean glasses3D(boolean on) { return HeadTracking.set3D(on); }
         @JavascriptInterface public boolean headRecenter() { return HeadTracking.recenter(); }
+        /** Spiel direkt auf der XR-Brille anzeigen (zweites Display) oder Handybild spiegeln lassen. */
+        @JavascriptInterface public void glassOutput(boolean on) {
+            getSharedPreferences("app", 0).edit().putBoolean("glassOutput", on).apply();
+            runOnUiThread(() -> { if (glass != null) glass.setEnabled(on); });
+        }
+        @JavascriptInterface public boolean glassActive() { return glass != null && glass.active(); }
+        /** Spiel zeichnet zwei Halbbilder: Touchfläche auf das linke Halbbild abbilden. */
+        @JavascriptInterface public void stereoActive(boolean on) { if (glass != null) glass.stereo = on; }
 
         @JavascriptInterface public String deviceName() { return Build.MODEL == null ? "Android" : Build.MODEL; }
         @JavascriptInterface public String netHost(String info) { multicast(true); return net.host(info); }
