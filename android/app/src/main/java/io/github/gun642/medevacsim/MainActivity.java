@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
 
         web = new WebView(this);
         HeadTracking.attach(web);
+        HeadTracking.start(this);
         web.setBackgroundColor(0xFF1B2013);
         setContentView(web);
         hideSystemUi();
@@ -113,6 +114,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+        HeadTracking.resume();
         hideSystemUi();
         updater.onResume();
     }
@@ -120,12 +122,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         web.onPause();
+        HeadTracking.pause();
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
         net.shutdown();
+        HeadTracking.stop();
         multicast(false);
         if (web != null) web.destroy();
         super.onDestroy();
@@ -195,6 +199,10 @@ public class MainActivity extends Activity {
         }
 
         // ---- LAN-Mehrspieler (siehe LanNet)
+        // ---- XR-Brille (VITURE)
+        @JavascriptInterface public boolean glassesConnected() { return HeadTracking.connected(); }
+        @JavascriptInterface public boolean glasses3D(boolean on) { return HeadTracking.set3D(on); }
+
         @JavascriptInterface public String deviceName() { return Build.MODEL == null ? "Android" : Build.MODEL; }
         @JavascriptInterface public String netHost(String info) { multicast(true); return net.host(info); }
         @JavascriptInterface public void netInfo(String info) { net.setInfo(info); }

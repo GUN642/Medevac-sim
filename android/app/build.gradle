@@ -58,4 +58,6 @@ android {
 
 dependencies {
     implementation 'androidx.webkit:webkit:1.11.0'
+    // VITURE-XR-Brillen: Head-Tracking (IMU) und 3D-Umschaltung
+    implementation files('libs/VITURE-SDK-1.0.7.aar')
 }

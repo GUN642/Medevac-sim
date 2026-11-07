@@ -768,6 +768,8 @@ class Game {
     bind('set-gyro-sens', 'gyroSens', Number);
     bind('set-vr3d', 'vr3d', Boolean, () => this.vr.apply());
     bind('set-headtrack', 'headTrack', Boolean, () => this.vr.recenter());
+    bind('set-head-invx', 'headInvX', Boolean, () => this.vr.recenter());
+    bind('set-head-invy', 'headInvY', Boolean, () => this.vr.recenter());
     on('btn-head-cal', () => { this.vr.recenter(); this.radio('Blick neu ausgerichtet – aktuelle Kopfhaltung ist geradeaus.', 'Crew', false, true); });
     bind('set-gyro-inv', 'gyroInvert', Boolean);
     document.body.classList.toggle('gyro-on', !!s.gyro);

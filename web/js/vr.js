@@ -16,8 +16,14 @@ export class VrView {
     this._q = new THREE.Quaternion();
     this._e = new THREE.Euler(0, 0, 0, 'YXZ');
     window.HotLZ_setHead = (yaw, pitch, roll = 0) => {
-      this.head = { yaw: +yaw || 0, pitch: +pitch || 0, roll: +roll || 0, t: performance.now() };
+      const sx = this.settings.headInvX ? -1 : 1, sy = this.settings.headInvY ? -1 : 1;
+      this.head = { yaw: (+yaw || 0) * sx, pitch: (+pitch || 0) * sy, roll: +roll || 0, t: performance.now() };
       if (!this.zero) this.recenter();
+      // Brille erkannt, Head-Tracking aber aus: einmal darauf hinweisen
+      if (!this.settings.headTrack && !this.hinted && this.g.state === 'playing') {
+        this.hinted = true;
+        this.g.radio('XR-Brille erkannt – Umsehen per Kopfbewegung in den Einstellungen einschalten.', 'Crew', false, true);
+      }
     };
     this.apply();
   }
@@ -27,6 +33,8 @@ export class VrView {
   // Einstellungen übernehmen (3D-Modus: HUD für das linke Auge zusammenschieben)
   apply() {
     document.body.classList.toggle('vr3d', !!this.settings.vr3d);
+    // Android-App mit VITURE-Brille: Brille passend in den 3D-Modus schalten
+    try { if (window.AndroidApp && window.AndroidApp.glasses3D && window.AndroidApp.glassesConnected()) window.AndroidApp.glasses3D(!!this.settings.vr3d); } catch (e) { /* ohne Brille egal */ }
   }
 
   recenter() { if (this.head) this.zero = { ...this.head }; this.lastAim = null; }
