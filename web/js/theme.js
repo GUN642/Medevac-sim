@@ -8,21 +8,21 @@ export const HELI_TYPES = {
   uh1d: {
     id: 'uh1d', model: 'huey', name: 'Bell UH-1D „Huey“', short: 'UH-1D', callsign: 'Dustoff 2-4',
     emptyMass: 2400, fuelMassFull: 600, paxMass: 95, capacity: 10, maxThrust: 4800 * G,
-    skidH: 1.6, rotorRadius: 7.3, rotorTop: 2.6, maxPitch: 0.5, maxRoll: 0.6, climbRate: 9, sinkRate: 7, yawRate: 1.15,
+    skidH: 1.6, rotorRadius: 7.3, rotorTop: 2.6, maxPitch: 0.5, maxRoll: 0.6, climbRate: 9, sinkRate: 12, yawRate: 1.15,
     agility: 1, burn: 1, drag: 1, gun: { name: 'M60', rpm: 550, ammo: 800, muzzleVel: 853, range: 800 },
     rotorAudio: 1, rotorCut: 1, camDist: 24, shadow: 9, door: 'side', numbers: ['66-16024', '67-17633'],
   },
   uh60: {
     id: 'uh60', model: 'blackhawk', name: 'Sikorsky UH-60 „Black Hawk“', short: 'UH-60', callsign: 'Dustoff 3-1',
     emptyMass: 5200, fuelMassFull: 1100, paxMass: 100, capacity: 11, maxThrust: 9900 * G,
-    skidH: 1.55, rotorRadius: 8.2, rotorTop: 2.4, maxPitch: 0.52, maxRoll: 0.65, climbRate: 11, sinkRate: 8, yawRate: 1.3,
+    skidH: 1.55, rotorRadius: 8.2, rotorTop: 2.4, maxPitch: 0.52, maxRoll: 0.65, climbRate: 11, sinkRate: 14, yawRate: 1.3,
     vmax: 125, agility: 1.15, burn: 1.05, drag: 0.85, gun: { name: 'M240H', rpm: 750, ammo: 800, muzzleVel: 853, range: 850 },
     rotorAudio: 1.45, rotorCut: 1.1, camDist: 26, shadow: 10, door: 'side', numbers: ['08-20112', '09-20214'],
   },
   ch47: {
     id: 'ch47', model: 'chinook', name: 'Boeing CH-47F „Chinook“ (Luftwaffe)', short: 'CH-47', callsign: 'Big Windy 2-5',
     emptyMass: 10600, fuelMassFull: 3100, paxMass: 100, capacity: 33, maxThrust: 26000 * G,
-    skidH: 1.75, rotorRadius: 9.1, rotorTop: 3.4, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 8, yawRate: 1.3,
+    skidH: 1.75, rotorRadius: 9.1, rotorTop: 3.4, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 14, yawRate: 1.3,
     vmax: 125, agility: 1.15, burn: 0.95, drag: 0.8, armor: 0.55, gun: { name: 'M134 Minigun', rpm: 3000, ammo: 4000, muzzleVel: 850, range: 900, minigun: true, tracerEvery: 5, soundEvery: 3 },
     rotorAudio: 0.8, rotorCut: 0.75, camDist: 38, shadow: 16, seats: ['pilot', 'left', 'right', 'ramp'], seatNames: { ramp: 'Heckschütze (Rampe)' },
     door: 'ramp', rampZ: 8.9, numbers: ['82+01', '82+07'],
@@ -30,7 +30,7 @@ export const HELI_TYPES = {
   ah64: {
     id: 'ah64', model: 'apache', name: 'Boeing AH-64E „Apache Guardian“', short: 'AH-64E', callsign: 'Ugly 5-1',
     emptyMass: 5900, fuelMassFull: 1100, paxMass: 100, capacity: 0, maxThrust: 10600 * G,
-    skidH: 1.55, rotorRadius: 7.3, rotorTop: 2.9, maxPitch: 0.55, maxRoll: 0.7, climbRate: 12, sinkRate: 8, yawRate: 1.45,
+    skidH: 1.55, rotorRadius: 7.3, rotorTop: 2.9, maxPitch: 0.55, maxRoll: 0.7, climbRate: 12, sinkRate: 14, yawRate: 1.45,
     vmax: 145, agility: 1.3, burn: 1.0, drag: 0.8,
     gun: { name: 'M230 30 mm', rpm: 625, ammo: 1200, muzzleVel: 805, range: 1600, he: true, turret: true, arc: { yaw: 1.9, pmin: -1.05, pmax: 0.25 } },
     armor: 0.3, rockets: 38, seats: ['pilot', 'left'], seatNames: { left: 'Waffensystemoffizier (CPG)' },
@@ -39,7 +39,7 @@ export const HELI_TYPES = {
   ch53: {
     id: 'ch53', model: 'ch53', name: 'Sikorsky CH-53GS', short: 'CH-53GS', callsign: 'Nazgul 61',
     emptyMass: 10900, fuelMassFull: 2900, paxMass: 100, capacity: 36, maxThrust: 26000 * G,
-    skidH: 1.65, rotorRadius: 11, rotorTop: 3.0, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 8, yawRate: 1.3,
+    skidH: 1.65, rotorRadius: 11, rotorTop: 3.0, maxPitch: 0.6, maxRoll: 0.65, climbRate: 13, sinkRate: 14, yawRate: 1.3,
     vmax: 127, vlimit: 130, agility: 1.15, burn: 0.9, drag: 0.9, armor: 0.5, gun: { name: 'M3M .50', rpm: 1050, ammo: 400, mags: 2, muzzleVel: 890, range: 1300, heavy: true, tracerEvery: 3 },
     seats: ['pilot', 'left', 'right', 'ramp'], seatNames: { ramp: 'Heckschütze (Rampe)' },
     rotorAudio: 1.7, rotorCut: 0.9, camDist: 40, shadow: 18, door: 'ramp', rampZ: 7.2, numbers: ['85+12', '84+05'],
@@ -47,7 +47,7 @@ export const HELI_TYPES = {
   nh90: {
     id: 'nh90', model: 'nh90', name: 'NH90 TTH (Sanitätshubschrauber)', short: 'NH90', callsign: 'MedEvac 2-1',
     emptyMass: 6400, fuelMassFull: 1600, paxMass: 100, capacity: 12, maxThrust: 12800 * G,
-    skidH: 1.65, rotorRadius: 8.15, rotorTop: 2.7, maxPitch: 0.52, maxRoll: 0.66, climbRate: 11, sinkRate: 8, yawRate: 1.35,
+    skidH: 1.65, rotorRadius: 8.15, rotorTop: 2.7, maxPitch: 0.52, maxRoll: 0.66, climbRate: 11, sinkRate: 14, yawRate: 1.35,
     vmax: 135, agility: 1.25, burn: 1.0, drag: 0.8, armor: 0.7,
     gun: { name: 'MG3', rpm: 1100, ammo: 300, mags: 2, muzzleVel: 820, range: 800, tracerEvery: 4 },
     rotorAudio: 1.5, rotorCut: 1.15, camDist: 26, shadow: 10, door: 'side', numbers: ['79+21', '79+35'],
@@ -55,7 +55,7 @@ export const HELI_TYPES = {
   tiger: {
     id: 'tiger', model: 'tiger', name: 'Eurocopter Tiger', short: 'Tiger', callsign: 'Gecko 1-1',
     emptyMass: 3900, fuelMassFull: 1000, paxMass: 100, capacity: 0, maxThrust: 7300 * G,
-    skidH: 1.5, rotorRadius: 6.5, rotorTop: 2.3, maxPitch: 0.56, maxRoll: 0.72, climbRate: 12, sinkRate: 8, yawRate: 1.5,
+    skidH: 1.5, rotorRadius: 6.5, rotorTop: 2.3, maxPitch: 0.56, maxRoll: 0.72, climbRate: 12, sinkRate: 14, yawRate: 1.5,
     vmax: 145, agility: 1.4, burn: 0.9, drag: 0.75,
     gun: { name: '30-mm-Kanone', rpm: 750, ammo: 450, muzzleVel: 1000, range: 1500, he: true, turret: true, arc: { yaw: 1.7, pmin: -1.0, pmax: 0.25 } },
     armor: 0.35, rockets: 38, seats: ['pilot', 'left'], seatNames: { left: 'Waffensystemoffizier' },
@@ -64,7 +64,7 @@ export const HELI_TYPES = {
   h145: {
     id: 'h145', model: 'h145', name: 'Airbus H145M LUH SAR', short: 'H145M', callsign: 'SAR 41',
     emptyMass: 2000, fuelMassFull: 560, paxMass: 95, capacity: 6, maxThrust: 3900 * G,
-    skidH: 1.3, rotorRadius: 5.5, rotorTop: 1.95, maxPitch: 0.5, maxRoll: 0.66, climbRate: 11, sinkRate: 8, yawRate: 1.55,
+    skidH: 1.3, rotorRadius: 5.5, rotorTop: 1.95, maxPitch: 0.5, maxRoll: 0.66, climbRate: 11, sinkRate: 14, yawRate: 1.55,
     vmax: 118, vlimit: 120, agility: 1.4, burn: 0.8, drag: 0.8, armor: 1,
     gun: { name: '–', rpm: 1, ammo: 0, muzzleVel: 800, range: 10 }, noGuns: true, hoist: true,
     seats: ['pilot'], rotorAudio: 1.8, rotorCut: 1.3, camDist: 17, shadow: 7, door: 'side', numbers: ['77+05', '77+12'],

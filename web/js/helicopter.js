@@ -232,7 +232,7 @@ export class Helicopter {
     // Schub (Kollektiv als Steig-/Sinkratenvorgabe)
     let vyT = ctl.collective >= 0 ? ctl.collective * S.climbRate : ctl.collective * S.sinkRate;
     if (this.contact && ctl.collective < 0.08) vyT = -3;
-    else if (assist && vyT < 0 && this.agl < 8) vyT = Math.max(vyT, -1.5 - this.agl * 0.55); // Landehilfe
+    else if (assist && vyT < 0 && this.agl < 22) vyT = Math.max(vyT, -1.5 - this.agl * 0.6); // Landehilfe: bremst die hohe Sinkrate bodennah rechtzeitig ab
     if (this.pos.y > 2400) vyT = Math.min(vyT, 0);
     const cosT = Math.max(this.up.y, 0.35);
     const Treq = (mass * (G + (vyT - this.vel.y) * 2.2)) / cosT;

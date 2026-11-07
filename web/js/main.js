@@ -1449,7 +1449,7 @@ class Game {
       if (h.hp < 25) warnings.push({ text: 'STRUKTUR KRITISCH', level: 'crit' });
       if (h.treeWarn > 0) warnings.push({ text: 'ROTOR IN DEN BÄUMEN – STEIGEN!', level: 'crit' });
       if (this.time - this.lastHitTime < 1.6) warnings.push({ text: 'TREFFER – BESCHUSS!', level: 'crit' });
-      if (!h.contact && h.agl < 25 && h.vel.y < -5) warnings.push({ text: 'SINKRATE – ZIEHEN!', level: 'crit' });
+      if (!h.contact && h.agl < 30 && h.vel.y < -(3 + h.agl * 0.6)) warnings.push({ text: 'SINKRATE – ZIEHEN!', level: 'crit' });
       if (h.boundaryWarn) warnings.push({ text: 'EINSATZGEBIET VERLASSEN – UMKEHREN', level: 'warn' });
       if (!hint && h.fuel < 35 && dF < 600) hint = 'Zum Tanken auf Pad POL (gelber Rand, neben dem Tankwagen) landen';
       if (!hint && h.spec.capacity > 0 && this.missions.target(h) === 'from' && this.heliLoad(h) >= h.spec.capacity) hint = 'Kabine voll!';
