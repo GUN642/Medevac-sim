@@ -518,6 +518,8 @@ export function setLang(l) {
       observer = new MutationObserver((list) => {
         if (lang === 'de') return;
         for (const m of list) {
+          // Kopie der Anzeigen für das rechte Auge (VR) ist schon übersetzt
+          if (m.target.id === 'vr-mirror' || (m.target.parentElement && m.target.parentElement.closest('#vr-mirror'))) continue;
           if (m.type === 'characterData') doText(m.target);
           else if (m.type === 'attributes') doEl(m.target);
           else for (const n of m.addedNodes) walk(n);

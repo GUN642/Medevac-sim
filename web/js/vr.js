@@ -72,7 +72,45 @@ export class VrView {
     cam.quaternion.multiply(this._q.setFromEuler(this._e));
   }
 
+  // Anzeigen und Menüs für das rechte Auge spiegeln: Kopie des linken Halbbilds (nur zum Ansehen, Bedienung links)
+  mirror() {
+    let box = this._mirror;
+    if (!this.settings.vr3d) { if (box) { box.remove(); this._mirror = null; } return; }
+    if (!box) {
+      box = this._mirror = document.createElement('div');
+      box.id = 'vr-mirror';
+      document.body.appendChild(box);
+      this._tick = 0;
+    }
+    if (this._tick++ % 2) return;                         // 30 Hz reichen
+    const src = [document.getElementById('hud'), document.getElementById('touch-controls'),
+      ...document.querySelectorAll('body > .overlay:not(.hidden)')].filter((e) => e && !e.classList.contains('hidden'));
+    const frag = document.createDocumentFragment();
+    for (const e of src) {
+      const c = e.cloneNode(true);
+      // Zeichenflächen (Kompass, Minikarte, Karte) und Eingaben übernehmen
+      const a = e.querySelectorAll('canvas, input, select'), b = c.querySelectorAll('canvas, input, select');
+      frag.appendChild(c);
+      this._fix = this._fix || [];
+      this._fix.push([a, b]);
+    }
+    box.replaceChildren(frag);
+    for (const [a, b] of this._fix) {
+      for (let i = 0; i < a.length && i < b.length; i++) {
+        const x = a[i], y = b[i];
+        if (x.tagName === 'CANVAS') { if (x.width && x.height) y.getContext('2d').drawImage(x, 0, 0); }
+        else if (x.type === 'checkbox' || x.type === 'radio') y.checked = x.checked;
+        else if ('value' in x) y.value = x.value;
+      }
+    }
+    this._fix.length = 0;
+    // gescrollte Fenster (Einstellungen, Hilfe) an der gleichen Stelle zeigen
+    const sa = document.querySelectorAll('body > .overlay:not(.hidden) *'), sb = box.querySelectorAll('.overlay *');
+    for (let i = 0; i < sa.length && i < sb.length; i++) if (sa[i].scrollTop) sb[i].scrollTop = sa[i].scrollTop;
+  }
+
   render(renderer, scene, cam) {
+    this.mirror();
     if (!this.settings.vr3d) { renderer.render(scene, cam); return; }
     cam.updateMatrixWorld();
     this.stereo.update(cam);
