@@ -88,29 +88,42 @@ export class Input {
     this.setupTouch();
   }
 
+  // Lage des Handys relativ zum Bildschirm: Lenkwinkel (Drehen wie ein Lenkrad) und Neigung (Oberkante weg/her).
+  // Über den Schwerkraft-Vektor gerechnet – stetig auch bei fast senkrecht gehaltenem Gerät (keine Sprünge wie bei Beta/Gamma).
+  gyroAngles() {
+    if (!this.gyro) return null;
+    const D = Math.PI / 180, b = this.gyro.beta * D, g = this.gyro.gamma * D;
+    const ux = -Math.cos(b) * Math.sin(g), uy = Math.sin(b), uz = Math.cos(b) * Math.cos(g);   // „oben“ in Gerätekoordinaten
+    const ang = ((screen.orientation && screen.orientation.angle) ?? window.orientation ?? 90) % 360;
+    let sx = ux, sy = uy;
+    if (ang === 90) { sx = -uy; sy = ux; } else if (ang === 270 || ang === -90) { sx = uy; sy = -ux; } else if (ang === 180) { sx = -ux; sy = -uy; }
+    return { roll: -Math.atan2(sx, sy) / D, pitch: Math.atan2(uz, Math.hypot(sx, sy)) / D };
+  }
   // Aktuelle Haltung des Handys als Neutralstellung übernehmen
-  calibrateGyro() { if (this.gyro) this.gyroZero = { ...this.gyro }; }
+  calibrateGyro() { const a = this.gyroAngles(); if (a) { this.gyroZero = a; this.gyroSm = { roll: 0, pitch: 0 }; } }
   // Für iOS: Zugriff auf den Lagesensor erfragen (muss aus einer Nutzeraktion heraus passieren)
   requestGyro() {
     const D = window.DeviceOrientationEvent;
     if (D && typeof D.requestPermission === 'function') D.requestPermission().catch(() => {});
     this.gyroZero = null;
   }
-  // Neigung in Steuerausschlag umrechnen (Querformat: Kippen nach links/rechts = Rollen, oben weg/her = Nicken)
+  // Neigung in Steuerausschlag: Totzone, sanfte Kennlinie (feinfühlig um die Mitte), voller Ausschlag erst bei ca. 35° (Empfindlichkeit 1)
   gyroControl() {
-    if (!this.settings.gyro || !this.gyro || !this.gyroZero) return null;
-    const ang = (screen.orientation && screen.orientation.angle) ?? window.orientation ?? 90;
-    let db = this.gyro.beta - this.gyroZero.beta, dg = this.gyro.gamma - this.gyroZero.gamma;
-    if (db > 180) db -= 360; if (db < -180) db += 360;
-    // Gamma springt bei fast senkrecht gehaltenem Gerät von +90 auf -90: Sprung abfangen
-    if (dg > 90) dg -= 180; if (dg < -90) dg += 180;
-    let roll, pitch;
-    if (ang === 90) { roll = db; pitch = dg; }
-    else if (ang === 270 || ang === -90) { roll = -db; pitch = -dg; }
-    else { roll = this.gyro.gamma - this.gyroZero.gamma; pitch = -db; }   // Hochformat
-    const full = 22 / (this.settings.gyroSens || 1), dead = 1.5;
-    const k = (v) => (Math.abs(v) < dead ? 0 : clamp((v - Math.sign(v) * dead) / full, -1, 1));
-    return { roll: k(roll), pitch: k(pitch) * (this.settings.gyroInvert ? -1 : 1) };
+    if (!this.settings.gyro || !this.gyroZero) return null;
+    const a = this.gyroAngles();
+    if (!a) return null;
+    let dr = a.roll - this.gyroZero.roll, dp = a.pitch - this.gyroZero.pitch;
+    if (dr > 180) dr -= 360; if (dr < -180) dr += 360;
+    const sens = this.settings.gyroSens || 1, dead = 3;
+    const k = (v, full) => {
+      if (Math.abs(v) < dead) return 0;
+      const x = clamp((Math.abs(v) - dead) / (full / sens), 0, 1);
+      return Math.sign(v) * Math.pow(x, 1.6);
+    };
+    const sm = this.gyroSm || (this.gyroSm = { roll: 0, pitch: 0 });
+    sm.roll += (k(dr, 35) - sm.roll) * 0.35;
+    sm.pitch += (k(dp, 30) - sm.pitch) * 0.35;
+    return { roll: sm.roll, pitch: sm.pitch * (this.settings.gyroInvert ? -1 : 1) };
   }
 
   // Belegung neu einlesen (nach Änderung in den Einstellungen)
