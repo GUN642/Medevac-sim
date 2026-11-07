@@ -5,6 +5,7 @@ import { AfghanWorld } from './worldAfg.js';
 import { FloodWorld } from './worldFlood.js';
 import { MaliWorld } from './worldMali.js';
 import { NorwayWorld } from './worldNorway.js';
+import { VrView } from './vr.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
 import { NightSys } from './night.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
@@ -124,6 +125,7 @@ class Game {
     this.hud = new HUD(this);
     this.input = new Input(canvas, this.settings);
     this.input.onDevice = () => this.updateTouchVisibility();
+    this.vr = new VrView(this);
     this.audio = new AudioSys();
     this.audio.setVolume(this.settings.volume);
     this.tr = netTransport();
@@ -764,6 +766,9 @@ class Game {
     if (s.gyroSens == null) s.gyroSens = 1;
     bind('set-gyro', 'gyro', Boolean, (v) => { if (v) this.input.requestGyro(); document.body.classList.toggle('gyro-on', !!v); });
     bind('set-gyro-sens', 'gyroSens', Number);
+    bind('set-vr3d', 'vr3d', Boolean, () => this.vr.apply());
+    bind('set-headtrack', 'headTrack', Boolean, () => this.vr.recenter());
+    on('btn-head-cal', () => { this.vr.recenter(); this.radio('Blick neu ausgerichtet – aktuelle Kopfhaltung ist geradeaus.', 'Crew', false, true); });
     bind('set-gyro-inv', 'gyroInvert', Boolean);
     document.body.classList.toggle('gyro-on', !!s.gyro);
     on('btn-gyro-cal', () => { this.input.calibrateGyro(); this.radio('Gyro neu ausgerichtet – aktuelle Haltung ist neutral.', 'Crew', false, true); });
@@ -1210,6 +1215,7 @@ class Game {
           if (this.seat === 'pilot') this.camMode = this.camMode === 'chase' ? 'cockpit' : 'chase';
           break;
         case 'zoom': this.zoomToggle = !this.zoomToggle; break;
+        case 'head-cal': this.vr.recenter(); this.radio('Blick neu ausgerichtet – aktuelle Kopfhaltung ist geradeaus.', 'Crew', false, true); break;
         case 'gyro-cal': this.input.calibrateGyro(); this.radio('Gyro neu ausgerichtet – aktuelle Haltung ist neutral.', 'Crew', false, true); break;
         // Außenansicht: Abstand zum Hubschrauber (Stufen bzw. +/−)
         case 'cam-dist': case 'cam-in': case 'cam-out': {
@@ -1285,7 +1291,7 @@ class Game {
     const run = this.state === 'playing' || (this.state === 'paused' && this.role !== 'solo') || (this.state === 'menu' && this.role !== 'solo' && this.started);
     if (run) for (let i = 0; i < (this.timeScale || 1); i++) this.tick(dt, this.state !== 'playing');
     else if (this.state === 'menu') this.attract(dt);
-    this.renderer.render(this.scene, this.camera);
+    this.vr.render(this.renderer, this.scene, this.camera);
   }
 
   attract(dt) {
@@ -1459,6 +1465,7 @@ class Game {
     this.world.update(dt, this.time, this.camera);
     this.updateWeather();
     this.updateCamera(dt);
+    this.vr.updateCamera(this.camera, this.seat);
     if (this.myPickup && (this.seat !== 'foot' || (this.helis.every((x) => !x.aiPickup) && !(this.time - (this.myPickup.manual ?? -1e9) < 300)))) this.myPickup = null;
     this.hud.update(dt, {
       waypoint: this.myPickup ? { x: this.myPickup.x, z: this.myPickup.z, y: this.world.height(this.myPickup.x, this.myPickup.z), label: 'Abholung ' + this.myPickup.name, radius: 45 } : this.missions.waypoint(),

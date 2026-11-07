@@ -67,6 +67,7 @@ der Host Karte und Hubschrauber vor (zweite Maschine frei wählbar); Gäste wech
 - **Schwierige Landezonen**: enge Gipfel-LZs (z. B. Hill 875, OP Eagle's Nest) mit Fallwinden, schmale Absätze am Steilhang (Sattel/Ledge), Landeplätze tief im Flusstal und Wadis – mit Bonus ×1,3. Sie werden bevorzugt ausgewählt.
 - **Abwechslung**: dieselbe Auftragsart kommt nie zweimal hintereinander, kürzlich angeflogene Orte werden gemieden.
 - **Bootstrupp (Helocast)**: Spezialkräfte mit Schlauchboot auf den Fluss bringen – unter 4 m über dem Wasser schweben, das Team springt ab und fährt mit dem Boot davon.
+- **VR-/XR-Brillen** (z. B. VITURE): Einstellungen → 3D-Bild nebeneinander (Side-by-Side) und Head-Tracking. Kopfdaten kommen über `window.HotLZ_setHead(yaw, pitch, roll)`; in der Android-App nimmt `HeadTracking.push(...)` sie vom Brillen-SDK entgegen.
 - **Gyro-Steuerung** (Handy neigen) als Pilot, zusätzlich zu den Touch-Sticks: Einstellungen → Gyro, Empfindlichkeit einstellbar, Knopf GYRO 0 richtet neu aus.
 - **Tastenbelegung** (Tastatur/Maus) frei änderbar: Einstellungen → Tastenbelegung.
 - **Sprache** Deutsch oder Englisch (Einstellungen → Sprache / Language).

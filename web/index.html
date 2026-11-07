@@ -250,6 +250,7 @@
         <tr><th>Zu Fuß</th><td>Links laufen, rechts wischen oder FEUER ziehen zum Zielen · WAFFE · LADEN · ZOOM · DUCKEN · ANSICHT · EIN/AUS · ABHOLUNG</td></tr>
         <tr><th>KAMERA · KARTE · AUFTRAG</th><td>Ansicht wechseln · Karte · Briefing zeigen</td></tr>
         <tr><th>ABSTAND</th><td>Außenansicht: Abstand zum Hubschrauber</td></tr>
+        <tr><th>VR-Brille (Einstellungen)</th><td>3D-Bild nebeneinander für XR-Brillen im 3D-Modus; mit Head-Tracking umsehen (Pilot) bzw. zielen (Schütze), O richtet den Blick neu aus</td></tr>
         <tr><th>Gyro (Einstellungen)</th><td>Handy neigen = zyklisch steuern, GYRO 0 richtet neu aus – die Sticks funktionieren weiterhin</td></tr>
       </table>
     </div>
@@ -301,6 +302,9 @@
     <label class="check"><input id="set-gyro" type="checkbox"> Pilot: Steuerung durch Neigen des Handys (Gyro)</label>
     <label>Gyro-Empfindlichkeit <input id="set-gyro-sens" type="range" min="0.4" max="2.5" step="0.1"></label>
     <label class="check"><input id="set-gyro-inv" type="checkbox"> Gyro: vor/zurück umkehren</label>
+    <label class="check"><input id="set-vr3d" type="checkbox"> VR-Brille: 3D-Bild nebeneinander (Side-by-Side, z. B. VITURE im 3D-Modus)</label>
+    <label class="check"><input id="set-headtrack" type="checkbox"> VR-Brille: Umsehen per Kopfbewegung (Head-Tracking)</label>
+    <button id="btn-head-cal">BLICK NEU AUSRICHTEN (Kopf geradeaus)</button>
     <button id="btn-gyro-cal">GYRO NEU AUSRICHTEN (aktuelle Haltung = neutral)</button>
     <label>Feindstärke
       <select id="set-diff"><option value="0.6">Leicht</option><option value="1">Normal</option><option value="1.5">Schwer</option></select>

@@ -48,6 +48,7 @@ public class MainActivity extends Activity {
         }
 
         web = new WebView(this);
+        HeadTracking.attach(web);
         web.setBackgroundColor(0xFF1B2013);
         setContentView(web);
         hideSystemUi();

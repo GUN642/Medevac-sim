@@ -59,6 +59,8 @@ html, body {
 /* Warnungen am Rand statt in der Bildmitte (Hubschrauber bleibt sichtbar) */
 body:not(.gyro-on) .gyro-only { display: none !important; }
 body.snow #brownout { background: radial-gradient(ellipse at 50% 55%, rgba(236, 242, 248, 0.6) 0%, rgba(232, 238, 246, 0.95) 70%); }
+/* VR-Brille im 3D-Modus: Bild nebeneinander, Bedienelemente auf das linke Halbbild zusammengeschoben */
+body.vr3d #hud, body.vr3d .overlay, body.vr3d #touch-controls { transform: scaleX(0.5); transform-origin: 0 0; }
 #binds-table td { padding: 2px 0 2px 6px; }
 #binds-table th { white-space: normal; }
 #binds-table tr.grp th { color: var(--amber); font-weight: bold; padding-top: 10px; }

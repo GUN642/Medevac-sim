@@ -50,6 +50,7 @@ export const BIND_DEFS = [
   { id: 'confirm', label: 'Bestätigen', def: ['Enter', 'NumpadEnter'] },
   { id: 'pause', label: 'Pause (Esc immer)', def: ['KeyP'] },
   { id: 'help', label: 'Steuerung', def: ['KeyH'] },
+  { id: 'head-cal', label: 'VR-Brille: Blick neu ausrichten', def: ['KeyO'] },
 ];
 
 // Gruppe -> wann die Belegung gilt
