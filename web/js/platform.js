@@ -13,8 +13,11 @@ function write(key, v) {
 }
 
 export function loadSettings() {
-  const d = { quality: isMobile ? 'low' : 'high', volume: 0.8, sensitivity: 1, invertY: false, difficulty: 1, showFps: false, mouseFly: true, mouseFlyInvert: false, footView: 'third', aimAssist: 'light', map: 'vietnam', heli: 'uh1d', night: false };
-  return Object.assign(d, read(SKEY) || {});
+  const d = { quality: 'high', volume: 0.8, sensitivity: 1, invertY: false, difficulty: 1, showFps: false, mouseFly: true, mouseFlyInvert: false, footView: 'third', aimAssist: 'light', map: 'vietnam', heli: 'uh1d', night: false };
+  const s = Object.assign(d, read(SKEY) || {});
+  // Standard ist jetzt hohe Grafik (auch auf dem Handy): alte, automatisch gespeicherte Voreinstellung einmalig anheben
+  if (!s.qHigh) { s.qHigh = true; s.quality = 'high'; write(SKEY, s); }
+  return s;
 }
 export const saveSettings = (s) => write(SKEY, s);
 

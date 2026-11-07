@@ -379,24 +379,32 @@ export class HUD {
     if (key) { const n = this.el['crew-list'].querySelector(key); if (n) n.focus(); }
   }
 
+  // Bildschirmmarker an einer Weltposition platzieren (cam: Kamera bzw. Auge im 3D-Modus)
+  placeMarker(el, x, y, z, label, show, cam) {
+    el._w = show ? [x, y, z, label] : null;
+    if (!show) { el.style.display = 'none'; return; }
+    _p.set(x, y, z).project(cam);
+    const behind = _p.z > 1;
+    let sx = (_p.x * 0.5 + 0.5) * window.innerWidth, sy = (-_p.y * 0.5 + 0.5) * window.innerHeight;
+    if (behind) { sx = window.innerWidth - sx; sy = window.innerHeight - 40; }
+    const m = 30;
+    const clipped = behind || sx < m || sx > window.innerWidth - m || sy < m || sy > window.innerHeight - m;
+    sx = clamp(sx, m, window.innerWidth - m); sy = clamp(sy, m + 40, window.innerHeight - m);
+    el.style.display = 'block';
+    el.style.transform = `translate(${sx}px, ${sy}px)`;
+    el.classList.toggle('edge', clipped);
+    const lab = el.querySelector('.mlabel');
+    if (lab && lab.textContent !== label) lab.textContent = label;
+  }
+
   // Bildschirmmarker für Wegpunkt und FOB
   updateMarkers(wp) {
-    const g = this.game, cam = g.camera;
-    const place = (el, x, y, z, label, show) => {
-      if (!show) { el.style.display = 'none'; return; }
-      _p.set(x, y, z).project(cam);
-      const behind = _p.z > 1;
-      let sx = (_p.x * 0.5 + 0.5) * window.innerWidth, sy = (-_p.y * 0.5 + 0.5) * window.innerHeight;
-      if (behind) { sx = window.innerWidth - sx; sy = window.innerHeight - 40; }
-      const m = 30;
-      const clipped = behind || sx < m || sx > window.innerWidth - m || sy < m || sy > window.innerHeight - m;
-      sx = clamp(sx, m, window.innerWidth - m); sy = clamp(sy, m + 40, window.innerHeight - m);
-      el.style.display = 'block';
-      el.style.transform = `translate(${sx}px, ${sy}px)`;
-      el.classList.toggle('edge', clipped);
-      const lab = el.querySelector('.mlabel');
-      if (lab && lab.textContent !== label) lab.textContent = label;
-    };
+    const g = this.game;
+    // aktuelle Kamera (inkl. Kopfbewegung) – sonst hängt die Markierung ein Bild hinterher und schwimmt
+    let cam = g.camera;
+    cam.updateMatrixWorld();
+    if (g.vr && g.vr.stereoOn) { g.vr.stereo.update(cam); cam = g.vr.stereo.cameraL; }
+    const place = (el, x, y, z, label, show) => this.placeMarker(el, x, y, z, label, show, cam);
     const h = g.viewer();
     if (wp) {
       const d = dist2(h.pos.x, h.pos.z, wp.x, wp.z);

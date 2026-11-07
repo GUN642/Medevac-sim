@@ -3,9 +3,12 @@ package io.github.gun642.medevacsim;
 import android.app.Activity;
 import android.app.Presentation;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,25 +16,30 @@ import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.PixelCopy;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.webkit.WebView;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 /**
  * Spiel direkt auf der XR-Brille (zweites Display, wie in DEX reloaded) statt gespiegeltem Handybild.
  * Im 3D-Modus meldet die Brille 3840×1080: dann zeichnet das Spiel automatisch zwei Halbbilder in voller Breite.
- * Das Handy wird zur Touchfläche: Berührungen gehen an die WebView (im 3D-Modus auf das linke Halbbild),
- * Tasten und Controller ebenfalls.
+ * Das Handy wird zur Touchfläche: Es zeigt eine Kopie des Brillenbilds (im 3D-Modus das linke Halbbild),
+ * Berührungen gehen an die gleiche Stelle der WebView; Tasten und Controller ebenfalls.
  */
 final class GlassDisplay {
     private static final String TAG = "HotLZGlass";
     private final Activity act;
     private final WebView web;
     private final FrameLayout phoneRoot;
-    private final View pad;
+    private final FrameLayout pad;
+    private final ImageView shot;
+    private Bitmap front, back;
+    private boolean copying;
     private final DisplayManager dm;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private GamePresentation pres;
@@ -42,14 +50,19 @@ final class GlassDisplay {
     GlassDisplay(Activity a, WebView w, FrameLayout root) {
         act = a; web = w; phoneRoot = root;
         dm = (DisplayManager) a.getSystemService(Context.DISPLAY_SERVICE);
+        pad = new FrameLayout(a);
+        pad.setBackgroundColor(Color.BLACK);
         TextView t = new TextView(a);
         t.setText("Hot LZ läuft auf der Brille.\nDieser Bildschirm ist die Touchfläche.");
-        t.setTextColor(0x55E8F0D0);
+        t.setTextColor(0x88E8F0D0);
         t.setTextSize(14);
         t.setGravity(Gravity.CENTER);
-        t.setBackgroundColor(Color.BLACK);
-        t.setOnTouchListener((v, e) -> forward(v, e));
-        pad = t;
+        pad.addView(t, new FrameLayout.LayoutParams(-1, -1));
+        // Kopie des Brillenbilds, damit Menüs und Knöpfe auf dem Handy zu sehen sind
+        shot = new ImageView(a);
+        shot.setScaleType(ImageView.ScaleType.FIT_XY);
+        pad.addView(shot, new FrameLayout.LayoutParams(-1, -1));
+        pad.setOnTouchListener((v, e) -> forward(v, e));
         dm.registerDisplayListener(listener, ui);
     }
 
@@ -66,6 +79,34 @@ final class GlassDisplay {
     };
 
     boolean active() { return pres != null; }
+
+    // Brillenbild etwa 20-mal pro Sekunde auf das Handy kopieren
+    private final Runnable copyLoop = new Runnable() {
+        @Override public void run() {
+            if (pres == null) return;
+            ui.postDelayed(this, 50);
+            if (Build.VERSION.SDK_INT < 26 || copying || pres.getWindow() == null) return;
+            int pw = pad.getWidth(), ph = pad.getHeight();
+            if (pw == 0 || ph == 0 || !pres.isShowing()) return;
+            int bw = Math.max(320, pw / 2), bh = Math.max(180, ph / 2);
+            if (back == null || back.getWidth() != bw || back.getHeight() != bh) back = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888);
+            View dv = pres.getWindow().getDecorView();
+            int ww = dv.getWidth(), wh = dv.getHeight();
+            if (ww == 0 || wh == 0) return;
+            Rect src = new Rect(0, 0, stereo ? ww / 2 : ww, wh);
+            copying = true;
+            final Bitmap target = back;
+            try {
+                PixelCopy.request(pres.getWindow(), src, target, (res) -> {
+                    copying = false;
+                    if (res != PixelCopy.SUCCESS || pres == null) return;
+                    back = front;
+                    front = target;
+                    shot.setImageBitmap(front);
+                }, ui);
+            } catch (Throwable t) { copying = false; }
+        }
+    };
 
     void setEnabled(boolean on) { enabled = on; update(); }
 
@@ -84,6 +125,8 @@ final class GlassDisplay {
             p.setOnDismissListener((x) -> { if (pres == p) { pres = null; attachToPhone(); ui.postDelayed(this::update, 500); } });
             pres = p;
             p.show();
+            ui.removeCallbacks(copyLoop);
+            ui.postDelayed(copyLoop, 500);
         } catch (Throwable t) {
             Log.w(TAG, "Presentation fehlgeschlagen: " + t);
             pres = null;
@@ -95,6 +138,10 @@ final class GlassDisplay {
         GamePresentation p = pres;
         pres = null;
         if (p != null) try { p.dismiss(); } catch (Throwable ignored) { }
+        ui.removeCallbacks(copyLoop);
+        shot.setImageDrawable(null);
+        front = back = null;
+        copying = false;
         attachToPhone();
     }
 

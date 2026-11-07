@@ -91,7 +91,7 @@ export class VrView {
       document.body.appendChild(box);
       this._tick = 0;
     }
-    if (this._tick++ % 2) return;                         // 30 Hz reichen
+    if (this._tick++ % 2) { this.mirrorMarkers(); return; }   // 30 Hz reichen, Markierungen jedes Bild
     const src = [document.getElementById('hud'), document.getElementById('touch-controls'),
       ...document.querySelectorAll('body > .overlay:not(.hidden)')].filter((e) => e && !e.classList.contains('hidden'));
     const frag = document.createDocumentFragment();
@@ -116,6 +116,14 @@ export class VrView {
     // gescrollte Fenster (Einstellungen, Hilfe) an der gleichen Stelle zeigen
     const sa = document.querySelectorAll('body > .overlay:not(.hidden) *'), sb = box.querySelectorAll('.overlay *');
     for (let i = 0; i < sa.length && i < sb.length; i++) if (sa[i].scrollTop) sb[i].scrollTop = sa[i].scrollTop;
+    this._marks = ['marker', 'fob-marker', 'heli-marker'].map((id) => [document.getElementById(id), box.querySelector('#' + id)]);
+    this.mirrorMarkers();
+  }
+
+  // Markierungen im rechten Halbbild mit dem rechten Auge projizieren: richtige Tiefe, sitzen fest auf dem Ziel
+  mirrorMarkers() {
+    if (!this._marks || !this.g.hud) return;
+    for (const [a, b] of this._marks) if (a && b && a._w) this.g.hud.placeMarker(b, a._w[0], a._w[1], a._w[2], a._w[3], true, this.stereo.cameraR);
   }
 
   render(renderer, scene, cam) {
