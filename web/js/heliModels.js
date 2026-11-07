@@ -399,6 +399,7 @@ function buildNH90({ static: isStatic = false, number = '79+21' } = {}) {
     eyePilot: new THREE.Vector3(0.55, 0.68, -4.85),
     spin: [[mainRotor, 'y', 20], [tailRotor, 'x', 65]],
     exhaust: new THREE.Vector3(0, 1.6, 2.7),
+    hoist: new THREE.Vector3(1.55, 1.0, -2.2),
     gear: [[-1.5, -1.65, -0.2], [1.5, -1.65, -0.2], [0, -1.65, -4.9]],   // Aufsetzpunkte (Räder) für den Bodenkontakt
   };
 }

@@ -27,10 +27,10 @@ const WALLS = [0xe9e3d3, 0xddd2bb, 0xcfc2a6, 0xe4dccd, 0xd8c9b0, 0xb9a689, 0xefe
 const ROOFS = [0x5b2f24, 0x6e3a2a, 0x3a3a3c, 0x4a4a4e, 0x7a4430];
 
 // Wohnhaus mit Satteldach, Fenstern und Schornstein. Liefert auch die Firsthöhe.
-export function germanHouse(rng, big = false) {
+export function germanHouse(rng, big = false, walls = WALLS, roofs = ROOFS) {
   const w = (big ? 10 : 7.5) + rng() * 3, d = (big ? 12 : 9) + rng() * 3, h = (rng() < 0.7 ? 5.8 : 3.2) + rng() * 0.8;
   const rh = w * (0.42 + rng() * 0.12);
-  const wall = WALLS[Math.floor(rng() * WALLS.length)], roof = ROOFS[Math.floor(rng() * ROOFS.length)];
+  const wall = walls[Math.floor(rng() * walls.length)], roof = roofs[Math.floor(rng() * roofs.length)];
   const p = [P(box(w, h, d), wall, [0, h / 2, 0])];
   p.push(P(gable(w + 0.7, rh, d + 0.7), roof, [0, h, 0]));
   // Fenster (2 Reihen) an Längsseiten

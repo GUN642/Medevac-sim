@@ -121,6 +121,11 @@ const FIG_TYPES = {
   un2:      { uni: 0x8d7f5c, skin: 0x5a3a26, hat: 'helmet', hatCol: 0x3c7fd0, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649, rifle: 'm4' },
   jih:      { uni: 0xc4b18c, skin: 0x6a4630, hat: 'turban', hatCol: 0x1c1c1c, pack: null, gun: 0x3b2a1b, robe: true },
   jih2:     { uni: 0x6a6448, skin: 0x5a3a26, hat: 'turban', hatCol: 0xc8b48a, pack: 0x3d3a30, gun: 0x3b2a1b, robe: true, vest: 0x5a5440 },
+  // Norwegen: Winterbekleidung
+  bwW:      { uni: 0xe2e5e6, skin: 0xd8a882, hat: 'helmet', hatCol: 0xdde0e1, pack: 0xcfd3d2, gun: 0x222222, vest: 0xc9cdcc, rifle: 'm4' },
+  noW:      { uni: 0xdfe2e0, skin: 0xe0b08a, hat: 'helmet', hatCol: 0x4a5a3a, pack: 0xd2d6d4, gun: 0x222222, vest: 0xc4c9c6, rifle: 'm4' },
+  sofW:     { uni: 0xd8dcdc, skin: 0xd2a07a, hat: 'cap', hatCol: 0xc8cccc, pack: 0xcfd3d2, gun: 0x1d1d1d, vest: 0xb8bdbc, rifle: 'm4', beard: 0x5a4030 },
+  woundedW: { uni: 0xe2e5e6, skin: 0xd8a882, hat: 'band', hatCol: 0xeeeeee, pack: null, gun: null, blood: true },
   // Hochwasser: Zivilisten, Helfer, Besatzung
   civ:      { uni: 0xb03a2e, skin: 0xe0b08a, hat: null, pack: null, gun: null },
   civ2:     { uni: 0x3a5a8a, skin: 0xd8a882, hat: null, pack: null, gun: null },

@@ -92,6 +92,7 @@ export class Missions {
     // Windenrettung: ein überflutetes Haus, auf dessen Dach Menschen ausharren
     const roof = type === 'winch' ? this.pickRoof() : null;
     if (type === 'winch' && !roof) type = 'medevac';
+    if (type === 'ship' && !w.ship) type = 'medevac';
     const hotChance = clamp(0.3 + this.count * 0.05, 0.3, 0.7);
     const m = {
       id: 'M' + this.count + '_' + Math.floor(rand() * 1e6), num: this.count, type,
@@ -158,6 +159,21 @@ export class Missions {
         m.to = this.fobPoint(w.fob.pads.troop);
         m.hot = rand() < 0.75;
         m.hotAt = m.hot ? 'from' : null;
+      }
+    } else if (type === 'ship') {
+      // Fregatte im Fjord: Verwundete abholen oder Truppen an Bord bringen
+      const cap = Math.max(...g.helis.map((x) => x.spec.capacity));
+      const pad = w.ship.pad;
+      const pt = { name: pad.name, short: 'Flugdeck', x: pad.x, z: pad.z, y: w.ship.deck, kind: 'ship', site: { r: 10, hard: 'ship' }, radius: 20 };
+      m.noSmoke = true;
+      if (rand() < 0.55) {
+        m.variant = 'med'; m.title = 'MEDEVAC VON SEE';
+        m.from = pt; m.to = this.fobPoint(w.fob.pads.med);
+        m.count = rand.int(1, 3); m.litters = m.count; m.walking = 0;
+      } else {
+        m.variant = 'troop'; m.title = 'VERLEGUNG AUF DIE FREGATTE';
+        m.from = this.fobPoint(w.fob.pads.troop); m.to = pt;
+        m.count = rand.int(4, Math.max(4, Math.min(cap, 10)));
       }
     } else if (type === 'convoy') {
       const site = this.pickSite();
@@ -300,6 +316,17 @@ export class Missions {
       radio = m.type === 'insert'
         ? `„${g.callsign}, hier TOC. ${m.unit} muss verdeckt bei ${p.name} abgesetzt werden. Aufnahme bei ${T.fobName}, Pad H1. Keine Rauchzeichen.“`
         : `„${g.callsign}, hier ${m.unit}. ${m.hot ? 'Wir sind aufgeflogen und werden verfolgt!' : 'Auftrag erfüllt.'} Erbitten Exfil bei ${p.name}, Planquadrat ${w.gridRef(p.x, p.z)}.“`;
+    } else if (m.type === 'ship') {
+      const sp = m.variant === 'med' ? m.from : m.to;
+      const bs = bearing(w.fob.x, w.fob.z, sp.x, sp.z);
+      rows.push(['Auftrag', m.variant === 'med' ? 'Verletzte von der Fregatte zum Sanitätsbereich fliegen' : 'Truppen von der Basis auf die Fregatte verlegen']);
+      rows.push(['Landeplatz', `${sp.name} · Planquadrat ${w.gridRef(sp.x, sp.z)}`]);
+      rows.push(['Richtung / Entfernung', `${fmtBearing(bs)} (${dirName(bs)}) · ${fmtDist(dist2(w.fob.x, w.fob.z, sp.x, sp.z))} von der Basis`]);
+      rows.push([m.variant === 'med' ? 'Verwundete' : 'Soldaten', `${m.count}`]);
+      if (m.variant === 'med') rows.push(['Ablieferung', `${T.fobName} – Pad MED`]);
+      radio = m.variant === 'med'
+        ? `„${g.callsign}, hier Fregatte „Sachsen“. Wir haben ${m.count === 1 ? 'einen Verletzten' : m.count + ' Verletzte'} an Bord, Unfall an Deck. Flugdeck ist frei, Seegang mäßig.“`
+        : `„${g.callsign}, hier ${T.fobName}. ${m.count} Soldaten des Seebataillons auf die Fregatte „Sachsen“ verlegen. Achten Sie auf das schwankende Deck.“`;
     } else if (m.type === 'convoy') {
       const len = m.route[m.route.length - 1].s;
       rows.push(['Auftrag', 'Begleitschutz aus der Luft für einen Versorgungskonvoi']);
@@ -369,7 +396,8 @@ export class Missions {
     // Schwierige Landezonen
     for (const p of [m.from, m.to]) {
       const hs = p && p.site && p.site.hard;
-      const txt = { peak: 'Gipfel-LZ – kleine Landefläche, Fallwinde, steile Hänge', valley: 'enges Flusstal – hohe Hänge, wenig Platz', ridge: 'Hang-LZ – schmaler Absatz am Steilhang, Rotor frei halten', wadi: 'Wadi – enges Trockental zwischen Böschungen, starker Staub', mesa: 'Tafelberg – Landung an der Abbruchkante, Fallwinde' };
+      const txt0 = { ship: 'Schiffsdeck – das Deck hebt und senkt sich, im ruhigen Moment aufsetzen' };
+      const txt = { ...txt0, peak: 'Gipfel-LZ – kleine Landefläche, Fallwinde, steile Hänge', valley: 'enges Flusstal – hohe Hänge, wenig Platz', ridge: 'Hang-LZ – schmaler Absatz am Steilhang, Rotor frei halten', wadi: 'Wadi – enges Trockental zwischen Böschungen, starker Staub', mesa: 'Tafelberg – Landung an der Abbruchkante, Fallwinde' };
       if (hs) rows.push(['Schwierige LZ', `${p.name}: ${txt[hs]}`, 'hot']);
     }
     const need = this.fuelNeeded(m);
@@ -397,7 +425,7 @@ export class Missions {
 
     // Passagiere an Punkt A
     const kinds = [];
-    if (m.type === 'medevac') { for (let i = 0; i < m.litters; i++) kinds.push('litter'); for (let i = 0; i < m.walking; i++) kinds.push('walking'); }
+    if (m.type === 'medevac' || (m.type === 'ship' && m.variant === 'med')) { for (let i = 0; i < m.litters; i++) kinds.push('litter'); for (let i = 0; i < m.walking; i++) kinds.push('walking'); }
     else if (m.type === 'csar') for (let i = 0; i < m.count; i++) kinds.push('pilot');
     else if (m.type === 'insert' || m.type === 'exfil' || m.type === 'boat') for (let i = 0; i < m.count; i++) kinds.push('sof');
     else if (m.type === 'resupply') for (let i = 0; i < m.count; i++) kinds.push('cargo');
@@ -496,7 +524,7 @@ export class Missions {
     if (m.boarded >= m.count) {
       const to = m.to;
       const b = bearing(h.pos.x, h.pos.z, to.x, to.z);
-      const what = m.type === 'convoy' ? `${alive} von ${m.count} Fahrzeugen sicher angekommen` : m.type === 'winch' ? 'Alle Personen' : m.type === 'recon' ? `3 Punkte aufgeklärt, ${m.found || 0} Feinde gemeldet` : m.type === 'resupply' ? `${m.count} Kisten Nachschub geliefert` : m.type === 'vip' ? `${m.vip.who} sicher abgesetzt` : m.type === 'insert' ? `${m.unit} unentdeckt abgesetzt` : m.type === 'exfil' ? `${m.unit} herausgeholt` : m.type === 'cas' ? `${m.killed || m.count} Feinde bekämpft` : m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : 'Alle Soldaten';
+      const what = m.type === 'ship' && m.variant === 'med' ? `${m.count} Verwundete gerettet` : m.type === 'convoy' ? `${alive} von ${m.count} Fahrzeugen sicher angekommen` : m.type === 'winch' ? 'Alle Personen' : m.type === 'recon' ? `3 Punkte aufgeklärt, ${m.found || 0} Feinde gemeldet` : m.type === 'resupply' ? `${m.count} Kisten Nachschub geliefert` : m.type === 'vip' ? `${m.vip.who} sicher abgesetzt` : m.type === 'insert' ? `${m.unit} unentdeckt abgesetzt` : m.type === 'exfil' ? `${m.unit} herausgeholt` : m.type === 'cas' ? `${m.killed || m.count} Feinde bekämpft` : m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : 'Alle Soldaten';
       g.radio(`Crew: ${what} an Bord – los, los, los! Kurs ${fmtBearing(b)} nach ${to.name}.`, 'Crew');
     } else if (g.heliLoad(h) >= h.spec.capacity) g.radio('Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.', 'Crew');
     this.changed();
@@ -577,9 +605,9 @@ export class Missions {
       const d = dist2(h.pos.x, h.pos.z, p.x, p.z);
       // Rauch werfen bei Annäherung
       // Nachts markieren alle Truppen (auch Spezialkräfte) mit Blitzlicht
-      if (g.nightSys.night && (p.kind === 'site' || p.kind === 'water' || p.kind === 'roof') && d < 1500 && !(m.strobe || {})[end] && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
+      if (g.nightSys.night && (p.kind === 'site' || p.kind === 'water' || p.kind === 'roof' || p.kind === 'ship') && d < 1500 && !(m.strobe || {})[end] && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
         (m.strobe = m.strobe || {})[end] = true;
-        m.emitters.push(g.effects.strobe(p.x + (p.kind === 'roof' ? 0 : 3), p.kind === 'roof' ? p.y + 0.3 : Math.max(0.3, g.world.height(p.x + 3, p.z)), p.z));
+        m.emitters.push(g.effects.strobe(p.x + (p.kind === 'roof' || p.kind === 'ship' ? 0 : 3), p.kind === 'roof' || p.kind === 'ship' ? p.y + 0.3 : Math.max(0.3, g.world.height(p.x + 3, p.z)), p.z));
         if (m.noSmoke) g.radio(`${m.unit.split(',')[0]}: Wir hören Sie – IR-Blitzer ist an.`, m.unit.split(',')[0]);
         this.changed();
       }
@@ -875,7 +903,7 @@ export class Missions {
     if (m.to.kind === 'fob') {
       target = LIFT.includes(m.type) ? { x: f.x - 100 + rand() * 20, z: f.z + 40 + rand() * 30 } : { x: f.hospitalDoor.x + rand.range(-1, 1), z: f.hospitalDoor.z };
     } else {
-      const a = rand() * Math.PI * 2, r = m.type === 'insert' ? 70 + rand() * 30 : 25 + rand() * 12;
+      const a = rand() * Math.PI * 2, r = m.type === 'insert' ? 70 + rand() * 30 : m.to.kind === 'ship' ? 2 + rand() * 4 : 25 + rand() * 12;
       target = { x: m.to.x + Math.cos(a) * r, z: m.to.z + Math.sin(a) * r };
       const id = m.id, eng = m.hotAt === 'to';
       // Spezialkräfte verschwinden im Gelände, Kistenträger und VIP gehen in den Außenposten
@@ -888,7 +916,7 @@ export class Missions {
     }
     g.units.spawnWalker(p.type, from, target, onArrive);
     m.delivered++;
-    if (m.type === 'medevac' || m.type === 'csar' || m.type === 'winch') g.stats.rescued++; else g.stats.transported++;
+    if (m.type === 'medevac' || m.type === 'csar' || m.type === 'winch' || (m.type === 'ship' && m.variant === 'med')) g.stats.rescued++; else g.stats.transported++;
     this.changed();
   }
 
@@ -965,7 +993,7 @@ export class Missions {
     g.onMissionResult(result);
     if (g.net) g.net.send({ t: 'result', r: result });
     if (m.type === 'cas') g.radio(`${m.unit.split(',')[0]}: Feind zieht sich zurück – danke für die Unterstützung, ${g.callsign}!`, m.unit.split(',')[0]);
-    else g.radio(LIFT.includes(m.type) || m.type === 'recon' ? `TOC: Gut gemacht, ${g.callsign}. Auftrag erledigt.` : `Lazarett: Danke, ${g.callsign}! Ihr habt Leben gerettet.`, 'TOC');
+    else g.radio(LIFT.includes(m.type) || m.type === 'recon' || (m.type === 'ship' && m.variant === 'troop') ? `TOC: Gut gemacht, ${g.callsign}. Auftrag erledigt.` : `Lazarett: Danke, ${g.callsign}! Ihr habt Leben gerettet.`, 'TOC');
     this.retire(m);
     this.nextTimer = 7;
     this.changed();
@@ -1080,7 +1108,7 @@ export class Missions {
       const step = this.phase === 'briefing' ? 'Neuer Auftrag – Briefing bestätigen' : `Punkt ${m.idx + 1}/3: ${p.name} tief überfliegen (unter 180 m über Grund)`;
       return { line: `${m.title} · ${m.idx}/3 Punkte`, step, hot: m.hot };
     }
-    const n = m.type === 'winch' ? (one ? 'Person' : 'Personen') : m.type === 'resupply' ? (one ? 'Kiste' : 'Kisten') : m.type === 'vip' ? 'Personen' : m.type === 'insert' || m.type === 'exfil' || m.type === 'boat' ? (T.peaceful ? 'Retter' : 'Spezialkräfte') : T.peaceful && m.type === 'transport' ? 'Helfer' : m.type === 'medevac' ? (one ? 'Verwundeter' : 'Verwundete') : m.type === 'csar' ? (one ? 'Überlebender' : 'Überlebende') : one ? 'Soldat' : 'Soldaten';
+    const n = m.type === 'ship' ? (m.variant === 'med' ? (one ? 'Verwundeter' : 'Verwundete') : 'Soldaten') : m.type === 'winch' ? (one ? 'Person' : 'Personen') : m.type === 'resupply' ? (one ? 'Kiste' : 'Kisten') : m.type === 'vip' ? 'Personen' : m.type === 'insert' || m.type === 'exfil' || m.type === 'boat' ? (T.peaceful ? 'Retter' : 'Spezialkräfte') : T.peaceful && m.type === 'transport' ? 'Helfer' : m.type === 'medevac' ? (one ? 'Verwundeter' : 'Verwundete') : m.type === 'csar' ? (one ? 'Überlebender' : 'Überlebende') : one ? 'Soldat' : 'Soldaten';
     let step = '';
     const t = this.target(h);
     const left = m.count - m.boarded;
@@ -1090,6 +1118,7 @@ export class Missions {
       else if (h.onGround && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius()) step = `Einsteigen: ${m.boarded}/${m.count} – Position halten!`;
       else if (m.type === 'csar' && !m.revealed) step = 'Suchgebiet anfliegen – nach Rauchsäule des Wracks Ausschau halten';
       else if (m.from.kind === 'fob') step = `Auf Pad ${m.from.pad.name} landen – Soldaten aufnehmen`;
+      else if (m.from.kind === 'ship') step = `Auf dem Flugdeck der Fregatte landen – ${left} ${left === 1 ? 'wartet' : 'warten'}`;
       else step = `Bei ${m.from.name} landen (${m.smoke}er Rauch) – ${left} ${left === 1 ? 'wartet' : 'warten'}`;
     } else if (t === 'to') {
       if (h.unloading) step = m.to.kind === 'water' ? `Absprung: ${m.delivered}/${m.count} – Position halten!` : `Aussteigen: ${m.delivered}/${m.count} – am Boden bleiben`;

@@ -386,8 +386,8 @@ export class Helicopter {
         const ph = world.height(px, pz);
         const sp = 8 + rand() * 6;
         if (ph < 0) this.effects.dust(px, 0.3, pz, Math.cos(ang) * sp, Math.sin(ang) * sp, 0.82, 0.85, 0.82, 1.2);
-        else if (T.dust > 1 && !inFob && world.dustAt(px, pz) > 0.5) this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp * rr, Math.sin(ang) * sp * rr, 0.86, 0.77, 0.6, 3.2 * Math.sqrt(rr), 2.2, 0.7, 2.4); // Brownout
-        else if (T.dust > 1) this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp * rr, Math.sin(ang) * sp * rr, 0.7, 0.62, 0.5, 1.8, 1.2, 0.45);
+        else if (T.dust > 1 && !inFob && world.dustAt(px, pz) > 0.5) { const c = T.dustCol || [0.86, 0.77, 0.6]; this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp * rr, Math.sin(ang) * sp * rr, c[0], c[1], c[2], 3.2 * Math.sqrt(rr), 2.2, 0.7, 2.4); } // Brownout / Whiteout
+        else if (T.dust > 1) { const c = T.dustCol || [0.82, 0.73, 0.59]; this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp * rr, Math.sin(ang) * sp * rr, c[0] * 0.85, c[1] * 0.85, c[2] * 0.85, 1.8, 1.2, 0.45); }
         else if (inFob) this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp, Math.sin(ang) * sp, 0.62, 0.45, 0.32, 1.5);
         else this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp, Math.sin(ang) * sp, 0.52, 0.5, 0.36, 1.3);
       }

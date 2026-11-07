@@ -4,6 +4,7 @@ import { World } from './world.js';
 import { AfghanWorld } from './worldAfg.js';
 import { FloodWorld } from './worldFlood.js';
 import { MaliWorld } from './worldMali.js';
+import { NorwayWorld } from './worldNorway.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
 import { NightSys } from './night.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
@@ -84,6 +85,7 @@ class Game {
     setTheme(theme);
     setWeaponSet(theme);
     document.body.dataset.theme = theme;
+    document.body.classList.toggle('snow', !!T.snow);
     const sky = T.sky;
     this.scene = new THREE.Scene();
     this.fogDensity = sky.fogDensity;
@@ -110,7 +112,7 @@ class Game {
     }
 
     await this.step('Erzeuge Gelände …', 10);
-    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : T.id === 'mali' ? new MaliWorld(this.scene, q, 2017) : new World(this.scene, q);
+    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : T.id === 'mali' ? new MaliWorld(this.scene, q, 2017) : T.id === 'norway' ? new NorwayWorld(this.scene, q, 1952) : new World(this.scene, q);
     await this.step('Effekte …', 60);
     this.effects = new Effects(this.scene, q);
     this.combat = new Combat(this);
@@ -157,6 +159,7 @@ class Game {
 
   // Wetter (Sandsturm in Mali): Sicht, Nebelfarbe, Böen
   updateWeather() {
+    this.updateDaylight();
     if (!this.world.weather) return;
     const s = this.world.weather(this.time);
     const was = this.storm || 0;
@@ -173,6 +176,22 @@ class Game {
     }
     if (was < 0.05 && s >= 0.05 && this.state === 'playing') this.radio('TOC: Sandsturm zieht auf – Sicht bald unter 200 m, Böen! Tief und langsam fliegen oder landen.', 'TOC', true);
     if (was > 0.05 && s <= 0.05 && this.state === 'playing') this.radio('TOC: Der Sandsturm ist durchgezogen, die Sicht wird besser.', 'TOC');
+  }
+
+  // Kurze Tage (Norwegen): Licht nimmt ab, Dämmerung färbt den Himmel, nachts Nachtflugbetrieb
+  updateDaylight() {
+    if (!this.world.daylight || this.settings.night) return;
+    const d = this.world.daylight(this.time), ns = this.nightSys;
+    if (d < 0.22 && !ns.night) { ns.set(true); this.autoNight = true; if (this.state === 'playing') this.radio('TOC: Die Sonne ist untergegangen – Nachtflugbetrieb. Nachtsichtgerät mit N.', 'TOC'); }
+    else if (d > 0.4 && ns.night && this.autoNight) { ns.set(false); this.autoNight = false; if (this.state === 'playing') this.radio('TOC: Es wird hell – Tagflugbetrieb.', 'TOC'); }
+    if (ns.night) return;
+    const k = 0.4 + 0.6 * d;
+    this.hemi.intensity = (ns.baseHemi ?? T.sky.hemi) * k;
+    this.sun.intensity = (ns.baseSun ?? T.sky.sunI) * k;
+    const sky = this.world.sky.material.uniforms, dusk = 1 - d;
+    sky.horizon.value.set(T.sky.horizon).lerp(this._duskH || (this._duskH = new THREE.Color(0xe0905a)), dusk * 0.85);
+    sky.top.value.set(T.sky.top).lerp(this._duskT || (this._duskT = new THREE.Color(0x2c3656)), dusk * 0.9);
+    this.scene.fog.color.set(T.sky.fog).lerp(this._duskF || (this._duskF = new THREE.Color(0x8a7a8a)), dusk * 0.7);
   }
 
   step(text, pct) {

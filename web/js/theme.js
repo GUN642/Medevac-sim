@@ -70,6 +70,11 @@ export const HELI_TYPES = {
     seats: ['pilot'], rotorAudio: 1.8, rotorCut: 1.3, camDist: 17, shadow: 7, door: 'side', numbers: ['77+05', '77+12'],
   },
 };
+// NH90 der Marine (Übung in Norwegen): ohne Bordwaffen, mit Winde
+HELI_TYPES.nh90s = {
+  ...HELI_TYPES.nh90, id: 'nh90s', name: 'NH90 Sea Lion (Marineflieger)', short: 'NH90 Sea Lion', callsign: 'Sea Lion 2-1',
+  gun: { name: '–', rpm: 1, ammo: 0, muzzleVel: 800, range: 10 }, noGuns: true, hoist: true, seats: ['pilot'], numbers: ['79+51', '79+53'],
+};
 // CH-53GS im Katastropheneinsatz: ohne Bordwaffen, mit Rettungswinde
 HELI_TYPES.ch53f = {
   ...HELI_TYPES.ch53, id: 'ch53f', name: 'Sikorsky CH-53GS (Rettungswinde)', gun: { name: '–', rpm: 1, ammo: 0, muzzleVel: 800, range: 10 },
@@ -138,6 +143,23 @@ export const THEMES = {
     ],
     sky: { top: 0x7aa2cc, horizon: 0xe3cfa8, fog: 0xdcc39c, fogDensity: 0.00055, hemiSky: 0xf2e6d2, hemiGround: 0x9a5a38, hemi: 1.15, sun: 0xfff0d8, sunI: 2.9, clouds: 6 },
     dust: 2.6, gusts: 0.8, storms: true,
+  },
+  norway: {
+    id: 'norway', name: 'Norwegen – Arktis-Übung', country: 'Nordnorwegen', sub: 'NORWEGEN · ARKTIS-ÜBUNG', fobName: 'Flugplatz Bardufoss',
+    helis: ['ch53f', 'nh90s', 'h145'], peaceful: true, snow: true, daylight: true,
+    missionWeights: [['medevac', 22], ['ship', 24], ['transport', 12], ['resupply', 10], ['insert', 8], ['exfil', 8], ['csar', 6], ['recon', 5], ['vip', 5]],
+    enemyName: 'Übungsgegner', enemyFrom: 'Norden', enemyCover: 'Wald', trees: 'Fichten', crashTrees: 'In die Fichten gestürzt!',
+    friend: () => (rand() < 0.55 ? 'bwW' : 'noW'), enemy: () => 'noW',
+    wounded: 'woundedW', crew: 'crewA', player: 'playerA', pilot: 'pilotA', sof: 'sofW', vip: 'vipF',
+    sofUnits: ['KSK-Kommandotrupp Arktis', 'Kampfschwimmer Eckernförde', 'Norwegisches FSK-Team', 'Seebataillon Boardingteam'],
+    vips: [{ who: 'der Inspekteur des Heeres', why: 'Übungsbeobachtung' }, { who: 'der norwegische Verteidigungschef', why: 'Lagebesprechung' }, { who: 'ein Schiedsrichter der Übung', why: 'Auswertung' }],
+    units: [
+      'Gebirgsjägerbataillon 233, 2. Kompanie', 'Brigade Nord, Telemark-Bataillon', 'US Marines, 2/6', 'Niederländische Marines, 21 Raiding Squadron',
+      'Seebataillon, Bordeinsatzkompanie', 'Royal Marines, 45 Commando', 'Sanitätsregiment 3', 'Gebirgspioniere 8',
+    ],
+    aircraft: [{ kind: 'f15', name: 'F-35A', crew: 1, call: 'Viking 1-1' }, { kind: 'uh60w', name: 'Bell 412', crew: 3, call: 'Snow 2-2' }],
+    sky: { top: 0x6f93c4, horizon: 0xd8e0ea, fog: 0xd4dde6, fogDensity: 0.00045, hemiSky: 0xeef4ff, hemiGround: 0x8a96a8, hemi: 1.3, sun: 0xffe2c0, sunI: 2.2, clouds: 30 },
+    dust: 2.4, dustCol: [0.94, 0.96, 0.99], gusts: 0.6,
   },
   flood: {
     id: 'flood', name: 'Hochwasser 2021', country: 'Lindental', sub: 'HOCHWASSER · KATASTROPHENHILFE',
