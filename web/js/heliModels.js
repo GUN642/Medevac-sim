@@ -304,10 +304,202 @@ const both = (z0, z1, a0, a1) => [{ z0, z1, a0, a1 }, { z0, z1, a0: PI - a1, a1:
 
 export function buildHeliModel(spec, opts = {}) {
   const m = spec.model === 'blackhawk' ? buildBlackhawk(opts) : spec.model === 'chinook' ? buildChinook(opts) : spec.model === 'ch53' ? buildCH53(opts)
-    : spec.model === 'apache' ? buildApache(opts) : spec.model === 'h145' ? buildH145(opts) : buildHuey(opts);
+    : spec.model === 'apache' ? buildApache(opts) : spec.model === 'h145' ? buildH145(opts) : spec.model === 'nh90' ? buildNH90(opts)
+    : spec.model === 'tiger' ? buildTiger(opts) : buildHuey(opts);
   // Katastropheneinsatz: Bordwaffen und Schützen ausblenden
   if (spec.noGuns) for (const g of Object.values(m.guns)) { g.mount.visible = false; if (g.gunner) g.gunner.group.visible = false; }
   return m;
+}
+
+// ================================================================= NH90 TTH (Sanitätshubschrauber)
+function buildNH90({ static: isStatic = false, number = '79+21' } = {}) {
+  const group = new THREE.Group();
+  const cockpitWin = [
+    { z0: -6.1, z1: -4.45, a0: 0.4, a1: PI - 0.4 },
+    { z0: -6.0, z1: -5.3, a0: PI + 0.7, a1: 2 * PI - 0.7 },
+    ...both(-5.1, -4.2, -0.25, 0.5),
+  ];
+  const doors = both(-3.6, -1.4, -0.85, 0.85);
+  const cabWin = both(-0.9, 1.3, 0.12, 0.55);
+  const fus = [
+    { z: -6.45, w: 0.5, top: -0.35, bot: -0.7 },
+    { z: -6.05, w: 1.7, top: 0.35, bot: -1.0, nt: 2.2, nb: 2.4 },
+    { z: -5.3, w: 2.25, top: 0.95, bot: -1.12, nt: 2.5, nb: 3.3 },
+    { z: -4.3, w: 2.45, top: 1.2, bot: -1.18, nt: 3.3, nb: 4.5 },
+    { z: 1.6, w: 2.45, top: 1.25, bot: -1.18, nt: 3.4, nb: 4.5 },
+    { z: 2.6, w: 2.2, top: 1.2, bot: -0.4, nt: 3, nb: 3 },
+    { z: 3.6, w: 1.4, top: 1.15, bot: 0.35, nt: 2.6, nb: 2.6 },
+    { z: 4.6, w: 0.9, top: 1.1, bot: 0.6, nt: 2.4, nb: 2.4 },
+    { z: 8.6, w: 0.55, top: 1.3, bot: 0.85, nt: 2.3, nb: 2.3 },
+    { z: 9.0, w: 0.4, top: 1.3, bot: 0.95 },
+  ];
+  const cowl = [
+    { z: -4.2, w: 0.8, top: 1.35, bot: 1.15 },
+    { z: -3.6, w: 1.9, top: 2.05, bot: 1.15, nt: 3, nb: 4 },
+    { z: 1.6, w: 1.8, top: 2.0, bot: 1.15, nt: 3, nb: 4 },
+    { z: 2.6, w: 0.9, top: 1.6, bot: 1.2 },
+  ];
+  const sponson = (sx) => [
+    { z: -1.4, w: 0.3, top: -0.45, bot: -0.85, x: sx * 1.3 },
+    { z: -1.0, w: 0.7, top: -0.25, bot: -1.05, x: sx * 1.45, nt: 3, nb: 3 },
+    { z: 1.4, w: 0.7, top: -0.25, bot: -1.05, x: sx * 1.45, nt: 3, nb: 3 },
+    { z: 1.9, w: 0.3, top: -0.45, bot: -0.85, x: sx * 1.3 },
+  ];
+  const fin = plate([[8.0, 1.0], [8.9, 1.0], [9.7, 3.6], [9.1, 3.65], [8.5, 2.2]], 0.2, 'zy');
+  const stab = plate([[0, 8.3], [2.2, 8.4], [2.2, 8.9], [0, 8.85]], 0.08, 'xz');
+  stab.translate(0.1, 1.45, 0);
+  const h = hull(group, 'nh90', [
+    { keys: fus, holes: [...cockpitWin, ...doors, ...cabWin], glass: [...cockpitWin, ...cabWin], capEnd: true, radial: 40 },
+    { keys: cowl, capStart: true, capEnd: true, radial: 24 },
+    { keys: sponson(-1), capStart: true, capEnd: true, radial: 18 },
+    { keys: sponson(1), capStart: true, capEnd: true, radial: 18 },
+  ], { base: '#53583f', frames: 22, stringers: 9, soot: [[0.35, 0.55, 0.05, 0.25]] }, [fin, stab]);
+
+  const parts = [];
+  parts.push(P(box(2.3, 0.06, 6.4), 0x2b2d24, [0, -1.0, -1.3]));
+  cockpit(parts, group, { z: -5.4, w: 2.1, y: -0.3, seatX: 0.55, seatZ: -4.55, seatY: -0.45 });
+  // Bänke an den Kabinenwänden
+  for (const sx of [-1, 1]) parts.push(P(box(0.45, 0.08, 3.4), 0x3b3f2b, [sx * 0.95, -0.66, 0.0]), P(box(0.06, 0.6, 3.4), 0x3b3f2b, [sx * 1.17, -0.35, 0.0]));
+  // Fahrwerk: Haupträder in den Stummelflächen, Doppel-Bugrad
+  for (const sx of [-1, 1]) {
+    wheel(parts, 0.38, 0.25, [sx * 1.5, -1.27, -0.2]);
+    parts.push(P(box(0.16, 0.45, 0.16), COL.metal, [sx * 1.5, -0.95, -0.2]));
+    wheel(parts, 0.28, 0.18, [sx * 0.2, -1.37, -4.9]);
+    parts.push(P(box(0.3, 0.04, 0.3), 0x2a2b2b, [sx * 1.3, -1.12, -3.7]));
+  }
+  parts.push(P(box(0.14, 0.55, 0.14), COL.metal, [0, -1.05, -4.9]));
+  parts.push(P(cyl(0.24, 0.28, 0.75, 12), COL.metal, [0, 2.3, -1.2]));
+  parts.push(P(box(0.04, 0.5, 0.25), 0x111111, [0, 2.2, 2.0], [0.35, 0, 0]));
+  parts.push(P(cyl(0.16, 0.16, 0.4, 10), COL.gun, [0.25, 3.0, 9.2], [0, 0, HALFPI]));
+  for (const s of [-1, 1]) {
+    crossDecal(group, 0.85, [h.X(0.6), -0.2, 0.6], s);
+    ironCross(group, 0.75, [h.X(5.4), 0.85, 5.4], s);
+    decal(group, number, 1.1, 0.28, [h.X(7.4), 1.05, 7.4], s, '#151511', 'bold 72px Arial', -0.05);
+  }
+  const mainRotor = new THREE.Group();
+  mainRotor.position.set(0, 2.75, -1.2);
+  mainRotor.add(new THREE.Mesh(rotorGeo(4, 8.15, 0.6, { hubR: 0.42 }), detailMat));
+  group.add(mainRotor);
+  const tailRotor = new THREE.Group();
+  tailRotor.position.set(0.42, 3.0, 9.2);
+  tailRotor.add(new THREE.Mesh(tailRotorGeo(4, 1.6, 0.3), detailMat));
+  group.add(tailRotor);
+  const f = finish(group, parts, {
+    guns: { x: 1.3, y: 0.25, z: -2.2, figX: 0.85, sitY: -0.32 }, floor: -1.0,
+    pilots: { x: 0.55, z: -4.6, sitY: -0.35 },
+    discs: [{ obj: mainRotor, r: 8.15 }],
+    beacon: [0, 2.25, 2.4],
+  });
+  const seatList = [];
+  for (let i = 0; i < 4; i++) for (const sx of [-1, 1]) seatList.push([sx * 0.95, -1.2 + i * 0.85, sx < 0 ? HALFPI : -HALFPI, 'floor']);
+  for (let i = 0; i < 4; i++) seatList.push([(i % 2 - 0.5) * 0.6, -0.6 + Math.floor(i / 2) * 1.4, 0, 'floor']);
+  return {
+    group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
+    guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [1.25, -0.52]), isStatic,
+    eyePilot: new THREE.Vector3(0.55, 0.68, -4.85),
+    spin: [[mainRotor, 'y', 20], [tailRotor, 'x', 65]],
+    exhaust: new THREE.Vector3(0, 1.6, 2.7),
+    gear: [[-1.5, -1.65, -0.2], [1.5, -1.65, -0.2], [0, -1.65, -4.9]],   // Aufsetzpunkte (Räder) für den Bodenkontakt
+  };
+}
+
+// ================================================================= Tiger (Kampfhubschrauber)
+function buildTiger({ static: isStatic = false, number = '74+38' } = {}) {
+  const group = new THREE.Group();
+  const canopy = [{ z0: -5.0, z1: -3.55, a0: 0.2, a1: PI - 0.2 }, { z0: -3.35, z1: -2.0, a0: 0.25, a1: PI - 0.25 }];
+  const fus = [
+    { z: -6.0, w: 0.4, top: -0.2, bot: -0.5 },
+    { z: -5.6, w: 0.85, top: 0.15, bot: -0.7, nt: 3, nb: 2.6 },
+    { z: -4.8, w: 0.95, top: 0.62, bot: -0.8, nt: 3.2, nb: 3 },
+    { z: -3.6, w: 1.0, top: 0.9, bot: -0.82, nt: 3.4, nb: 3.4 },
+    { z: -2.4, w: 1.05, top: 1.35, bot: -0.8, nt: 3.4, nb: 3.4 },
+    { z: 0.4, w: 1.15, top: 1.4, bot: -0.62, nt: 3.4, nb: 3.4 },
+    { z: 2.2, w: 0.85, top: 1.2, bot: -0.1, nt: 3, nb: 3 },
+    { z: 3.6, w: 0.55, top: 1.0, bot: 0.3, nt: 2.6, nb: 2.6 },
+    { z: 7.6, w: 0.38, top: 1.0, bot: 0.55, nt: 2.4, nb: 2.4 },
+    { z: 8.3, w: 0.28, top: 0.95, bot: 0.65 },
+  ];
+  const nac = (sx) => [
+    { z: -1.3, w: 0.38, top: 1.35, bot: 1.0, x: sx * 0.72 },
+    { z: -1.0, w: 0.55, top: 1.52, bot: 0.86, x: sx * 0.75, nt: 2.4, nb: 2.4 },
+    { z: 1.8, w: 0.55, top: 1.5, bot: 0.86, x: sx * 0.78, nt: 2.4, nb: 2.4 },
+    { z: 2.4, w: 0.38, top: 1.35, bot: 1.0, x: sx * 0.8 },
+  ];
+  const wing = plate([[-2.25, -0.4], [2.25, -0.4], [2.25, 0.55], [-2.25, 0.55]], 0.1, 'xz');
+  wing.translate(0, 0.45, 0);
+  const fin = plate([[7.3, 0.8], [8.2, 0.8], [8.75, 2.75], [8.2, 2.8], [7.7, 1.6]], 0.18, 'zy');
+  const stab = plate([[-1.3, 6.6], [1.3, 6.6], [1.3, 7.1], [-1.3, 7.1]], 0.07, 'xz');
+  stab.translate(0, 0.82, 0);
+  const h = hull(group, 'tiger', [
+    { keys: fus, holes: canopy, glass: canopy, capEnd: true, radial: 32 },
+    { keys: nac(-1), capStart: true, capEnd: true, radial: 18 },
+    { keys: nac(1), capStart: true, capEnd: true, radial: 18 },
+  ], { base: '#4a4f44', frames: 20, stringers: 8, soot: [[0.42, 0.62, 0.05, 0.25]] }, [wing, fin, stab]);
+
+  const parts = [];
+  for (const [z, y] of [[-4.2, -0.5], [-2.65, -0.1]]) {
+    parts.push(P(box(0.48, 0.1, 0.5), 0x2f302b, [0, y, z]));
+    parts.push(P(box(0.48, 0.7, 0.1), 0x2f302b, [0, y + 0.4, z + 0.3]));
+    parts.push(P(box(0.8, 0.38, 0.1), 0x24272a, [0, y + 0.5, z - 0.72], [-0.4, 0, 0]));
+  }
+  // Seitenleitwerks-Endscheiben am Höhenleitwerk
+  for (const sx of [-1, 1]) parts.push(P(box(0.06, 0.6, 0.5), 0x484d42, [sx * 1.3, 0.95, 6.85]));
+  // Fahrwerk (Spornradfahrwerk)
+  for (const sx of [-1, 1]) {
+    parts.push(P(box(0.1, 0.1, 0.9), COL.metal, [sx * 0.9, -0.95, -2.0], [0.4, 0, 0]));
+    wheel(parts, 0.3, 0.18, [sx * 1.0, -1.2, -2.3]);
+    parts.push(P(cyl(0.2, 0.24, 0.5, 12), 0x1b1b19, [sx * 0.95, 1.15, 2.55], [HALFPI, 0, sx * -0.5]));
+    // Raketenwerfer außen, Lenkflugkörper innen
+    const ox = sx * 2.0, ix = sx * 1.35;
+    parts.push(P(box(0.08, 0.3, 0.5), 0x2a2c27, [ox, 0.25, 0.1]), P(box(0.08, 0.3, 0.5), 0x2a2c27, [ix, 0.25, 0.1]));
+    parts.push(P(cyl(0.24, 0.24, 1.5, 14), 0x474b3f, [ox, -0.1, 0.0], [HALFPI, 0, 0]));
+    parts.push(P(cyl(0.19, 0.19, 0.02, 14), 0x101010, [ox, -0.1, -0.76], [HALFPI, 0, 0]));
+    for (const dy of [-0.05, -0.32]) {
+      parts.push(P(cyl(0.08, 0.08, 1.5, 8), 0x6a6c5c, [ix, 0.15 + dy, 0.1], [HALFPI, 0, 0]));
+      parts.push(P(new THREE.ConeGeometry(0.08, 0.18, 8), 0x55584a, [ix, 0.15 + dy, -0.73], [-HALFPI, 0, 0]));
+    }
+  }
+  parts.push(P(box(0.08, 1.0, 0.08), COL.metal, [0, -0.1, 7.4], [-0.2, 0, 0]));
+  wheel(parts, 0.15, 0.1, [0, -1.33, 7.55]);
+  // Mast, Dachvisier, Drahtschneider
+  parts.push(P(cyl(0.15, 0.18, 0.8, 12), COL.metal, [0, 2.1, -0.6]));
+  parts.push(P(sph(0.34, 16, 10), 0x3a3e36, [0, 1.75, -2.35], [0, 0, 0], [1, 0.8, 1]));
+  parts.push(P(box(0.05, 0.55, 0.06), 0x777777, [0, 1.15, -3.8], [-0.4, 0, 0]));
+  parts.push(P(box(0.05, 0.45, 0.06), 0x777777, [0, -0.95, -4.7], [0.4, 0, 0]));
+  for (const s of [-1, 1]) {
+    ironCross(group, 0.6, [h.X(4.6), 0.75, 4.6], s);
+    decal(group, number, 0.85, 0.2, [h.X(6.2), 0.8, 6.2], s, '#141512', 'bold 72px Arial', -0.04);
+  }
+  const mainRotor = new THREE.Group();
+  mainRotor.position.set(0, 2.55, -0.6);
+  mainRotor.add(new THREE.Mesh(rotorGeo(4, 6.5, 0.48, { hubR: 0.3 }), detailMat));
+  group.add(mainRotor);
+  const tailRotor = new THREE.Group();
+  tailRotor.position.set(0.32, 2.3, 8.45);
+  tailRotor.add(new THREE.Mesh(tailRotorGeo(3, 1.25, 0.24), detailMat));
+  group.add(tailRotor);
+  const f = finish(group, parts, {
+    gunMounts: [
+      { side: 'left', pos: [0, -0.92, -4.3], baseYaw: 0, geo: m230Geo(), muzzleZ: -1.8, eye: [0, -0.24, -0.45], noFig: true },
+      { side: 'right', pos: [0, 0, 0], baseYaw: 0, fig: [0, 0, 0], sitY: 0, dummy: true },
+    ],
+    floor: -0.85,
+    // hinten Waffensystemoffizier, vorn Pilot
+    pilotList: [[0, 0.3, -2.55, -0.2], [0, -0.1, -4.1, -0.55]],
+    cpgGun: 'left',
+    discs: [{ obj: mainRotor, r: 6.5 }],
+    beacon: [0, 1.3, 4.0],
+  });
+  f.guns.left.gunner.group.visible = true;
+  return {
+    group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
+    guns: f.guns, pilots: f.pilots, seats: [], isStatic,
+    eyePilot: new THREE.Vector3(0, 0.72, -4.35),
+    spin: [[mainRotor, 'y', 24], [tailRotor, 'x', 75]],
+    exhaust: new THREE.Vector3(0.95, 1.15, 2.6),
+    gear: [[-1.0, -1.5, -2.3], [1.0, -1.5, -2.3], [0, -1.5, 7.55]],   // Aufsetzpunkte (Räder) für den Bodenkontakt
+    rocketPods: [new THREE.Vector3(-2.0, -0.1, -0.8), new THREE.Vector3(2.0, -0.1, -0.8)],
+  };
 }
 
 // ================================================================= Airbus H145M LUH SAR

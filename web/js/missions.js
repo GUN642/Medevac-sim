@@ -1,13 +1,13 @@
 // Auftragserzeugung und -ablauf: MEDEVAC, Truppentransport, CSAR
 import * as THREE from './lib/three.module.min.js';
 import { T, figFor } from './theme.js';
-import { wreckAfg } from './afgModels.js';
+import { wreckAfg, dingoParts, mrapParts, fuelTruckAfg } from './afgModels.js';
 import { rand, clamp, bearing, dirName, fmtDist, fmtBearing, dist2 } from './util.js';
 import { wreckParts, merge, vcMat, P, Figure } from './models.js';
 
 const NATO = ['Kilo', 'Lima', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Tango', 'Victor', 'Whiskey', 'Yankee', 'Zulu', 'Hotel'];
 // Aufträge, bei denen Soldaten/Personen/Ladung transportiert werden (nicht Verwundete)
-const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip', 'boat'];
+const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip', 'boat', 'convoy'];
 const TYPE_WEIGHTS = [['medevac', 30], ['transport', 13], ['csar', 11], ['insert', 10], ['exfil', 10], ['resupply', 10], ['recon', 8], ['vip', 8], ['boat', 8]];
 const SMOKES = ['gelb', 'rot', 'grün', 'violett'];
 const SMOKE_ADJ = { gelb: 'Gelber', rot: 'Roter', grün: 'Grüner', violett: 'Violetter' };
@@ -22,6 +22,7 @@ export class Missions {
     this.stale = [];
     this.boats = [];
     this.roofs = new Map();
+    this.convoys = new Map();
     this.lastSite = null;
     this.recentPts = [];    // zuletzt angeflogene Orte (nicht gleich wieder dorthin)
     this.recentTypes = [];  // zuletzt vergebene Auftragsarten
@@ -84,7 +85,7 @@ export class Missions {
       let x = r * pool.reduce((a, t) => a + t[1], 0);
       for (const [t, wgt] of pool) { if ((x -= wgt) <= 0) { type = t; break; } }
     }
-    if (noCabin || (anyGunship && rand() < 0.3)) type = 'cas';
+    if (noCabin || (anyGunship && rand() < 0.3)) type = (T.missionWeights || []).some(([t]) => t === 'convoy') && rand() < 0.5 ? 'convoy' : 'cas';
     // Bootstrupp: nur wenn es in Reichweite breites Wasser gibt
     const water = type === 'boat' ? w.findWater(rand, 2500, 5600, this.recentPts) : null;
     if (type === 'boat' && !water) type = 'medevac';
@@ -158,6 +159,15 @@ export class Missions {
         m.hot = rand() < 0.75;
         m.hotAt = m.hot ? 'from' : null;
       }
+    } else if (type === 'convoy') {
+      const site = this.pickSite();
+      m.title = 'KONVOI-BEGLEITSCHUTZ';
+      m.count = rand.int(4, 6);
+      m.route = this.makeRoute(site);
+      const r0 = m.route[0];
+      m.from = { name: `${T.fobName}, Ausfahrt`, short: 'Konvoi', x: r0.x, z: r0.z, y: w.height(r0.x, r0.z), kind: 'convoy' };
+      m.to = this.sitePoint(site);
+      m.hot = false; m.hotAt = null;
     } else if (type === 'winch') {
       const cap = Math.max(...g.helis.map((x) => x.spec.capacity));
       m.title = 'WINDENRETTUNG';
@@ -290,6 +300,15 @@ export class Missions {
       radio = m.type === 'insert'
         ? `„${g.callsign}, hier TOC. ${m.unit} muss verdeckt bei ${p.name} abgesetzt werden. Aufnahme bei ${T.fobName}, Pad H1. Keine Rauchzeichen.“`
         : `„${g.callsign}, hier ${m.unit}. ${m.hot ? 'Wir sind aufgeflogen und werden verfolgt!' : 'Auftrag erfüllt.'} Erbitten Exfil bei ${p.name}, Planquadrat ${w.gridRef(p.x, p.z)}.“`;
+    } else if (m.type === 'convoy') {
+      const len = m.route[m.route.length - 1].s;
+      rows.push(['Auftrag', 'Begleitschutz aus der Luft für einen Versorgungskonvoi']);
+      rows.push(['Konvoi', `${m.count} Fahrzeuge (Dingo, Fuchs, Tanklastwagen)`]);
+      rows.push(['Ziel', `${m.to.name} · Planquadrat ${w.gridRef(m.to.x, m.to.z)}`]);
+      rows.push(['Strecke', `ca. ${fmtDist(len)} über Land`]);
+      rows.push(['Lage', 'Hinterhalte entlang der Route gemeldet', 'hot']);
+      rows.push(['Vorgabe', 'Über dem Konvoi bleiben, vorausfliegen, Hinterhalte niederkämpfen – unter Beschuss hält der Konvoi an']);
+      radio = `„${g.callsign}, hier ${m.unit}. Unser Konvoi mit ${m.count} Fahrzeugen steht abmarschbereit am ${T.fobName}. Erbitten Begleitschutz bis ${m.to.name}.“`;
     } else if (m.type === 'winch') {
       rows.push(['Auftrag', 'Rettung mit der Winde von einem Hausdach']);
       rows.push(['Einsatzort', `${m.from.name} · Planquadrat ${w.gridRef(m.from.x, m.from.z)}`]);
@@ -350,7 +369,7 @@ export class Missions {
     // Schwierige Landezonen
     for (const p of [m.from, m.to]) {
       const hs = p && p.site && p.site.hard;
-      const txt = { peak: 'Gipfel-LZ – kleine Landefläche, Fallwinde, steile Hänge', valley: 'enges Flusstal – hohe Hänge, wenig Platz', ridge: 'Hang-LZ – schmaler Absatz am Steilhang, Rotor frei halten', wadi: 'Wadi – enges Trockental zwischen Böschungen, starker Staub' };
+      const txt = { peak: 'Gipfel-LZ – kleine Landefläche, Fallwinde, steile Hänge', valley: 'enges Flusstal – hohe Hänge, wenig Platz', ridge: 'Hang-LZ – schmaler Absatz am Steilhang, Rotor frei halten', wadi: 'Wadi – enges Trockental zwischen Böschungen, starker Staub', mesa: 'Tafelberg – Landung an der Abbruchkante, Fallwinde' };
       if (hs) rows.push(['Schwierige LZ', `${p.name}: ${txt[hs]}`, 'hot']);
     }
     const need = this.fuelNeeded(m);
@@ -383,7 +402,7 @@ export class Missions {
     else if (m.type === 'insert' || m.type === 'exfil' || m.type === 'boat') for (let i = 0; i < m.count; i++) kinds.push('sof');
     else if (m.type === 'resupply') for (let i = 0; i < m.count; i++) kinds.push('cargo');
     else if (m.type === 'vip') kinds.push('vip', 'troop', 'troop');
-    else if (m.type !== 'cas' && m.type !== 'recon' && m.type !== 'winch') for (let i = 0; i < m.count; i++) kinds.push('troop');
+    else if (m.type !== 'cas' && m.type !== 'recon' && m.type !== 'winch' && m.type !== 'convoy') for (let i = 0; i < m.count; i++) kinds.push('troop');
     kinds.forEach((k, i) => {
       let x, z;
       if (m.from.kind === 'fob') { x = m.from.x + 17 + (i % 3) * 1.6; z = m.from.z - 4 + Math.floor(i / 3) * 1.8; }
@@ -391,6 +410,7 @@ export class Missions {
       U.spawnPassenger(k, x, z, m.id);
     });
     if (m.type === 'winch') this.spawnRoof(m);
+    if (m.type === 'convoy') this.spawnConvoy(m);
     // Verteidiger
     for (const end of ['from', 'to']) {
       const p = m[end];
@@ -444,7 +464,7 @@ export class Missions {
 
   buildWreck(m) {
     const g = this.game, w = g.world, wi = m.wreckInfo;
-    m.wreck = new THREE.Mesh(merge(T.id === 'afghanistan' ? wreckAfg(m.aircraft.kind) : wreckParts(m.aircraft.kind)), vcMat);
+    m.wreck = new THREE.Mesh(merge(T.id !== 'vietnam' ? wreckAfg(m.aircraft.kind) : wreckParts(m.aircraft.kind)), vcMat);
     m.wreck.position.set(wi.x, w.height(wi.x, wi.z) - 0.1, wi.z);
     m.wreck.rotation.y = wi.r;
     g.scene.add(m.wreck);
@@ -476,7 +496,7 @@ export class Missions {
     if (m.boarded >= m.count) {
       const to = m.to;
       const b = bearing(h.pos.x, h.pos.z, to.x, to.z);
-      const what = m.type === 'winch' ? 'Alle Personen' : m.type === 'recon' ? `3 Punkte aufgeklärt, ${m.found || 0} Feinde gemeldet` : m.type === 'resupply' ? `${m.count} Kisten Nachschub geliefert` : m.type === 'vip' ? `${m.vip.who} sicher abgesetzt` : m.type === 'insert' ? `${m.unit} unentdeckt abgesetzt` : m.type === 'exfil' ? `${m.unit} herausgeholt` : m.type === 'cas' ? `${m.killed || m.count} Feinde bekämpft` : m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : 'Alle Soldaten';
+      const what = m.type === 'convoy' ? `${alive} von ${m.count} Fahrzeugen sicher angekommen` : m.type === 'winch' ? 'Alle Personen' : m.type === 'recon' ? `3 Punkte aufgeklärt, ${m.found || 0} Feinde gemeldet` : m.type === 'resupply' ? `${m.count} Kisten Nachschub geliefert` : m.type === 'vip' ? `${m.vip.who} sicher abgesetzt` : m.type === 'insert' ? `${m.unit} unentdeckt abgesetzt` : m.type === 'exfil' ? `${m.unit} herausgeholt` : m.type === 'cas' ? `${m.killed || m.count} Feinde bekämpft` : m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : 'Alle Soldaten';
       g.radio(`Crew: ${what} an Bord – los, los, los! Kurs ${fmtBearing(b)} nach ${to.name}.`, 'Crew');
     } else if (g.heliLoad(h) >= h.spec.capacity) g.radio('Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.', 'Crew');
     this.changed();
@@ -497,6 +517,10 @@ export class Missions {
 
   waypoint(h = this.game.heli) {
     const m = this.current;
+    if (m && m.type === 'convoy' && this.phase === 'active') {
+      const C = this.convoys.get(m.id), L = C && this.convoyLead(C);
+      if (L) return { x: L.obj.position.x, z: L.obj.position.z, y: L.obj.position.y, label: 'Konvoi', radius: 200, convoy: true };
+    }
     const t = this.target(h);
     if (!t) return null;
     if (t === 'from') {
@@ -544,6 +568,7 @@ export class Missions {
       if (alive <= 2) { this.complete(); return; }
       if (m.killed !== m.lastKilled) { m.lastKilled = m.killed; this.changed(); }
     }
+    if (m.type === 'convoy') { this.updateConvoy(dt); return; }
     if (m.type === 'winch') this.updateWinch(dt);
     for (const h of helis) {
       if (h.crashed) continue;
@@ -593,6 +618,136 @@ export class Missions {
       } else h.unloading = false;
     }
     if (m.delivered >= m.count) this.complete();
+  }
+
+  // ------------------------------------------------------------ Konvoi-Begleitschutz
+  // Route von der FOB zur Ziel-LZ: leicht geschwungen, um Wasser herum
+  makeRoute(site) {
+    const w = this.game.world, f = w.fob;
+    const dx = site.x - f.x, dz = site.z - f.z, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L;
+    const px = -uz, pz = ux, ph = rand() * 6, amp = 120 + rand() * 160;
+    const pts = [];
+    const n = 9;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const along = 260 + (L - 300) * t;
+      let off = Math.sin(t * Math.PI * 2 + ph) * amp * Math.sin(t * Math.PI);
+      let x = f.x + ux * along + px * off, z = f.z + uz * along + pz * off;
+      for (let k = 0; k < 12 && w.height(x, z) < 1.2; k++) { off += 60; x = f.x + ux * along + px * off; z = f.z + uz * along + pz * off; }
+      pts.push({ x, z, s: 0 });
+    }
+    for (let i = 1; i < pts.length; i++) pts[i].s = pts[i - 1].s + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z);
+    return pts;
+  }
+
+  routeAt(route, s) {
+    const S = clamp(s, 0, route[route.length - 1].s);
+    let i = 1;
+    while (i < route.length - 1 && route[i].s < S) i++;
+    const a = route[i - 1], b = route[i], t = (S - a.s) / Math.max(1e-6, b.s - a.s);
+    return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, yaw: Math.atan2(-(b.x - a.x), -(b.z - a.z)) };
+  }
+
+  spawnConvoy(m) {
+    const g = this.game, U = g.units, R = m.route, len = R[R.length - 1].s;
+    const vehs = [];
+    for (let i = 0; i < m.count; i++) {
+      const parts = i === m.count - 1 && m.count > 4 ? fuelTruckAfg() : i % 2 ? mrapParts() : dingoParts();
+      const obj = new THREE.Mesh(merge(parts), vcMat);
+      obj.castShadow = true;
+      g.scene.add(obj);
+      vehs.push({ obj, s: (m.count - 1 - i) * 26, hp: 100, dead: false });
+    }
+    const C = { vehs, len, v: 0, started: false, threat: 0, noCover: false, wasThreat: false };
+    this.convoys.set(m.id, C);
+    this.placeConvoy(C, m);
+    // Hinterhalte entlang der Route (seitlich versetzt), zum Teil mit Technicals
+    for (const f of [0.3 + rand() * 0.1, 0.62 + rand() * 0.12]) {
+      const p = this.routeAt(R, len * f), side = rand() < 0.5 ? -1 : 1, off = 170 + rand() * 90;
+      const ax = p.x + Math.cos(p.yaw) * off * side, az = p.z - Math.sin(p.yaw) * off * side;
+      U.spawnEnemies(ax, az, 7 + Math.floor(rand() * 5) + Math.min(5, Math.floor(this.count / 3)), { missionId: m.id, rMin: 0, rMax: 60, heavy: rand() < 0.5 });
+      if (U.spawnVehicles && rand() < 0.5) U.spawnVehicles(ax, az, 1, { missionId: m.id, rMin: 20, rMax: 80 });
+    }
+    g.radio(`${m.unit}: Konvoi ist bereit. Wir rollen an, sobald Sie über uns sind.`, m.unit);
+  }
+
+  placeConvoy(C, m) {
+    const w = this.game.world;
+    for (const v of C.vehs) {
+      const p = this.routeAt(m.route, v.s);
+      v.obj.position.set(p.x, w.height(p.x, p.z), p.z);
+      if (!v.dead) v.obj.rotation.y = p.yaw;
+    }
+  }
+
+  convoyLead(C) { let L = null; for (const v of C.vehs) if (!v.dead && (!L || v.s > L.s)) L = v; return L; }
+  convoyAlive(m) { const C = this.convoys.get(m.id); return C ? C.vehs.filter((v) => !v.dead).length : m.count; }
+
+  clearConvoy(id) {
+    const C = this.convoys.get(id);
+    if (!C) return;
+    for (const v of C.vehs) this.game.scene.remove(v.obj);
+    this.convoys.delete(id);
+  }
+
+  updateConvoy(dt) {
+    const g = this.game, m = this.current, C = this.convoys.get(m.id);
+    if (!C) return;
+    const L = this.convoyLead(C);
+    if (!L) {
+      this.phase = 'failed';
+      g.radio('TOC: Der Konvoi ist vernichtet. Der Auftrag ist gescheitert.', 'TOC', true);
+      this.retire(m); this.nextTimer = 8; this.changed();
+      return;
+    }
+    const lp = L.obj.position;
+    const cover = g.helis.some((h) => !h.crashed && Math.hypot(h.pos.x - lp.x, h.pos.z - lp.z) < (C.started ? 1600 : 900));
+    if (!C.started && cover) { C.started = true; g.radio(`${m.unit}: Luftsicherung ist da – Konvoi rollt!`, m.unit); this.changed(); }
+    // Feind in Reichweite der Fahrzeuge?
+    const foes = g.units.enemies.filter((e) => e.alive && e.missionId === m.id);
+    let threat = 0;
+    for (const e of foes) if (C.vehs.some((v) => !v.dead && Math.hypot(e.x - v.obj.position.x, e.z - v.obj.position.z) < 430)) threat++;
+    C.threat = threat;
+    C.noCover = C.started && !cover;
+    if (threat && !C.wasThreat) g.radio(`${m.unit}: Feuerüberfall! Konvoi hält – Feind ${dirName(bearing(lp.x, lp.z, foes[0].x, foes[0].z))} von uns!`, m.unit, true);
+    if (!threat && C.wasThreat) g.radio(`${m.unit}: Feind niedergekämpft – Konvoi fährt weiter.`, m.unit);
+    C.wasThreat = threat > 0;
+    m.killed = g.units.enemies.filter((e) => e.missionId === m.id && !e.alive).length;
+    // Fahren oder halten
+    const vt = C.started && !threat && !C.noCover ? 8 : 0;
+    C.v += clamp(vt - C.v, -4 * dt, 1.5 * dt);
+    for (const v of C.vehs) if (!v.dead) v.s = Math.min(C.len, v.s + C.v * dt);
+    this.placeConvoy(C, m);
+    // Feind schießt auf die Fahrzeuge
+    for (const e of foes) {
+      e.cvT = (e.cvT ?? rand() * 3) - dt;
+      if (e.cvT > 0) continue;
+      e.cvT = 1.6 + rand() * 2.4;
+      let tv = null, td = 430;
+      for (const v of C.vehs) { if (v.dead) continue; const d = Math.hypot(e.x - v.obj.position.x, e.z - v.obj.position.z); if (d < td) { td = d; tv = v; } }
+      if (!tv) continue;
+      e.reveal = 7;
+      const a = new THREE.Vector3(e.x, e.y + 1.4, e.z), b = tv.obj.position.clone().add(new THREE.Vector3(rand.range(-2, 2), 1.5, rand.range(-2, 2)));
+      const hit = rand() < 0.35;
+      if (!hit) b.add(new THREE.Vector3(rand.range(-6, 6), rand.range(0, 3), rand.range(-6, 6)));
+      g.groundShot(a, b, e.heavy ? 2 : 1, true, hit ? () => this.hitVehicle(tv, e.heavy ? 14 : 6 + rand() * 5) : null);
+    }
+    if (L.s >= C.len - 1) {
+      g.radio(`${m.unit}: Konvoi ist in ${m.to.name} angekommen. Danke für die Begleitung!`, m.unit);
+      this.complete();
+    }
+  }
+
+  hitVehicle(v, dmg) {
+    if (v.dead) return;
+    v.hp -= dmg;
+    if (v.hp > 0) return;
+    v.dead = true;
+    const p = v.obj.position;
+    this.game.effects.explosion(p.x, p.y + 1, p.z, 1.1);
+    v.obj.material = this._wreckMat || (this._wreckMat = new THREE.MeshLambertMaterial({ color: 0x2a2624 }));
+    this.game.radio('Konvoi: Fahrzeug getroffen und ausgefallen!', 'Funk', true);
+    this.changed();
   }
 
   // ------------------------------------------------------------ Windenrettung
@@ -786,8 +941,9 @@ export class Missions {
     const g = this.game, m = this.current;
     this.phase = 'done';
     const elapsed = g.time - m.acceptTime;
-    const base = m.type === 'winch' ? m.count * 160 : m.type === 'cas' ? (m.killed || m.count) * 45 : m.type === 'recon' ? 450 + (m.found || 0) * 20 : m.type === 'vip' ? 500 : m.type === 'resupply' ? m.count * 60 : m.count * 100;
-    const hardLZ = m.type === 'boat' || m.type === 'winch' || [m.from, m.to].some((p) => p && p.site && p.site.hard);
+    const alive = m.type === 'convoy' ? this.convoyAlive(m) : 0;
+    const base = m.type === 'convoy' ? alive * 130 + (m.killed || 0) * 15 : m.type === 'winch' ? m.count * 160 : m.type === 'cas' ? (m.killed || m.count) * 45 : m.type === 'recon' ? 450 + (m.found || 0) * 20 : m.type === 'vip' ? 500 : m.type === 'resupply' ? m.count * 60 : m.count * 100;
+    const hardLZ = m.type === 'boat' || m.type === 'winch' || m.type === 'convoy' || [m.from, m.to].some((p) => p && p.site && p.site.hard);
     const mult = (m.hot ? 1.5 : 1) * (m.type === 'csar' ? 1.3 : 1) * (hardLZ ? 1.3 : 1);
     const timeBonus = Math.max(0, Math.round(300 - elapsed));
     const dmg = this.teamDamage() - m.damage0;
@@ -800,7 +956,7 @@ export class Missions {
       lines: [
         [what, `+${Math.round(base * mult)}`],
         m.hot ? ['Heiße LZ', '×1,5'] : null,
-        hardLZ ? [m.type === 'winch' ? 'Windenrettung' : 'Schwierige LZ', '×1,3'] : null,
+        hardLZ ? [m.type === 'winch' ? 'Windenrettung' : m.type === 'convoy' ? 'Begleitschutz' : 'Schwierige LZ', '×1,3'] : null,
         ['Zeitbonus', `+${timeBonus}`],
         dmgBonus ? ['Ohne Schaden', `+${dmgBonus}`] : ['Schaden genommen', `${Math.round(dmg)} %`],
         ['Gesamt', `${score} Punkte`],
@@ -826,6 +982,7 @@ export class Missions {
     for (const e of m.emitters) g.effects.removeEmitter(e);
     if (m.wreck) { g.scene.remove(m.wreck); m.wreck.geometry.dispose(); }
     this.clearRoof(m.id);
+    this.clearConvoy(m.id);
   }
 
   // Ein Hubschrauber ist abgestürzt: seine Passagiere sind verloren
@@ -904,6 +1061,19 @@ export class Missions {
       const left = Math.max(0, (m.total || m.count) - (m.killed || 0));
       const step = this.phase === 'briefing' ? 'Neuer Auftrag – Briefing bestätigen' : `Feind bei ${m.from.name} bekämpfen – noch ca. ${left} (eigene Truppe: ${m.smoke}er Rauch)`;
       return { line: `${m.title} · ${m.from.name} · HEISS`, step, hot: true };
+    }
+    if (m.type === 'convoy') {
+      const C = this.convoys.get(m.id);
+      const alive = this.convoyAlive(m);
+      let step = 'Neuer Auftrag – Briefing bestätigen';
+      if (this.phase === 'active' && C) {
+        const L = this.convoyLead(C);
+        step = !C.started ? 'Zum Konvoi fliegen – er fährt los, sobald Sie über ihm sind'
+          : C.threat ? `Hinterhalt! ${C.threat} Feinde bekämpfen – der Konvoi hält`
+          : C.noCover ? 'Konvoi wartet – Luftsicherung fehlt, zurück zum Konvoi!'
+          : `Konvoi nach ${m.to.name} begleiten – noch ${fmtDist(Math.max(0, C.len - (L ? L.s : 0)))}`;
+      }
+      return { line: `${m.title} · ${alive}/${m.count} Fahrzeuge`, step, hot: !!(C && C.threat) };
     }
     if (m.type === 'recon') {
       const p = m.points[Math.min(m.idx, 2)];

@@ -44,6 +44,23 @@ export const HELI_TYPES = {
     seats: ['pilot', 'left', 'right', 'ramp'], seatNames: { ramp: 'Heckschütze (Rampe)' },
     rotorAudio: 1.7, rotorCut: 0.9, camDist: 40, shadow: 18, door: 'ramp', rampZ: 7.2, numbers: ['85+12', '84+05'],
   },
+  nh90: {
+    id: 'nh90', model: 'nh90', name: 'NH90 TTH (Sanitätshubschrauber)', short: 'NH90', callsign: 'MedEvac 2-1',
+    emptyMass: 6400, fuelMassFull: 1600, paxMass: 100, capacity: 12, maxThrust: 12800 * G,
+    skidH: 1.65, rotorRadius: 8.15, rotorTop: 2.7, maxPitch: 0.52, maxRoll: 0.66, climbRate: 11, sinkRate: 8, yawRate: 1.35,
+    vmax: 135, agility: 1.25, burn: 1.0, drag: 0.8, armor: 0.7,
+    gun: { name: 'MG3', rpm: 1100, ammo: 300, mags: 2, muzzleVel: 820, range: 800, tracerEvery: 4 },
+    rotorAudio: 1.5, rotorCut: 1.15, camDist: 26, shadow: 10, door: 'side', numbers: ['79+21', '79+35'],
+  },
+  tiger: {
+    id: 'tiger', model: 'tiger', name: 'Eurocopter Tiger', short: 'Tiger', callsign: 'Gecko 1-1',
+    emptyMass: 3900, fuelMassFull: 1000, paxMass: 100, capacity: 0, maxThrust: 7300 * G,
+    skidH: 1.5, rotorRadius: 6.5, rotorTop: 2.3, maxPitch: 0.56, maxRoll: 0.72, climbRate: 12, sinkRate: 8, yawRate: 1.5,
+    vmax: 145, agility: 1.4, burn: 0.9, drag: 0.75,
+    gun: { name: '30-mm-Kanone', rpm: 750, ammo: 450, muzzleVel: 1000, range: 1500, he: true, turret: true, arc: { yaw: 1.7, pmin: -1.0, pmax: 0.25 } },
+    armor: 0.35, rockets: 38, seats: ['pilot', 'left'], seatNames: { left: 'Waffensystemoffizier' },
+    rotorAudio: 1.5, rotorCut: 1.15, camDist: 21, shadow: 9, door: 'side', numbers: ['74+38', '74+62'],
+  },
   h145: {
     id: 'h145', model: 'h145', name: 'Airbus H145M LUH SAR', short: 'H145M', callsign: 'SAR 41',
     emptyMass: 2000, fuelMassFull: 560, paxMass: 95, capacity: 6, maxThrust: 3900 * G,
@@ -103,6 +120,25 @@ export const THEMES = {
     sky: { top: 0x6d93c0, horizon: 0xd9ccb0, fog: 0xd6c8a8, fogDensity: 0.00058, hemiSky: 0xeae4d6, hemiGround: 0x8a6e4a, hemi: 1.15, sun: 0xfff2dc, sunI: 2.8, clouds: 8 },
     dust: 2.4, gusts: 1,
   },
+  mali: {
+    id: 'mali', name: 'Mali 2017', country: 'Mali', sub: 'MALI 2017 · MINUSMA', fobName: 'Camp Castor', helis: ['nh90', 'tiger', 'ch47', 'ch53'],
+    missionWeights: [['medevac', 24], ['convoy', 18], ['transport', 10], ['csar', 8], ['insert', 7], ['exfil', 7], ['resupply', 9], ['boat', 10], ['recon', 7]],
+    enemyName: 'Dschihadisten', enemyFrom: 'Dornbuschsavanne', enemyCover: 'Ortschaft', trees: 'Akazien', crashTrees: 'In die Akazien gestürzt!',
+    friend: () => (rand() < 0.6 ? 'bw' : rand() < 0.5 ? 'un' : 'un2'), enemy: (heavy) => (heavy || rand() < 0.4 ? 'jih2' : 'jih'),
+    wounded: 'woundedA', crew: 'crewA', player: 'playerA', pilot: 'pilotA', sof: 'sof', vip: 'vipF',
+    sofUnits: ['KSK-Kommandotrupp 3', 'Kampfschwimmer-Zug 1', 'Fernspäher-Trupp Gao', 'Spezialpioniere Bootstrupp'],
+    vips: [{ who: 'der Kommandeur der MINUSMA-Truppen', why: 'Lagebesprechung' }, { who: 'der Gouverneur von Gao', why: 'Sicherheitskonferenz' }, { who: 'die Verteidigungsministerin', why: 'Truppenbesuch' }],
+    units: [
+      'Aufklärungskompanie Gao', 'Gefechtsverband Mali, 2. Zug', 'MINUSMA Niederlande, Patrouille 3', 'Feldjäger Gao',
+      'MINUSMA Bangladesch, Kompanie B', 'Objektschutz Camp Castor', 'Pioniere Gao, Bautrupp 2', 'Sanitätszug Gao',
+    ],
+    aircraft: [
+      { kind: 'ah64', name: 'Tiger', crew: 2, call: 'Gecko 2-1' }, { kind: 'uh60w', name: 'NH90', crew: 4, call: 'MedEvac 3-2' },
+      { kind: 'f15', name: 'Mirage 2000D', crew: 2, call: 'Rapace 1-2' },
+    ],
+    sky: { top: 0x7aa2cc, horizon: 0xe3cfa8, fog: 0xdcc39c, fogDensity: 0.00055, hemiSky: 0xf2e6d2, hemiGround: 0x9a5a38, hemi: 1.15, sun: 0xfff0d8, sunI: 2.9, clouds: 6 },
+    dust: 2.6, gusts: 0.8, storms: true,
+  },
   flood: {
     id: 'flood', name: 'Hochwasser 2021', country: 'Lindental', sub: 'HOCHWASSER · KATASTROPHENHILFE',
     fobName: 'Einsatzbasis Hohenfeld', helis: ['ch53f', 'h145'], peaceful: true,
@@ -141,6 +177,6 @@ export function figFor(kind) {
   if (kind === 'vip') return T.vip;
   if (kind === 'cargo') return 'cargo';
   if (kind === 'civ') return rand.pick(['civ', 'civ2', 'civ3']);
-  if (T.peaceful) return T.friend();
+  if (T.peaceful || T.id === 'mali') return T.friend();
   return T.id === 'afghanistan' ? (rand() < 0.5 ? 'isaf' : 'bw') : kind === 'us2' ? 'us2' : 'us';
 }

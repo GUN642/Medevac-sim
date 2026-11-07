@@ -230,7 +230,7 @@ export class World {
 
   // Gipfel-LZ in der Nähe (für Fallwinde)
   peakNear(x, z) {
-    for (const s of this.sites) if (s.hard === 'peak' && dist2(s.x, s.z, x, z) < 220) return s;
+    for (const s of this.sites) if ((s.hard === 'peak' || s.hard === 'mesa') && dist2(s.x, s.z, x, z) < 220) return s;
     return null;
   }
 
@@ -530,7 +530,7 @@ export class World {
     for (let k = 0; k < 8; k++) {
       const a = (k * Math.PI) / 4 + (k % 2 ? 0.12 : 0.2);
       const lx = Math.cos(a) * (R - 4.5), lz = Math.sin(a) * (R - 4.5);
-      add(M.launcherRackParts(T.id === 'afghanistan'), lx, lz, -a + Math.PI / 2);
+      add(M.launcherRackParts(T.id !== 'vietnam'), lx, lz, -a + Math.PI / 2);
       f.launchers.push({ x: f.x + lx, z: f.z + lz });
     }
   }

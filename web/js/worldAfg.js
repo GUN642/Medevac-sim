@@ -19,6 +19,15 @@ export class AfghanWorld extends World {
   get waterColor() { return 0x5f7466; }
   get villageClear() { return 95; }
   get outerHeight() { return 21.9; }
+  // von abgeleiteten Karten (Mali) überschreibbar
+  get siteNames() { return SITE_NAMES; }
+  get villageNames() { return VILLAGE_NAMES; }
+  get secondFlag() { return drawISAFFlag; }
+  get desertBush() { return 0.035; }
+  addSpecialSites() {
+    this.addHardSites(["OP Eagle's Nest", 'OP Restrepo', 'OP Vegas', 'OP Mustang'], ['HLZ Korengal', 'HLZ Pech River', 'HLZ Watapur'], 260);
+    this.addRidgeSites(['HLZ Saddle', 'HLZ Ledge', 'HLZ Shelf', 'HLZ Kowkh'], ['HLZ Wadi Doab', 'HLZ Wadi Khar', 'HLZ Dry Creek'], 160);
+  }
 
   // ------------------------------------------------------------ Höhen
   // Ein breiter Fluss zieht von Norden nach Süden durch die Ebene, dazu trockene Wadis
@@ -87,7 +96,7 @@ export class AfghanWorld extends World {
         const orch = smoothstep(-0.25, 0.35, this.n.noise(x * 0.005 + 40, z * 0.005));
         const rows = Math.abs(Math.sin(x * 0.045 + Math.sin(z * 0.01) * 2)) > 0.93 || Math.abs(Math.sin(z * 0.04)) > 0.95 ? 0.8 : 0;
         const f = o.green * Math.max(orch * 0.75, rows) * smoothstep(0.8, 1.8, this.h[i]) * (o.river > 25 ? 1 : 0);
-        this.forest[i] = Math.max(f, (1 - o.green) * (1 - o.mountain) * 0.035);
+        this.forest[i] = Math.max(f, (1 - o.green) * (1 - o.mountain) * this.desertBush);
       }
     }
     const fobH = Math.max(6, this.rawHeight(FOB_POS.x, FOB_POS.z));
@@ -95,7 +104,7 @@ export class AfghanWorld extends World {
     this.flatten(FOB_POS.x, FOB_POS.z, 240, 160, fobH, 'fob');
 
     const rng = this.rng;
-    const names = SITE_NAMES.slice();
+    const names = this.siteNames.slice();
     let tries = 0;
     while (this.sites.length < 22 && tries++ < 8000) {
       const x = rng.range(-HALF + 380, HALF - 380), z = rng.range(-HALF + 380, HALF - 380);
@@ -112,10 +121,9 @@ export class AfghanWorld extends World {
       this.sites.push({ name, x, z, y: h, r: 48, post: /^(COP|PB)/.test(name) });
       this.flatten(x, z, 50, 80, h, 'site');
     }
-    this.addHardSites(["OP Eagle's Nest", 'OP Restrepo', 'OP Vegas', 'OP Mustang'], ['HLZ Korengal', 'HLZ Pech River', 'HLZ Watapur'], 260);
-    this.addRidgeSites(['HLZ Saddle', 'HLZ Ledge', 'HLZ Shelf', 'HLZ Kowkh'], ['HLZ Wadi Doab', 'HLZ Wadi Khar', 'HLZ Dry Creek'], 160);
+    this.addSpecialSites();
 
-    const vnames = VILLAGE_NAMES.slice();
+    const vnames = this.villageNames.slice();
     tries = 0;
     while (this.villages.length < 9 && tries++ < 6000) {
       const x = rng.range(-HALF + 400, HALF - 400), z = rng.range(-HALF + 400, HALF - 400);
@@ -234,7 +242,7 @@ export class AfghanWorld extends World {
     this.fobMesh.castShadow = this.fobMesh.receiveShadow = true;
     this.scene.add(this.fobMesh);
     this.buildFlag(f.x + 12, f.z - 5, drawGermanFlag);
-    this.buildFlag(f.x + 18, f.z - 5, drawISAFFlag);
+    this.buildFlag(f.x + 18, f.z - 5, this.secondFlag);
     this.buildParked([[-46, 100, 0.3], [46, 100, -0.2]]);
 
     this.fobFigures = [];

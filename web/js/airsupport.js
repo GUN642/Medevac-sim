@@ -13,7 +13,7 @@ export const SUPPORT = {
   f4: { name: 'F-4 Phantom', call: 'Gunfighter 4', cooldown: 120, desc: 'Napalm-Abwurf entlang der Feindstellung' },
 };
 const KINDS = ['ah64', 'f16', 'a10', 'f4'];
-export function supportKinds() { return T.peaceful ? [] : T.id === 'afghanistan' ? ['ah64', 'f16', 'a10'] : ['f4']; }
+export function supportKinds() { return T.peaceful ? [] : T.id === 'afghanistan' ? ['ah64', 'f16', 'a10'] : T.id === 'mali' ? ['f16', 'a10'] : ['f4']; }
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 

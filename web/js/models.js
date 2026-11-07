@@ -116,6 +116,11 @@ const FIG_TYPES = {
   vipA:     { uni: 0xdcd6c6, skin: 0xb98560, hat: 'karakul', hatCol: 0x3a3028, pack: null, gun: null, robe: true, vest: 0x4a4a52, beard: 0x2a2a2a },
   vipV:     { uni: 0x5a6340, skin: 0xd2a07a, hat: 'cap', hatCol: 0x4a5236, pack: null, gun: null },
   tal:      { uni: 0x8d887c, skin: 0xb98560, hat: 'turban', hatCol: 0x1f1f1f, pack: null, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
+  // Mali: Blauhelme, Dschihadisten
+  un:       { uni: 0x8d7f5c, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x3c7fd0, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649, rifle: 'm4' },
+  un2:      { uni: 0x8d7f5c, skin: 0x5a3a26, hat: 'helmet', hatCol: 0x3c7fd0, pack: 0x6b6247, gun: 0x1d1d1d, vest: 0x6f6649, rifle: 'm4' },
+  jih:      { uni: 0xc4b18c, skin: 0x6a4630, hat: 'turban', hatCol: 0x1c1c1c, pack: null, gun: 0x3b2a1b, robe: true },
+  jih2:     { uni: 0x6a6448, skin: 0x5a3a26, hat: 'turban', hatCol: 0xc8b48a, pack: 0x3d3a30, gun: 0x3b2a1b, robe: true, vest: 0x5a5440 },
   // Hochwasser: Zivilisten, Helfer, Besatzung
   civ:      { uni: 0xb03a2e, skin: 0xe0b08a, hat: null, pack: null, gun: null },
   civ2:     { uni: 0x3a5a8a, skin: 0xd8a882, hat: null, pack: null, gun: null },

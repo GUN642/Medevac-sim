@@ -189,7 +189,7 @@ export class Units {
   spawnVehicles(cx, cz, n, opts = {}) {
     if (T.peaceful) return [];
     const w = this.game.world;
-    const kind = T.id === 'afghanistan' ? 'technical' : 'truck';
+    const kind = T.id === 'afghanistan' || T.id === 'mali' ? 'technical' : 'truck';
     const list = [];
     let tries = 0;
     while (list.length < n && tries++ < n * 30) {

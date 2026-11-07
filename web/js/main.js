@@ -3,6 +3,7 @@ import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
 import { AfghanWorld } from './worldAfg.js';
 import { FloodWorld } from './worldFlood.js';
+import { MaliWorld } from './worldMali.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
 import { NightSys } from './night.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
@@ -109,7 +110,7 @@ class Game {
     }
 
     await this.step('Erzeuge Gelände …', 10);
-    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : new World(this.scene, q);
+    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : T.id === 'mali' ? new MaliWorld(this.scene, q, 2017) : new World(this.scene, q);
     await this.step('Effekte …', 60);
     this.effects = new Effects(this.scene, q);
     this.combat = new Combat(this);
@@ -132,7 +133,7 @@ class Game {
     this.setLocalSeat(0, 'pilot');
     this.units.spawnPatrols(26);
     this.units.spawnFobDefenders();
-    this.units.spawnVehiclePatrols(T.id === 'afghanistan' ? 5 : 3);
+    this.units.spawnVehiclePatrols(T.id === 'afghanistan' || T.id === 'mali' ? 5 : 3);
 
     window.addEventListener('resize', () => this.onResize());
     document.addEventListener('visibilitychange', () => {
@@ -152,6 +153,26 @@ class Game {
     this.last = performance.now();
     window.game = this; // für Debugging
     this.renderer.setAnimationLoop(() => this.frame());
+  }
+
+  // Wetter (Sandsturm in Mali): Sicht, Nebelfarbe, Böen
+  updateWeather() {
+    if (!this.world.weather) return;
+    const s = this.world.weather(this.time);
+    const was = this.storm || 0;
+    this.storm = s;
+    if (this.baseGusts === undefined) this.baseGusts = T.gusts || 0;
+    T.gusts = this.baseGusts + s * 1.8;
+    this.scene.fog.density = this.fogDensity * (1 + s * 14);
+    if (!this.nightSys.night) {
+      const c = this._fogC || (this._fogC = new THREE.Color());
+      this.scene.fog.color.copy(c.set(T.sky.fog).lerp(this._dustC || (this._dustC = new THREE.Color(0xb9895c)), s));
+      const sky = this.world.sky.material.uniforms;
+      sky.horizon.value.set(T.sky.horizon).lerp(this._dustC, s);
+      sky.top.value.set(T.sky.top).lerp(this._dustC, s * 0.8);
+    }
+    if (was < 0.05 && s >= 0.05 && this.state === 'playing') this.radio('TOC: Sandsturm zieht auf – Sicht bald unter 200 m, Böen! Tief und langsam fliegen oder landen.', 'TOC', true);
+    if (was > 0.05 && s <= 0.05 && this.state === 'playing') this.radio('TOC: Der Sandsturm ist durchgezogen, die Sicht wird besser.', 'TOC');
   }
 
   step(text, pct) {
@@ -511,8 +532,9 @@ class Game {
     if (h.spec.capacity === 0 && !h.aiPickup) {
       // Kampfhubschrauber: über dem Gefechtsfeld kreisen, damit der Waffensystemoffizier wirken kann
       const m = M.current;
-      if (m && M.phase === 'active' && m.type === 'cas' && h.fuel > 20) {
-        const cx = m.from.x, cz = m.from.z;
+      if (m && M.phase === 'active' && (m.type === 'cas' || m.type === 'convoy') && h.fuel > 20) {
+        const wp = m.type === 'convoy' ? M.waypoint(h) : null;
+        const cx = wp ? wp.x : m.from.x, cz = wp ? wp.z : m.from.z;
         const a = Math.atan2(h.pos.z - cz, h.pos.x - cx) + 0.45;
         const far = dist2(h.pos.x, h.pos.z, cx, cz) > 700;
         return this.flyTo(h, { x: cx + Math.cos(a) * 320, z: cz + Math.sin(a) * 320, hover: 85, fast: far, face: far ? null : { x: cx, z: cz } }, dt);
@@ -1410,11 +1432,13 @@ class Game {
       if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)';
     }
     if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });
+    if ((this.storm || 0) > 0.35) warnings.push({ text: 'SANDSTURM – SICHT EINGESCHRÄNKT', level: 'warn' });
     if (h.wireDist < 110 && !h.crashed) warnings.push({ text: 'STROMLEITUNG – ABSTAND HALTEN!', level: h.wireDist < 55 ? 'crit' : 'warn' });
     const critical = warnings.some((x) => x.level === 'crit');
 
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time, this.camera);
+    this.updateWeather();
     this.updateCamera(dt);
     if (this.myPickup && (this.seat !== 'foot' || (this.helis.every((x) => !x.aiPickup) && !(this.time - (this.myPickup.manual ?? -1e9) < 300)))) this.myPickup = null;
     this.hud.update(dt, {
@@ -1425,7 +1449,7 @@ class Game {
     this.updateWaypointBeam();
     this.nightSys.update(onFoot ? null : h);
     // Brownout: Sicht trübt sich beim Schweben über Sand (nur im/am eigenen Hubschrauber)
-    const bo = !onFoot && !h.crashed ? h.brownout || 0 : 0;
+    const bo = Math.max(!onFoot && !h.crashed ? h.brownout || 0 : 0, (this.storm || 0) * 0.55);
     if (Math.abs(bo - (this.boShown || 0)) > 0.02) { this.boShown = bo; $('brownout').style.opacity = (bo * 0.75).toFixed(2); }
     let ah = h, ad = 0;
     if (onFoot) {

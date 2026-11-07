@@ -27,7 +27,7 @@ const WEAPONS_AFG = [
 export const WEAPONS = WEAPONS_VN.slice();
 export function setWeaponSet(theme) {
   WEAPONS.length = 0;
-  WEAPONS.push(...(theme === 'afghanistan' ? WEAPONS_AFG : WEAPONS_VN));
+  WEAPONS.push(...(theme === 'afghanistan' || theme === 'mali' ? WEAPONS_AFG : WEAPONS_VN));
 }
 
 const geoCache = {};
