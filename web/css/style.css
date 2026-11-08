@@ -326,3 +326,6 @@ body:not(.night) .night-only { display: none !important; }
 /* Karriere: Auszeichnungen im Hauptmenü */
 #menu-stats .medals { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 6px; max-width: 720px; }
 #menu-stats .medal { font-size: 11px; padding: 2px 6px; border: 1px solid rgba(232, 200, 90, 0.5); border-radius: 3px; color: #e8d38a; background: rgba(40, 36, 20, 0.6); }
+
+/* Menüpunkt hier nicht verfügbar: bleibt an seinem Platz, ausgegraut */
+.menu-buttons .off { opacity: 0.4; pointer-events: none; }

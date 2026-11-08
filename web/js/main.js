@@ -926,7 +926,9 @@ class Game {
     $('menu-sub').textContent = `${spec.short} ${spec.capacity > 12 ? `· ${spec.capacity} PLÄTZE` : 'MEDEVAC'} · ${T.sub}`;
     $('btn-map').textContent = 'KARTE: ' + T.name.toUpperCase();
     $('btn-heli').textContent = 'HUBSCHRAUBER: ' + spec.short;
-    $('btn-heli').classList.toggle('hidden', !!this.started || T.helis.length < 2);
+    // Menü immer gleich gegliedert: nicht wählbare Punkte bleiben an ihrem Platz, nur ausgegraut
+    $('btn-heli').classList.toggle('hidden', !!this.started);
+    $('btn-heli').classList.toggle('off', ($('btn-heli').disabled = this.career.unlocked().length < 2));
     $('btn-map').classList.toggle('hidden', !!this.started);
     $('btn-time').textContent = 'ZEIT: ' + (this.nightSys.night ? 'NACHT' : 'TAG');
     $('btn-time').classList.toggle('hidden', !!this.started);
@@ -935,7 +937,6 @@ class Game {
     if (this.career.on && T.helis.length > 1) {
       const n = this.career.unlocked().length;
       if (n < T.helis.length) $('btn-heli').textContent += ` (${n}/${T.helis.length} frei)`;
-      $('btn-heli').classList.toggle('hidden', !!this.started || n < 2);
     }
   }
 
@@ -948,7 +949,8 @@ class Game {
     $('menu').classList.remove('hidden');
     $('btn-continue').classList.toggle('hidden', !this.started);
     $('btn-start').classList.toggle('hidden', !!this.started);
-    $('btn-start-foot').classList.toggle('hidden', !!this.started || !!T.peaceful);
+    $('btn-start-foot').classList.toggle('hidden', !!this.started);
+    $('btn-start-foot').classList.toggle('off', ($('btn-start-foot').disabled = !!T.peaceful));
     $('btn-mp').classList.toggle('hidden', false);
     $('btn-quit').classList.toggle('hidden', !this.started);
     $('btn-quit').textContent = this.role === 'solo' ? 'SPIEL BEENDEN' : this.role === 'host' ? 'MEHRSPIELER BEENDEN' : 'MEHRSPIELER VERLASSEN';
@@ -1320,7 +1322,7 @@ class Game {
   moveFocus(dir) {
     const ov = this.topOverlay();
     if (!ov) return;
-    const items = [...ov.querySelectorAll('button:not(.hidden), select, input')].filter((e) => e.offsetParent !== null);
+    const items = [...ov.querySelectorAll('button:not(.hidden):not(:disabled), select, input')].filter((e) => e.offsetParent !== null);
     if (!items.length) return;
     const i = items.indexOf(document.activeElement);
     items[(i + dir + items.length) % items.length].focus();
