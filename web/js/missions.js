@@ -4,11 +4,12 @@ import { T, figFor } from './theme.js';
 import { wreckAfg, dingoParts, mrapParts, fuelTruckAfg } from './afgModels.js';
 import { rand, clamp, bearing, dirName, fmtDist, fmtBearing, dist2 } from './util.js';
 import { wreckParts, merge, vcMat, P, Figure } from './models.js';
+import { SlingLoad, ROPE } from './sling.js';
 
 const NATO = ['Kilo', 'Lima', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Tango', 'Victor', 'Whiskey', 'Yankee', 'Zulu', 'Hotel'];
 // Aufträge, bei denen Soldaten/Personen/Ladung transportiert werden (nicht Verwundete)
-const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip', 'boat', 'convoy'];
-const TYPE_WEIGHTS = [['medevac', 30], ['transport', 13], ['csar', 11], ['insert', 10], ['exfil', 10], ['resupply', 10], ['recon', 8], ['vip', 8], ['boat', 8]];
+const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip', 'boat', 'convoy', 'sling', 'auto'];
+const TYPE_WEIGHTS = [['medevac', 30], ['transport', 13], ['csar', 11], ['insert', 10], ['exfil', 10], ['resupply', 10], ['recon', 8], ['vip', 8], ['boat', 8], ['sling', 9], ['auto', 5]];
 const SMOKES = ['gelb', 'rot', 'grün', 'violett'];
 const SMOKE_ADJ = { gelb: 'Gelber', rot: 'Roter', grün: 'Grüner', violett: 'Violetter' };
 
@@ -93,6 +94,9 @@ export class Missions {
     const roof = type === 'winch' ? this.pickRoof() : null;
     if (type === 'winch' && !roof) type = 'medevac';
     if (type === 'ship' && !w.ship) type = 'medevac';
+    // Außenlast nur mit Transporthubschrauber, Autorotationsübung nur mit menschlichem Piloten
+    if (type === 'sling' && !g.helis.some((x) => x.spec.capacity > 0)) type = 'medevac';
+    if (type === 'auto' && !g.crews.some((c) => c && c.pilot != null)) type = 'medevac';
     const hotChance = clamp(0.3 + this.count * 0.05, 0.3, 0.7);
     const m = {
       id: 'M' + this.count + '_' + Math.floor(rand() * 1e6), num: this.count, type,
@@ -184,6 +188,36 @@ export class Missions {
       m.from = { name: `${T.fobName}, Ausfahrt`, short: 'Konvoi', x: r0.x, z: r0.z, y: w.height(r0.x, r0.z), kind: 'convoy' };
       m.to = this.sitePoint(site);
       m.hot = false; m.hotAt = null;
+    } else if (type === 'sling') {
+      const kind = T.id === 'flood' ? 'bags' : T.peaceful ? 'net' : rand() < 0.45 ? 'jeep' : 'net';
+      const site = this.pickSite();
+      const pad = w.fob.pads.troop;
+      if (kind === 'jeep') {
+        m.title = 'BERGUNG – AUSSENLAST';
+        m.from = this.sitePoint(site);
+        m.to = this.fobPoint(pad);
+        m.hot = rand() < hotChance * 0.5;
+        m.hotAt = m.hot ? 'from' : null;
+      } else {
+        m.title = 'AUSSENLAST';
+        m.from = this.fobPoint(pad);
+        m.to = this.sitePoint(site);
+        m.hot = rand() < hotChance * 0.4;
+        m.hotAt = m.hot ? 'to' : null;
+      }
+      m.count = 1;
+      m.sling = { kind, x: m.from.x + (kind === 'jeep' ? 6 : 0), z: m.from.z + (kind === 'jeep' ? 6 : 0), att: false, hookT: 0, relT: 0, dmg: 0, heli: -1 };
+    } else if (type === 'auto') {
+      const c = w.findClearing(rand, 700, 2600, this.recentPts);
+      const nm = `Übungsfläche ${rand.pick(NATO)}`;
+      const p = c ? { name: nm, short: nm, x: c.x, z: c.z, y: c.y, kind: 'drill', radius: 150 } : { ...this.sitePoint(this.pickSite()), kind: 'drill', radius: 150 };
+      m.title = 'NOTVERFAHREN – AUTOROTATION';
+      m.unit = 'Ausbilder';
+      m.from = p; m.to = p;
+      m.count = 1;
+      m.noSmoke = true;
+      m.hot = false; m.hotAt = null;
+      m.drill = { stage: 'climb', heli: -1 };
     } else if (type === 'winch') {
       const cap = Math.max(...g.helis.map((x) => x.spec.capacity));
       m.title = 'WINDENRETTUNG';
@@ -336,6 +370,25 @@ export class Missions {
       rows.push(['Lage', 'Hinterhalte entlang der Route gemeldet', 'hot']);
       rows.push(['Vorgabe', 'Über dem Konvoi bleiben, vorausfliegen, Hinterhalte niederkämpfen – unter Beschuss hält der Konvoi an']);
       radio = `„${g.callsign}, hier ${m.unit}. Unser Konvoi mit ${m.count} Fahrzeugen steht abmarschbereit am ${T.fobName}. Erbitten Begleitschutz bis ${m.to.name}.“`;
+    } else if (m.type === 'sling') {
+      const what = { net: 'Netz mit Nachschubkisten', bags: 'Big Bags mit Sandsäcken für den Deich', jeep: 'liegengebliebenes Fahrzeug bergen' }[m.sling.kind];
+      rows.push(['Auftrag', `Außenlast am Lasthaken: ${what}`]);
+      rows.push(['Last aufnehmen', `${m.from.name}${m.from.kind === 'site' ? ` · Planquadrat ${w.gridRef(m.from.x, m.from.z)}` : ''}`]);
+      rows.push(['Richtung / Entfernung', `${fmtBearing(b)} (${dirName(b)}) · ${fmtDist(d)}`]);
+      rows.push(['Absetzen', m.to.name]);
+      rows.push(['Vorgabe', `Über der Last schweben (5–20 m), Bodenpersonal hängt an – Seil ${ROPE} m. Ruhig fliegen (unter 80 kt), Last pendelt. Am Ziel langsam sinken, bis die Last aufsetzt.`]);
+      if (!T.peaceful) rows.push(['LZ-Status', hotTxt, m.hot ? 'hot' : 'cold']);
+      radio = m.sling.kind === 'jeep'
+        ? `„${g.callsign}, hier ${m.unit}. Ein Fahrzeug ist bei ${m.from.name} liegengeblieben – bitte als Außenlast zur ${T.fobName} bringen.“`
+        : `„${g.callsign}, hier ${T.peaceful ? 'TOC' : m.unit}. ${m.sling.kind === 'bags' ? 'Der Deich' : 'Der Posten'} bei ${m.to.name} braucht dringend ${m.sling.kind === 'bags' ? 'Sandsäcke' : 'Nachschub'} – Last steht auf Pad ${m.from.pad.name} bereit.“`;
+    } else if (m.type === 'auto') {
+      rows.push(['Auftrag', 'Übung: Notlandung ohne Triebwerk (Autorotation)']);
+      rows.push(['Übungsfläche', `${m.from.name} · Planquadrat ${w.gridRef(m.from.x, m.from.z)}`]);
+      rows.push(['Richtung / Entfernung', `${fmtBearing(b)} (${dirName(b)}) · ${fmtDist(d)}`]);
+      rows.push(['Ablauf', 'Über der Übungsfläche auf mindestens 300 m (1000 ft) über Grund steigen, mit Fahrt anfliegen – der Ausbilder nimmt das Triebwerk weg']);
+      rows.push(['Verfahren', 'Kollektiv sofort runter (Rotordrehzahl halten), mit ca. 60 kt gleiten, in 20–30 m Höhe Nase hoch (Abfangen), kurz vor dem Boden Kollektiv ziehen']);
+      rows.push(['Bewertung', 'Aufsetzpunkt (Nähe zur Mitte) und Sinkrate beim Aufsetzen']);
+      radio = `„${g.callsign}, hier Ausbilder. Heute üben wir den Triebwerksausfall. Fliegen Sie zur ${m.from.name} und steigen Sie auf 1000 Fuß.“`;
     } else if (m.type === 'winch') {
       rows.push(['Auftrag', 'Rettung mit der Winde von einem Hausdach']);
       rows.push(['Einsatzort', `${m.from.name} · Planquadrat ${w.gridRef(m.from.x, m.from.z)}`]);
@@ -430,7 +483,7 @@ export class Missions {
     else if (m.type === 'insert' || m.type === 'exfil' || m.type === 'boat') for (let i = 0; i < m.count; i++) kinds.push('sof');
     else if (m.type === 'resupply') for (let i = 0; i < m.count; i++) kinds.push('cargo');
     else if (m.type === 'vip') kinds.push('vip', 'troop', 'troop');
-    else if (m.type !== 'cas' && m.type !== 'recon' && m.type !== 'winch' && m.type !== 'convoy') for (let i = 0; i < m.count; i++) kinds.push('troop');
+    else if (!['cas', 'recon', 'winch', 'convoy', 'sling', 'auto'].includes(m.type)) for (let i = 0; i < m.count; i++) kinds.push('troop');
     kinds.forEach((k, i) => {
       let x, z;
       if (m.from.kind === 'fob') { x = m.from.x + 17 + (i % 3) * 1.6; z = m.from.z - 4 + Math.floor(i / 3) * 1.8; }
@@ -439,6 +492,10 @@ export class Missions {
     });
     if (m.type === 'winch') this.spawnRoof(m);
     if (m.type === 'convoy') this.spawnConvoy(m);
+    if (m.type === 'sling') {
+      const S = m.sling, ref = Math.max(...g.helis.filter((x) => x.spec.capacity > 0).map((x) => x.spec.emptyMass));
+      (this.slings || (this.slings = new Map())).set(m.id, new SlingLoad(g.scene, S.kind, S.x, Math.max(w.height(S.x, S.z), 0), S.z, ref));
+    }
     // Verteidiger
     for (const end of ['from', 'to']) {
       const p = m[end];
@@ -486,7 +543,7 @@ export class Missions {
       this.buildWreck(m);
     }
     g.radio(this.describe(m).radio, m.unit);
-    if (m.from.kind === 'fob') g.radio(`TOC: Die Truppe wartet neben Pad ${m.from.pad.name}. Landen Sie dort zum Aufnehmen.`, 'TOC');
+    if (m.from.kind === 'fob' && m.type !== 'sling') g.radio(`TOC: Die Truppe wartet neben Pad ${m.from.pad.name}. Landen Sie dort zum Aufnehmen.`, 'TOC');
     this.changed();
   }
 
@@ -534,6 +591,8 @@ export class Missions {
   target(h = this.game.heli) {
     const m = this.current;
     if (!m || this.phase !== 'active') return null;
+    if (m.type === 'sling') return m.sling.att ? 'to' : 'from';
+    if (m.type === 'auto') return 'from';
     if (m.boarded < m.count && this.game.heliLoad(h) < h.spec.capacity) {
       if (this.paxOf(h) === 0 || m.from.kind === 'roof') return 'from';
       // noch beim Einsteigen: am Aufnahmeort bleiben
@@ -551,6 +610,13 @@ export class Missions {
     }
     const t = this.target(h);
     if (!t) return null;
+    if (m.type === 'sling') {
+      const L = this.slings && this.slings.get(m.id);
+      if (t === 'from' && L) return { x: L.pos.x, z: L.pos.z, y: L.pos.y, label: 'Außenlast', radius: 8, winch: true, hoverY: L.pos.y + L.top + 11 };
+      const gy = Math.max(this.game.world.height(m.to.x, m.to.z), 0);
+      return { x: m.to.x, z: m.to.z, y: m.to.y, label: m.to.short, radius: 25, winch: true, hoverY: gy + ROPE + (L ? L.top : 1.5) + 1.2 };
+    }
+    if (m.type === 'auto') return { x: m.from.x, z: m.from.z, y: m.from.y, label: m.from.short, radius: 150 };
     if (t === 'from') {
       if (m.type === 'csar' && !m.revealed) return { x: m.approx.x, z: m.approx.z, y: this.game.world.height(m.approx.x, m.approx.z), label: 'Suchgebiet', radius: 400, approx: true };
       if (m.from.kind === 'roof') return { x: m.from.x, z: m.from.z, y: m.from.y, label: m.from.short, radius: 12, winch: true, hoverY: m.from.y + 12 };
@@ -598,6 +664,8 @@ export class Missions {
     }
     if (m.type === 'convoy') { this.updateConvoy(dt); return; }
     if (m.type === 'winch') this.updateWinch(dt);
+    if (m.type === 'sling') { this.updateSling(dt); if (this.phase !== 'active') return; }
+    if (m.type === 'auto') { this.updateDrill(dt); return; }
     for (const h of helis) {
       if (h.crashed) continue;
       const end = this.target(h);
@@ -779,6 +847,137 @@ export class Missions {
   }
 
   // ------------------------------------------------------------ Windenrettung
+  // ------------------------------------------------------------ Außenlast
+  slingHook(h, L) {
+    const hook = L.hookPos(h, this._sv || (this._sv = new THREE.Vector3()));
+    const top = L.topPos(this._st || (this._st = new THREE.Vector3()));
+    const dxz = Math.hypot(hook.x - top.x, hook.z - top.z), above = hook.y - top.y;
+    return { dxz, above, ok: !h.crashed && !h.contact && dxz < 4.5 && above > 4 && above < ROPE + 5 && h.speed < 3 };
+  }
+
+  updateSling(dt) {
+    const g = this.game, m = this.current, S = m.sling, L = this.slings && this.slings.get(m.id);
+    if (!L) return;
+    let h = S.heli >= 0 ? g.helis[S.heli] : null;
+    if (h && h.crashed) h = null;
+    if (!S.att) {
+      // Anschlagen: Hubschrauber über der Last schweben lassen, Bodenpersonal hängt an
+      let best = null;
+      for (const x of g.helis) {
+        if (x.crashed || x.spec.capacity === 0) continue;
+        const i = this.slingHook(x, L);
+        if (i.ok) { best = x; break; }
+      }
+      if (best) {
+        S.hookT += dt;
+        if (!S.hookMsg) { S.hookMsg = true; g.radio('Bodenpersonal: Position gut – wir hängen an, halten!', 'Lastenhaken'); }
+        if (S.hookT > 2.5) {
+          S.att = true; S.heli = best.index; h = best;
+          g.radio('Bodenpersonal: Last ist angeschlagen – langsam anheben!', 'Lastenhaken');
+          this.changed();
+        }
+      } else S.hookT = Math.max(0, S.hookT - dt);
+    }
+    const impact = L.update(dt, S.att ? h : null, g.world);
+    if (h) h.extMass = S.att && L.taut && !L.grounded ? L.mass : 0;
+    if (impact > 6 && S.att) {
+      S.dmg += (impact - 6) * 12;
+      g.radio(impact > 12 ? 'Lastenhaken: Die Last ist hart aufgeschlagen – zerstört!' : 'Lastenhaken: Last hart aufgesetzt – vorsichtiger!', 'Crew', impact > 12);
+      if (impact > 12) S.dmg = 100;
+    }
+    if (S.dmg >= 100) { this.slingFail('Außenlast zerstört'); return; }
+    // Absetzen: Last liegt am Ziel, Seil locker
+    if (S.att) {
+      const dd = dist2(L.pos.x, L.pos.z, m.to.x, m.to.z);
+      if (L.grounded && dd < 35 && L.groundT > 1.2) {
+        S.att = false; S.done = true;
+        if (h) h.extMass = 0;
+        L.update(0, null, g.world);
+        g.radio('Lastenhaken: Last steht – ausgeklinkt!', 'Crew');
+        m.delivered = 1;
+        this.complete();
+        return;
+      }
+      if (!h) { this.slingFail('Hubschrauber mit Außenlast verloren'); return; }
+      // zu schnell: Last schlägt aus
+      if (h.speed > 46 && !S.warnFast) { S.warnFast = true; g.radio('Crew: Last pendelt stark – langsamer!', 'Crew', true); }
+      if (h.speed < 35) S.warnFast = false;
+    }
+  }
+
+  slingFail(why) {
+    const g = this.game, m = this.current;
+    const h = m.sling.heli >= 0 ? g.helis[m.sling.heli] : null;
+    if (h) h.extMass = 0;
+    m.sling.att = false;
+    this.phase = 'failed';
+    g.radio(`TOC: ${why} – Auftrag gescheitert. Neuer Auftrag folgt.`, 'TOC', true);
+    this.retire(m);
+    this.nextTimer = 8;
+    this.changed();
+  }
+
+  slingHint(h, m) {
+    const S = m.sling, L = this.slings && this.slings.get(m.id);
+    if (!L) return '';
+    if (!S.att) {
+      if (h.spec.capacity === 0) return 'Kampfhubschrauber haben keinen Lasthaken';
+      if (dist2(h.pos.x, h.pos.z, L.pos.x, L.pos.z) > 60) return `Zur Last bei ${m.from.short} fliegen – darüber schweben`;
+      const i = this.slingHook(h, L);
+      if (i.ok) return `Anschlagen … ${Math.min(100, Math.round(S.hookT / 2.5 * 100))} % – Position halten!`;
+      if (i.dxz >= 4.5) return 'Genau über die Last – Haken sitzt unter dem Rumpf';
+      if (i.above <= 4) return 'Höher – mindestens 5 m über der Last';
+      if (i.above >= ROPE + 5) return 'Tiefer – höchstens 20 m über der Last';
+      return 'Langsamer – fast stillstehen';
+    }
+    const dd = dist2(L.pos.x, L.pos.z, m.to.x, m.to.z);
+    if (dd > 60) return `Last nach ${m.to.short} fliegen – ruhig, unter 80 kt (Seil ${ROPE} m)`;
+    if (L.grounded && dd >= 35) return 'Last liegt außerhalb – wieder anheben und genauer absetzen';
+    return L.grounded ? 'Last steht – Position halten …' : 'Langsam sinken, bis die Last aufsetzt';
+  }
+
+  // ------------------------------------------------------------ Autorotationsübung
+  updateDrill(dt) {
+    const g = this.game, m = this.current, D = m.drill;
+    if (D.stage === 'climb') {
+      for (const h of g.helis) {
+        if (h.crashed || !h.engineOn || g.crews[h.index].pilot == null) continue;
+        if (dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < 1300 && h.agl > 290 && h.speed > 12) {
+          D.stage = 'auto'; D.heli = h.index; D.t = g.time;
+          if (g.owns(h.index)) h.failEngine('drill');
+          this.changed();
+          break;
+        }
+      }
+      return;
+    }
+    const h = g.helis[D.heli];
+    if (!h || h.crashed) return;
+    if (D.stage === 'auto' && h.onGround) {
+      D.stage = 'done';
+      const dd = dist2(h.pos.x, h.pos.z, m.from.x, m.from.z);
+      const vy = -(h.touchVy || 0);
+      D.dist = Math.round(dd); D.vy = Math.round(vy * 10) / 10;
+      g.radio(`Ausbilder: ${vy < 2 ? 'Butterweich aufgesetzt' : vy < 4.2 ? 'Sauber aufgesetzt' : 'Das war hart'} – ${dd < 60 ? 'genau auf der Übungsfläche' : dd < 300 ? `${Math.round(dd)} m neben der Mitte` : 'weit neben der Übungsfläche'}. Triebwerk wird gleich wieder angelassen.`, 'Ausbilder');
+      m.delivered = 1;
+      this.complete();
+    }
+  }
+
+  drillHint(h, m) {
+    const D = m.drill;
+    if (D.stage === 'climb') {
+      const dd = dist2(h.pos.x, h.pos.z, m.from.x, m.from.z);
+      if (dd > 1300) return `Zur ${m.from.short} fliegen`;
+      if (h.agl <= 290) return `Steigen: ${Math.round(h.agl * 3.28)} / 1000 ft über Grund`;
+      return 'Mit Fahrt über die Übungsfläche – gleich kommt der Ausfall';
+    }
+    if (h.engineOn) return 'Übung läuft …';
+    if (h.agl > 40) return `Autorotation: Kollektiv runter, Rotor ${Math.round(h.rpm * 100)} % – Übungsfläche anfliegen`;
+    if (h.agl > 8) return 'Abfangen: Nase hoch, Fahrt abbauen!';
+    return 'Jetzt Kollektiv ziehen – weich aufsetzen!';
+  }
+
   hoistInfo(h, m) {
     const r = m.from.roof;
     const hp = h.model.group.localToWorld((this._hv || (this._hv = new THREE.Vector3())).copy(h.model.hoist || new THREE.Vector3(1.4, 0.8, -1)));
@@ -970,14 +1169,16 @@ export class Missions {
     this.phase = 'done';
     const elapsed = g.time - m.acceptTime;
     const alive = m.type === 'convoy' ? this.convoyAlive(m) : 0;
-    const base = m.type === 'convoy' ? alive * 130 + (m.killed || 0) * 15 : m.type === 'winch' ? m.count * 160 : m.type === 'cas' ? (m.killed || m.count) * 45 : m.type === 'recon' ? 450 + (m.found || 0) * 20 : m.type === 'vip' ? 500 : m.type === 'resupply' ? m.count * 60 : m.count * 100;
+    const D = m.drill;
+    const drillPts = D ? Math.max(0, 300 - (D.dist || 0) * 1.5) + (D.vy < 2 ? 250 : D.vy < 4.2 ? 120 : 0) : 0;
+    const base = m.type === 'auto' ? Math.round(350 + drillPts) : m.type === 'sling' ? (m.sling.kind === 'jeep' ? 650 : 480) * (1 - (m.sling.dmg || 0) / 200) : m.type === 'convoy' ? alive * 130 + (m.killed || 0) * 15 : m.type === 'winch' ? m.count * 160 : m.type === 'cas' ? (m.killed || m.count) * 45 : m.type === 'recon' ? 450 + (m.found || 0) * 20 : m.type === 'vip' ? 500 : m.type === 'resupply' ? m.count * 60 : m.count * 100;
     const hardLZ = m.type === 'boat' || m.type === 'winch' || m.type === 'convoy' || [m.from, m.to].some((p) => p && p.site && p.site.hard);
     const mult = (m.hot ? 1.5 : 1) * (m.type === 'csar' ? 1.3 : 1) * (hardLZ ? 1.3 : 1);
     const timeBonus = Math.max(0, Math.round(300 - elapsed));
     const dmg = this.teamDamage() - m.damage0;
     const dmgBonus = dmg < 1 ? 150 : 0;
     const score = Math.round(base * mult + timeBonus + dmgBonus);
-    const what = m.type === 'winch' ? `${m.count} ${m.count === 1 ? 'Person' : 'Personen'} gerettet` : m.type === 'medevac' ? `${m.count} Verwundete gerettet` : m.type === 'csar' ? `${m.count} ${m.count === 1 ? 'Pilot' : 'Besatzungsmitglieder'} gerettet` : `${m.count} Soldaten verbracht`;
+    const what = m.type === 'auto' ? `Autorotation: ${D.dist} m neben der Mitte, ${D.vy} m/s beim Aufsetzen` : m.type === 'sling' ? (m.sling.kind === 'jeep' ? 'Fahrzeug geborgen' : m.sling.kind === 'bags' ? 'Sandsäcke am Deich abgesetzt' : 'Nachschub als Außenlast geliefert') + (m.sling.dmg ? ` (Last ${Math.round(m.sling.dmg)} % beschädigt)` : '') : m.type === 'winch' ? `${m.count} ${m.count === 1 ? 'Person' : 'Personen'} gerettet` : m.type === 'medevac' ? `${m.count} Verwundete gerettet` : m.type === 'csar' ? `${m.count} ${m.count === 1 ? 'Pilot' : 'Besatzungsmitglieder'} gerettet` : `${m.count} Soldaten verbracht`;
     const result = {
       title: 'AUFTRAG ERFÜLLT',
       score,
@@ -1011,6 +1212,8 @@ export class Missions {
     if (m.wreck) { g.scene.remove(m.wreck); m.wreck.geometry.dispose(); }
     this.clearRoof(m.id);
     this.clearConvoy(m.id);
+    const L = this.slings && this.slings.get(m.id);
+    if (L) { L.dispose(g.scene); this.slings.delete(m.id); }
   }
 
   // Ein Hubschrauber ist abgestürzt: seine Passagiere sind verloren
@@ -1020,6 +1223,7 @@ export class Missions {
     h.passengers = [];
     h.updatePassengerDisplay();
     if (this.game.role === 'client') return;
+    if (m && m.type === 'sling' && m.sling.att && m.sling.heli === h.index && this.phase === 'active') { this.slingFail('Hubschrauber mit Außenlast abgestürzt'); return; }
     if (m && (lost > 0 || this.game.helis.every((x) => x.crashed))) {
       this.phase = 'failed';
       this.game.radio('TOC: Der Auftrag ist gescheitert. Neuer Auftrag folgt.', 'TOC', true);
@@ -1112,6 +1316,10 @@ export class Missions {
     let step = '';
     const t = this.target(h);
     const left = m.count - m.boarded;
+    if (m.type === 'sling' || m.type === 'auto') {
+      const st = this.phase === 'briefing' ? 'Neuer Auftrag – Briefing bestätigen' : this.phase !== 'active' ? '' : m.type === 'sling' ? this.slingHint(h, m) : this.drillHint(h, m);
+      return { line: m.type === 'sling' ? `${m.title} · ${m.sling.att ? 'Last am Haken' : 'Last aufnehmen'}` : `${m.title} · Übung`, step: st, hot: m.hot };
+    }
     if (this.phase === 'briefing') step = 'Neuer Auftrag – Briefing bestätigen';
     else if (t === 'from') {
       if (m.from.kind === 'roof') step = this.winchHint(h, m);

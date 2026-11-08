@@ -69,7 +69,7 @@ export class Helicopter {
   reset(x, y, z, yaw) {
     this.pos.set(x, y + this.spec.skidH, z);
     this.vel.set(0, 0, 0);
-    this.yaw = yaw; this.pitch = 0; this.roll = 0; this.yawRate = 0;
+    this.yaw = yaw; this.pitch = 0; this.roll = 0; this.yawRate = 0; this.pitchRate = 0; this.vrs = 0; this.failType = null;
     this.rpm = 0.35;
     this.engineOn = true;
     this.fuel = 100;
@@ -98,7 +98,7 @@ export class Helicopter {
     this.syncModel();
   }
 
-  get mass() { const S = this.spec; return S.emptyMass + (S.fuelMassFull * this.fuel) / 100 + this.passengers.length * S.paxMass; }
+  get mass() { const S = this.spec; return S.emptyMass + (S.fuelMassFull * this.fuel) / 100 + this.passengers.length * S.paxMass + (this.extMass || 0); }
   get speed() { return Math.hypot(this.vel.x, this.vel.z); }
 
   addPassenger(p) { this.passengers.push(p); this.updatePassengerDisplay(); }
@@ -150,7 +150,17 @@ export class Helicopter {
     this.damageTaken += n;
     this.lastHit = performance.now() / 1000;
     if (kind === 'bullet' && !this.leak && this.hp < 80 && rand() < 0.04) { this.leak = true; this.events.push('leak'); }
+    // Triebwerkstreffer (realistisch): bei schwerem Beschuss kann das Triebwerk ausfallen – Autorotation
+    if (kind === 'bullet' && this.realism && this.engineOn && this.hp < 70 && rand() < 0.012 * n) this.failEngine('hit');
     if (this.hp <= 0) { this.hp = 0; this.crash(kind === 'bullet' ? 'Abgeschossen!' : 'Hubschrauber zerstört!'); }
+  }
+
+  // Triebwerksausfall (Treffer oder Übung): Rotor läuft frei weiter, Pilot muss autorotieren
+  failEngine(type = 'hit') {
+    if (!this.engineOn || this.crashed) return;
+    this.engineOn = false;
+    this.failType = type;
+    this.events.push(type === 'drill' ? 'drill' : 'enginefail');
   }
 
   crash(cause) {
@@ -169,22 +179,25 @@ export class Helicopter {
     const m = this.model;
     if (this.crashed) { this.updateCrashed(dt, world); this.animate(dt); return; }
 
-    // Triebwerk / Rotor
+    // Triebwerk / Rotor (ohne Triebwerk: Rotordrehzahl aus der Autorotation, siehe Schub)
     if (this.engineOn) this.rpm = Math.min(1, this.rpm + dt * 0.3);
-    else this.rpm = Math.max(0.6, this.rpm - dt * (this.vel.y < -3 ? 0.005 : 0.04));
 
     if (this.engineOn) {
       const burn = (FUEL.idleBurn + FUEL.thrustBurn * this.thrustFrac) * (this.leak ? 2.5 : 1) * this.spec.burn;
       this.fuel -= burn * dt;
       this.burnRate = burn;
-      if (this.fuel <= 0) { this.fuel = 0; this.engineOn = false; this.events.push('flameout'); }
+      if (this.fuel <= 0) { this.fuel = 0; this.engineOn = false; this.failType = 'fuel'; this.events.push('flameout'); }
     } else this.burnRate = 0;
+    // Nach einer Notlandung (Triebwerksausfall, nicht leerer Tank) startet die Crew das Triebwerk neu
+    if (!this.engineOn && this.failType && this.failType !== 'fuel' && this.onGround && this.groundTime > 8 && this.fuel > 5) {
+      this.engineOn = true; this.failType = null; this.events.push('restart');
+    }
 
     const S = this.spec;
     const mass = this.mass, W = mass * G;
     const ground = world.groundHeight(this.pos.x, this.pos.z);
     this.agl = Math.max(0, this.gearClearance(world));
-    const ge = 1 + 0.12 * clamp(1 - this.agl / 11, 0, 1);
+    const ge = 1 + 0.13 * clamp(1 - this.agl / (S.rotorRadius * 1.5), 0, 1);   // Bodeneffekt bis ca. 1 Rotordurchmesser
     const power = (this.engineOn ? 1 : 0.58) * (this.hp < 25 ? 0.87 : 1);
     const Tmax = S.maxThrust * ge * power * this.rpm * this.rpm;
 
@@ -206,8 +219,23 @@ export class Helicopter {
     this.grounded = this.contact && ctl.collective < 0.15 && this.thrust < 0.97 * this.mass * G;
     if (this.grounded && this.groundTP !== undefined) { tp = this.groundTP; tr = this.groundTR; }
     const k = damp(3.2 * S.agility, dt);
-    this.pitch += (tp - this.pitch) * k;
+    // Nicken mit kurzer Trägheit: die Nase setzt weich ein statt schlagartig (Endlage unverändert)
+    const wantRate = (tp - this.pitch) * 3.2 * S.agility;
+    this.pitchRate = (this.pitchRate || 0) + (wantRate - (this.pitchRate || 0)) * damp(12.8 * S.agility, dt);   // kritisch gedämpft: kein Überschwingen
+    this.pitch += this.pitchRate * dt;
     this.roll += (tr - this.roll) * k;
+    // Wirbelringstadium: schnelles Sinken fast ohne Fahrt – der Rotor sitzt im eigenen Abwind, Auftrieb bricht ein
+    if (this.realism && this.engineOn && !this.contact && this.agl > 6) {
+      const on = clamp((-this.vel.y - 5) / 3, 0, 1) * clamp((9 - hs) / 4, 0, 1);
+      const was = this.vrs || 0;
+      this.vrs = was + (on - was) * damp(on > was ? 1.5 : 0.9, dt);
+      if (was < 0.3 && this.vrs >= 0.3) this.events.push('vrs');
+      if (this.vrs > 0.05) {
+        const t = performance.now() / 1000;
+        this.pitch += Math.sin(t * 9.1) * 0.012 * this.vrs;
+        this.roll += Math.sin(t * 7.3 + 1) * 0.016 * this.vrs;
+      }
+    } else this.vrs = Math.max(0, (this.vrs || 0) - dt);
 
     const speedFac = clamp((hs - 10) / 25, 0, 1);
     let yt = -ctl.yaw * S.yawRate * (1 - 0.45 * speedFac) + this.roll * 1.1 * speedFac;
@@ -236,7 +264,18 @@ export class Helicopter {
     if (this.pos.y > 2400) vyT = Math.min(vyT, 0);
     const cosT = Math.max(this.up.y, 0.35);
     const Treq = (mass * (G + (vyT - this.vel.y) * 2.2)) / cosT;
-    this.thrust = clamp(Treq, 0, Tmax);
+    if (this.engineOn) this.thrust = clamp(Treq, 0, Tmax * (1 - 0.5 * (this.vrs || 0)));
+    else {
+      // Autorotation: Durchströmung von unten treibt den Rotor an, Blattanstellwinkel (Kollektiv) erzeugt Schub
+      // und kostet Drehzahl. Kollektiv unten = Drehzahl halten, kurz vor dem Boden ziehen = Abfangen.
+      const cp = 0.775 + 0.525 * clamp(ctl.collective, -1, 1);
+      // Durchströmung: Sinken plus Abfangen (Nase hoch bei Fahrt drückt Luft von unten durch den Rotor)
+      const flare = Math.max(0, -(this.vel.x * this.up.x + this.vel.z * this.up.z));
+      const inflow = Math.max(0, -this.vel.y) + 0.04 * hs + flare * 0.6;
+      const r2 = this.rpm * this.rpm;
+      this.thrust = Math.min(W * r2 * (cp + 0.075 * inflow), S.maxThrust * 1.3 * r2);
+      this.rpm = clamp(this.rpm + (0.006 * inflow - 0.1 * cp * r2 - 0.012) * dt, this.contact ? 0 : 0.25, 1.08);
+    }
     this.thrustFrac = this.thrust / S.maxThrust;
 
     // Kräfte
@@ -289,6 +328,7 @@ export class Helicopter {
     if (clear <= 0) {
       if (!this.contact) {
         const vy = this.vel.y, h2 = this.speed;
+        this.touchVy = vy; this.touchHs = h2;
         const tilt = Math.acos(clamp(this.up.y, -1, 1));
         if (water && (vy < -1.5 || h2 > 4)) { this.crash('Notwasserung im Fluss!'); }
         else if (vy < -9 || h2 > 22 || tilt > 0.75) this.crash('Absturz – zu harte Landung!');

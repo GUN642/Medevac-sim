@@ -6,6 +6,7 @@ import { FloodWorld } from './worldFlood.js';
 import { MaliWorld } from './worldMali.js';
 import { NorwayWorld } from './worldNorway.js';
 import { VrView } from './vr.js';
+import { Voice } from './voice.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
 import { NightSys } from './night.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
@@ -127,6 +128,7 @@ class Game {
     this.input.onDevice = () => this.updateTouchVisibility();
     this.vr = new VrView(this);
     this.audio = new AudioSys();
+    this.voice = new Voice(this);
     this.audio.setVolume(this.settings.volume);
     this.tr = netTransport();
     await this.step('Bereite FOB vor …', 85);
@@ -758,6 +760,10 @@ class Game {
     bind('set-volume', 'volume', Number, (v) => this.audio.setVolume(v));
     bind('set-footview', 'footView', String);
     bind('set-aimassist', 'aimAssist', String);
+    if (s.realism === undefined) s.realism = true;
+    if (s.tts === undefined) s.tts = true;
+    bind('set-realism', 'realism', Boolean);
+    bind('set-tts', 'tts', Boolean, (on) => { if (!on) this.voice.stop(); });
     bind('set-sens', 'sensitivity', Number);
     bind('set-invert', 'invertY', Boolean);
     bind('set-invertx', 'invertX', Boolean);
@@ -1325,6 +1331,7 @@ class Game {
           if (background || (this.hud.briefOpen && this.missions.phase === 'briefing' && h.contact)) ctl = idle;
           else ctl = this.input.flight;
         } else ctl = this.aiPilot(h, dt);
+        h.realism = this.settings.realism !== false;
         h.update(dt, ctl, w, true);
       } else {
         h.ownedBefore = false;
@@ -1444,7 +1451,12 @@ class Game {
       if (h.contact && !h.crashed) hint = (this.input.device === 'gamepad' ? 'Ⓐ' : this.input.device === 'touch' ? 'EIN/AUS' : 'E') + ': Aussteigen';
     }
     if (!h.crashed && !onFoot) {
-      if (!h.engineOn) warnings.push({ text: 'TRIEBWERK AUS – AUTOROTATION', level: 'crit' });
+      if (!h.engineOn) {
+        warnings.push({ text: `TRIEBWERK AUS – AUTOROTATION · ROTOR ${Math.round(h.rpm * 100)} %`, level: 'crit' });
+        if (!h.contact && h.rpm < 0.85) warnings.push({ text: 'ROTORDREHZAHL NIEDRIG – KOLLEKTIV RUNTER', level: 'crit' });
+        else if (!h.contact && h.rpm > 1.05) warnings.push({ text: 'ROTORDREHZAHL HOCH – KOLLEKTIV ETWAS ZIEHEN', level: 'warn' });
+      }
+      if ((h.vrs || 0) > 0.3) warnings.push({ text: 'WIRBELRINGSTADIUM – FAHRT AUFNEHMEN!', level: 'crit' });
       else if (h.fuel < 12) warnings.push({ text: 'TREIBSTOFF KRITISCH', level: 'crit' });
       else if (h.fuel < 25) warnings.push({ text: 'TREIBSTOFF NIEDRIG – TANKEN', level: 'warn' });
       const needed = (dF / 48) * 0.14 + 4;
@@ -1495,7 +1507,11 @@ class Game {
     if (ev === 'impact') this.audio.boom(this.camera.position.distanceTo(h.pos));
     if (!mine) return;
     if (ev === 'hardlanding') { this.radioOnce('hl', 5, 'Autsch! Das war eine harte Landung!', 'Crew'); this.hud.damageFlash(0.4); this.audio.hit(); }
-    else if (ev === 'flameout') this.radio('TRIEBWERK AUS! Treibstoff leer – Autorotation einleiten!', 'Crew', true, true);
+    else if (ev === 'flameout') this.radio('TRIEBWERK AUS! Treibstoff leer – Autorotation einleiten! Kollektiv runter, Fahrt halten, kurz vor dem Boden abfangen.', 'Crew', true, true);
+    else if (ev === 'enginefail') { this.radio('TRIEBWERK GETROFFEN – ES IST AUS! Autorotation: Kollektiv runter, Fahrt halten, kurz vor dem Boden abfangen!', 'Crew', true, true); this.audio.hit(); }
+    else if (ev === 'drill') this.radio('Ausbilder: Triebwerksausfall simuliert! Kollektiv runter, Rotordrehzahl halten, auf der Landefläche autorotieren.', 'Ausbilder', true, true);
+    else if (ev === 'restart') this.radio('Triebwerk wieder angelassen – Drehzahl kommt, wir können weiter.', 'Crew', false, true);
+    else if (ev === 'vrs') this.radio('Wirbelringstadium! Wir sacken durch – Nase runter, Fahrt aufnehmen!', 'Crew', true, true);
     else if (ev === 'leak') this.radio('Wir verlieren Treibstoff – Tank getroffen!', 'Crew', true, true);
     else if (ev === 'slope') this.radioOnce('slope', 10, 'Gelände zu steil – wir rutschen!', 'Crew');
     else if (ev === 'water') this.radioOnce('water', 10, 'Wir stehen im Wasser!', 'Crew');

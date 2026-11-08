@@ -38,6 +38,7 @@ export class HUD {
     this.radioLines.push({ div, t: 0 });
     const max = document.body.classList.contains('touch') ? 2 : 5;
     while (this.radioLines.length > max) this.radioLines.shift().div.remove();
+    if (this.game.voice) this.game.voice.say(text, from, urgent);
   }
 
   // ------------------------------------------------------------ Briefing / Ergebnis

@@ -9,6 +9,8 @@ import android.net.wifi.WifiManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.speech.tts.TextToSpeech;
+import java.util.Locale;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -38,6 +40,8 @@ public class MainActivity extends Activity {
     private final LanNet net = new LanNet();
     private WifiManager.MulticastLock mcLock;
     private GlassDisplay glass;
+    private TextToSpeech tts;
+    private boolean ttsReady;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -108,6 +112,9 @@ public class MainActivity extends Activity {
         updater = new UpdateManager(this);
         updater.check(false);
 
+        // Sprachausgabe für Funksprüche
+        try { tts = new TextToSpeech(this, (st) -> ttsReady = st == TextToSpeech.SUCCESS); } catch (Throwable t) { tts = null; }
+
         // XR-Brille als eigenes Display: Spiel dort zeigen (Handy wird Touchfläche)
         try {
             glass = new GlassDisplay(this, web, root);
@@ -142,6 +149,7 @@ public class MainActivity extends Activity {
         net.shutdown();
         HeadTracking.stop();
         if (glass != null) glass.release();
+        if (tts != null) { tts.shutdown(); tts = null; }
         multicast(false);
         if (web != null) web.destroy();
         super.onDestroy();
@@ -223,6 +231,19 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean glassesConnected() { return HeadTracking.connected(); }
         @JavascriptInterface public boolean glasses3D(boolean on) { return HeadTracking.set3D(on); }
         @JavascriptInterface public boolean headRecenter() { return HeadTracking.recenter(); }
+        /** Funkspruch vorlesen (Sprachausgabe des Geräts); leerer Text = verstummen. */
+        @JavascriptInterface public void speak(String text, String lang, float rate, float pitch, boolean flush) {
+            runOnUiThread(() -> {
+                try {
+                    if (tts == null || !ttsReady) return;
+                    if (text == null || text.isEmpty()) { tts.stop(); return; }
+                    tts.setLanguage(Locale.forLanguageTag(lang));
+                    tts.setSpeechRate(rate);
+                    tts.setPitch(pitch);
+                    tts.speak(text, flush ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, "hotlz" + System.nanoTime());
+                } catch (Throwable ignored) { }
+            });
+        }
         /** Spiel direkt auf der XR-Brille anzeigen (zweites Display) oder Handybild spiegeln lassen. */
         @JavascriptInterface public void glassOutput(boolean on) {
             getSharedPreferences("app", 0).edit().putBoolean("glassOutput", on).apply();

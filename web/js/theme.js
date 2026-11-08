@@ -127,7 +127,7 @@ export const THEMES = {
   },
   mali: {
     id: 'mali', name: 'Mali 2017', country: 'Mali', sub: 'MALI 2017 · MINUSMA', fobName: 'Camp Castor', helis: ['nh90', 'tiger', 'ch47', 'ch53'],
-    missionWeights: [['medevac', 24], ['convoy', 18], ['transport', 10], ['csar', 8], ['insert', 7], ['exfil', 7], ['resupply', 9], ['boat', 10], ['recon', 7]],
+    missionWeights: [['medevac', 24], ['convoy', 18], ['transport', 10], ['csar', 8], ['insert', 7], ['exfil', 7], ['resupply', 9], ['boat', 10], ['recon', 7], ['sling', 9], ['auto', 5]],
     enemyName: 'Dschihadisten', enemyFrom: 'Dornbuschsavanne', enemyCover: 'Ortschaft', trees: 'Akazien', crashTrees: 'In die Akazien gestürzt!',
     friend: () => (rand() < 0.6 ? 'bw' : rand() < 0.5 ? 'un' : 'un2'), enemy: (heavy) => (heavy || rand() < 0.4 ? 'jih2' : 'jih'),
     wounded: 'woundedA', crew: 'crewA', player: 'playerA', pilot: 'pilotA', sof: 'sof', vip: 'vipF',
@@ -147,7 +147,7 @@ export const THEMES = {
   norway: {
     id: 'norway', name: 'Norwegen – Arktis-Übung', country: 'Nordnorwegen', sub: 'NORWEGEN · ARKTIS-ÜBUNG', fobName: 'Flugplatz Bardufoss',
     helis: ['ch53f', 'nh90s', 'h145'], peaceful: true, snow: true, daylight: true,
-    missionWeights: [['medevac', 22], ['ship', 24], ['transport', 12], ['resupply', 10], ['insert', 8], ['exfil', 8], ['csar', 6], ['recon', 5], ['vip', 5]],
+    missionWeights: [['medevac', 22], ['ship', 24], ['transport', 12], ['resupply', 10], ['insert', 8], ['exfil', 8], ['csar', 6], ['recon', 5], ['vip', 5], ['sling', 9], ['auto', 6]],
     enemyName: 'Übungsgegner', enemyFrom: 'Norden', enemyCover: 'Wald', trees: 'Fichten', crashTrees: 'In die Fichten gestürzt!',
     friend: () => (rand() < 0.55 ? 'bwW' : 'noW'), enemy: () => 'noW',
     wounded: 'woundedW', crew: 'crewA', player: 'playerA', pilot: 'pilotA', sof: 'sofW', vip: 'vipF',
@@ -164,7 +164,7 @@ export const THEMES = {
   flood: {
     id: 'flood', name: 'Hochwasser 2021', country: 'Lindental', sub: 'HOCHWASSER · KATASTROPHENHILFE',
     fobName: 'Einsatzbasis Hohenfeld', helis: ['ch53f', 'h145'], peaceful: true,
-    missionWeights: [['winch', 40], ['medevac', 14], ['resupply', 13], ['boat', 12], ['transport', 9], ['recon', 7], ['vip', 5]],
+    missionWeights: [['winch', 40], ['medevac', 14], ['resupply', 13], ['boat', 12], ['transport', 9], ['recon', 7], ['vip', 5], ['sling', 12], ['auto', 4]],
     enemyName: 'Unbekannte', enemyFrom: 'Norden', enemyCover: 'Ortschaft', trees: 'Bäume', crashTrees: 'In die Bäume gestürzt!',
     friend: () => (rand() < 0.5 ? 'thw' : 'fw'), enemy: () => 'civ',
     wounded: 'woundedF', crew: 'crewF', player: 'crewF', pilot: 'crewF', sof: 'dlrg', vip: 'vipF',
