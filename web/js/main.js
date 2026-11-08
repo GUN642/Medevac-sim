@@ -7,6 +7,8 @@ import { MaliWorld } from './worldMali.js';
 import { NorwayWorld } from './worldNorway.js';
 import { VrView } from './vr.js';
 import { Voice } from './voice.js';
+import { WeatherSys } from './weather.js';
+import { Career } from './career.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
 import { NightSys } from './night.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
@@ -39,6 +41,7 @@ class Game {
     if (!this.settings.lang) this.settings.lang = defaultLang();
     setLang(this.settings.lang);
     this.stats = PF.loadStats();
+    this.career = new Career(this);
     this.state = 'loading';
     this.time = 0;
     this.role = 'solo';      // 'solo' | 'host' | 'client'
@@ -129,9 +132,12 @@ class Game {
     this.vr = new VrView(this);
     this.audio = new AudioSys();
     this.voice = new Voice(this);
+    this.weatherSys = new WeatherSys(this);
     this.audio.setVolume(this.settings.volume);
     this.tr = netTransport();
     await this.step('Bereite FOB vor …', 85);
+    // Karriere: nur freigeschaltete Hubschrauber
+    if (this.career.on && !this.career.isUnlocked(heliTypeFor(T.id, this.settings.heli))) this.settings.heli = this.career.unlocked()[0];
     this.addHeli(heliTypeFor(T.id, this.settings.heli));
     this.crews = [{ pilot: 0, left: null, right: null, pax: [] }];
     this.soldier = new Soldier(this);
@@ -161,22 +167,37 @@ class Game {
     this.renderer.setAnimationLoop(() => this.frame());
   }
 
-  // Wetter (Sandsturm in Mali): Sicht, Nebelfarbe, Böen
-  updateWeather() {
+  // Wetter: Wetterwechsel aller Karten (WeatherSys) plus Sandsturm in Mali – Sicht, Licht, Farben, Böen
+  updateWeather(dt = 0) {
     this.updateDaylight();
-    if (!this.world.weather) return;
-    const s = this.world.weather(this.time);
+    const W = this.weatherSys ? this.weatherSys.update(dt, this.time) : { fog: 1, light: 1, grey: 0, gust: 0 };
+    const s = this.world.weather ? this.world.weather(this.time) : 0;
     const was = this.storm || 0;
     this.storm = s;
     if (this.baseGusts === undefined) this.baseGusts = T.gusts || 0;
-    T.gusts = this.baseGusts + s * 1.8;
-    this.scene.fog.density = this.fogDensity * (1 + s * 14);
-    if (!this.nightSys.night) {
-      const c = this._fogC || (this._fogC = new THREE.Color());
-      this.scene.fog.color.copy(c.set(T.sky.fog).lerp(this._dustC || (this._dustC = new THREE.Color(0xb9895c)), s));
+    T.gusts = this.baseGusts + s * 1.8 + W.gust;
+    this.scene.fog.density = this.fogDensity * (1 + s * 14) * W.fog;
+    // Licht: Tageslicht (Norwegen) × Wetter, Blitze hellen kurz auf
+    const ns = this.nightSys, amp = ns.nvg ? 4 : 1, fl = this.weatherSys ? this.weatherSys.flash : 0;
+    const dk = !ns.night && this.dayK != null ? this.dayK : 1;
+    this.hemi.intensity = (ns.baseHemi ?? T.sky.hemi) * amp * dk * (ns.night ? 1 : W.light) + fl * (ns.night ? 1.6 : 1.2);
+    this.sun.intensity = (ns.baseSun ?? T.sky.sunI) * (ns.nvg ? 3 : 1) * dk * (ns.night ? 1 : W.light * W.light);
+    if (!ns.night) {
       const sky = this.world.sky.material.uniforms;
-      sky.horizon.value.set(T.sky.horizon).lerp(this._dustC, s);
-      sky.top.value.set(T.sky.top).lerp(this._dustC, s * 0.8);
+      const grey = this._greyC || (this._greyC = new THREE.Color(0x8c9298));
+      if (this.dayK == null) { sky.horizon.value.set(T.sky.horizon); sky.top.value.set(T.sky.top); this.scene.fog.color.set(T.sky.fog); }
+      sky.horizon.value.lerp(grey, W.grey * 0.7);
+      sky.top.value.lerp(grey, W.grey * 0.8);
+      this.scene.fog.color.lerp(grey, W.grey * 0.6);
+      if (s > 0) {
+        const dc = this._dustC || (this._dustC = new THREE.Color(0xb9895c));
+        this.scene.fog.color.lerp(dc, s); sky.horizon.value.lerp(dc, s); sky.top.value.lerp(dc, s * 0.8);
+      }
+      if (this.world.clouds && Math.abs((this._cloudGrey ?? -1) - W.grey) > 0.01) {
+        this._cloudGrey = W.grey;
+        const c = new THREE.Color(0xf4f4f0).lerp(new THREE.Color(0x6c7076), W.grey * 0.8);
+        for (const o of this.world.clouds.children) o.material.color.copy(c);
+      }
     }
     if (was < 0.05 && s >= 0.05 && this.state === 'playing') this.radio('TOC: Sandsturm zieht auf – Sicht bald unter 200 m, Böen! Tief und langsam fliegen oder landen.', 'TOC', true);
     if (was > 0.05 && s <= 0.05 && this.state === 'playing') this.radio('TOC: Der Sandsturm ist durchgezogen, die Sicht wird besser.', 'TOC');
@@ -184,14 +205,13 @@ class Game {
 
   // Kurze Tage (Norwegen): Licht nimmt ab, Dämmerung färbt den Himmel, nachts Nachtflugbetrieb
   updateDaylight() {
+    this.dayK = null;
     if (!this.world.daylight || this.settings.night) return;
     const d = this.world.daylight(this.time), ns = this.nightSys;
     if (d < 0.22 && !ns.night) { ns.set(true); this.autoNight = true; if (this.state === 'playing') this.radio('TOC: Die Sonne ist untergegangen – Nachtflugbetrieb. Nachtsichtgerät mit N.', 'TOC'); }
     else if (d > 0.4 && ns.night && this.autoNight) { ns.set(false); this.autoNight = false; if (this.state === 'playing') this.radio('TOC: Es wird hell – Tagflugbetrieb.', 'TOC'); }
     if (ns.night) return;
-    const k = 0.4 + 0.6 * d;
-    this.hemi.intensity = (ns.baseHemi ?? T.sky.hemi) * k;
-    this.sun.intensity = (ns.baseSun ?? T.sky.sunI) * k;
+    this.dayK = 0.4 + 0.6 * d;
     const sky = this.world.sky.material.uniforms, dusk = 1 - d;
     sky.horizon.value.set(T.sky.horizon).lerp(this._duskH || (this._duskH = new THREE.Color(0xe0905a)), dusk * 0.85);
     sky.top.value.set(T.sky.top).lerp(this._duskT || (this._duskT = new THREE.Color(0x2c3656)), dusk * 0.9);
@@ -695,6 +715,14 @@ class Game {
       this.updateMenuLabels();
     });
     on('btn-heli', () => this.cycleHeli(1));
+    on('btn-mode', () => {
+      if (this.started) return;
+      this.settings.career = !this.settings.career;
+      PF.saveSettings(this.settings);
+      if (this.career.on && !this.career.isUnlocked(this.helis[0].type)) { this.settings.heli = this.career.unlocked()[0]; this.setHeliType(0, this.settings.heli); }
+      this.updateMenuLabels();
+      this.showMenuStats();
+    });
     $('mp-heli2').innerHTML = '<option value="">keiner</option>' + T.helis.map((t) => `<option value="${t}">${HELI_TYPES[t].name}</option>`).join('');
     $('mp-heli2').value = T.helis[T.helis.length > 1 ? 1 : 0];
     on('btn-settings', () => this.openPanel('settings'));
@@ -761,8 +789,10 @@ class Game {
     bind('set-footview', 'footView', String);
     bind('set-aimassist', 'aimAssist', String);
     if (s.realism === undefined) s.realism = true;
+    if (s.weather === undefined) s.weather = true;
     if (s.tts === undefined) s.tts = true;
     bind('set-realism', 'realism', Boolean);
+    bind('set-weather', 'weather', Boolean);
     bind('set-tts', 'tts', Boolean, (on) => { if (!on) this.voice.stop(); });
     bind('set-sens', 'sensitivity', Number);
     bind('set-invert', 'invertY', Boolean);
@@ -882,8 +912,8 @@ class Game {
   }
 
   cycleHeli(dir) {
-    if (this.started || T.helis.length < 2) return;
-    const list = T.helis;
+    const list = this.career.unlocked();
+    if (this.started || list.length < 2) return;
     const next = list[(list.indexOf(this.helis[0].type) + dir + list.length) % list.length];
     this.settings.heli = next;
     PF.saveSettings(this.settings);
@@ -900,6 +930,13 @@ class Game {
     $('btn-map').classList.toggle('hidden', !!this.started);
     $('btn-time').textContent = 'ZEIT: ' + (this.nightSys.night ? 'NACHT' : 'TAG');
     $('btn-time').classList.toggle('hidden', !!this.started);
+    $('btn-mode').textContent = 'MODUS: ' + (this.career.on ? 'KARRIERE' : 'FREIES FLIEGEN');
+    $('btn-mode').classList.toggle('hidden', !!this.started);
+    if (this.career.on && T.helis.length > 1) {
+      const n = this.career.unlocked().length;
+      if (n < T.helis.length) $('btn-heli').textContent += ` (${n}/${T.helis.length} frei)`;
+      $('btn-heli').classList.toggle('hidden', !!this.started || n < 2);
+    }
   }
 
   showMenu() {
@@ -915,9 +952,17 @@ class Game {
     $('btn-mp').classList.toggle('hidden', false);
     $('btn-quit').classList.toggle('hidden', !this.started);
     $('btn-quit').textContent = this.role === 'solo' ? 'SPIEL BEENDEN' : this.role === 'host' ? 'MEHRSPIELER BEENDEN' : 'MEHRSPIELER VERLASSEN';
-    const st = this.stats;
-    $('menu-stats').innerHTML = `<b>${PF.rankFor(st.score)}</b> · ${st.score} Punkte · ${st.missions} Einsätze · ${st.rescued} gerettet · ${st.transported} transportiert`;
+    this.showMenuStats();
     this.focusFirst($('menu'));
+  }
+
+  showMenuStats() {
+    const st = this.stats;
+    $('menu-stats').innerHTML = this.career.on ? this.career.menuLine()
+      : `<b>${PF.rankFor(st.score)}</b> · ${st.score} Punkte · ${st.missions} Einsätze · ${st.rescued} gerettet · ${st.transported} transportiert`;
+    const md = this.career.on ? this.career.medalNames() : [];
+    $('menu-stats').title = md.join(', ');
+    if (md.length) $('menu-stats').innerHTML += `<div class="medals">${md.map((n) => `<span class="medal">🎖 ${n}</span>`).join('')}</div>`;
   }
 
   // Laufendes Spiel beenden: Verbindung trennen, Statistik sichern und frisch starten
@@ -1132,7 +1177,13 @@ class Game {
     if (rand() < 0.4) this.radioOnce('kill', 9, rand.pick(['Hab ihn!', 'Einer weniger!', 'Ziel ausgeschaltet!', 'Treffer – der ist erledigt!']), 'Schütze');
   }
 
-  onMissionResult(r) {
+  onMissionResult(r, m, info = {}) {
+    // Karriere: Einsatztag, Beförderung, Auszeichnungen
+    if (this.career.on && this.role !== 'client') {
+      const W = this.weatherSys && this.weatherSys.cur;
+      const extra = this.career.onResult(r, m, { ...info, night: this.nightSys.night, badWeather: !!(W && (W.thunder || W.snow > 0.5 || W.fog > 4)) || (this.storm || 0) > 0.35 });
+      r = { ...r, lines: r.lines.concat(extra) };
+    }
     this.hud.showResult(r);
     this.stats.score += r.score || 0;
     this.stats.missions++;
@@ -1143,6 +1194,7 @@ class Game {
     this.missions.onHeliLost(h);
     if (h === this.heli) {
       this.stats.losses++;
+      this.career.onLoss();
       this.saveStats();
       this.radio(`MAYDAY, MAYDAY! ${h.spec.callsign}${this.helis.length > 1 ? ' #' + (h.index + 1) : ''} stürzt ab!`, h.spec.callsign, true, true);
       this.crashAt = this.time;
@@ -1474,12 +1526,16 @@ class Game {
     }
     if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });
     if ((this.storm || 0) > 0.35) warnings.push({ text: 'SANDSTURM – SICHT EINGESCHRÄNKT', level: 'warn' });
+    const wx = this.weatherSys && this.weatherSys.cur;
+    if (wx && wx.thunder) warnings.push({ text: 'GEWITTER – STURMBÖEN', level: 'warn' });
+    else if (wx && wx.snow > 0.5) warnings.push({ text: 'SCHNEESCHAUER – SICHT EINGESCHRÄNKT', level: 'warn' });
+    else if (wx && wx.fog > 4) warnings.push({ text: 'NEBEL – SICHT EINGESCHRÄNKT', level: 'warn' });
     if (h.wireDist < 110 && !h.crashed) warnings.push({ text: 'STROMLEITUNG – ABSTAND HALTEN!', level: h.wireDist < 55 ? 'crit' : 'warn' });
     const critical = warnings.some((x) => x.level === 'crit');
 
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time, this.camera);
-    this.updateWeather();
+    this.updateWeather(dt);
     this.updateCamera(dt);
     this.vr.updateCamera(this.camera, this.seat);
     if (this.myPickup && (this.seat !== 'foot' || (this.helis.every((x) => !x.aiPickup) && !(this.time - (this.myPickup.manual ?? -1e9) < 300)))) this.myPickup = null;

@@ -1178,7 +1178,7 @@ export class Missions {
     const dmg = this.teamDamage() - m.damage0;
     const dmgBonus = dmg < 1 ? 150 : 0;
     const score = Math.round(base * mult + timeBonus + dmgBonus);
-    const what = m.type === 'auto' ? `Autorotation: ${D.dist} m neben der Mitte, ${D.vy} m/s beim Aufsetzen` : m.type === 'sling' ? (m.sling.kind === 'jeep' ? 'Fahrzeug geborgen' : m.sling.kind === 'bags' ? 'Sandsäcke am Deich abgesetzt' : 'Nachschub als Außenlast geliefert') + (m.sling.dmg ? ` (Last ${Math.round(m.sling.dmg)} % beschädigt)` : '') : m.type === 'winch' ? `${m.count} ${m.count === 1 ? 'Person' : 'Personen'} gerettet` : m.type === 'medevac' ? `${m.count} Verwundete gerettet` : m.type === 'csar' ? `${m.count} ${m.count === 1 ? 'Pilot' : 'Besatzungsmitglieder'} gerettet` : `${m.count} Soldaten verbracht`;
+    const what = m.type === 'auto' ? `Autorotation: ${D.dist ?? '–'} m neben der Mitte, ${D.vy ?? '–'} m/s beim Aufsetzen` : m.type === 'sling' ? (m.sling.kind === 'jeep' ? 'Fahrzeug geborgen' : m.sling.kind === 'bags' ? 'Sandsäcke am Deich abgesetzt' : 'Nachschub als Außenlast geliefert') + (m.sling.dmg ? ` (Last ${Math.round(m.sling.dmg)} % beschädigt)` : '') : m.type === 'winch' ? `${m.count} ${m.count === 1 ? 'Person' : 'Personen'} gerettet` : m.type === 'medevac' ? `${m.count} Verwundete gerettet` : m.type === 'csar' ? `${m.count} ${m.count === 1 ? 'Pilot' : 'Besatzungsmitglieder'} gerettet` : `${m.count} Soldaten verbracht`;
     const result = {
       title: 'AUFTRAG ERFÜLLT',
       score,
@@ -1191,12 +1191,12 @@ export class Missions {
         ['Gesamt', `${score} Punkte`],
       ].filter(Boolean),
     };
-    g.onMissionResult(result);
+    g.onMissionResult(result, m, { dmg });
     if (g.net) g.net.send({ t: 'result', r: result });
     if (m.type === 'cas') g.radio(`${m.unit.split(',')[0]}: Feind zieht sich zurück – danke für die Unterstützung, ${g.callsign}!`, m.unit.split(',')[0]);
     else g.radio(LIFT.includes(m.type) || m.type === 'recon' || (m.type === 'ship' && m.variant === 'troop') ? `TOC: Gut gemacht, ${g.callsign}. Auftrag erledigt.` : `Lazarett: Danke, ${g.callsign}! Ihr habt Leben gerettet.`, 'TOC');
     this.retire(m);
-    this.nextTimer = 7;
+    this.nextTimer = g.career && g.career.on && g.career.st.shiftN === 0 ? 25 : 7;   // nach einem Einsatztag kurze Ruhezeit
     this.changed();
   }
 

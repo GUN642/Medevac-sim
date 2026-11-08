@@ -322,3 +322,7 @@ body.nvg #game { filter: grayscale(1) sepia(1) hue-rotate(58deg) saturate(3.2) b
 body.nvg #nvg { display: block; }
 @keyframes nvgnoise { 0% { background-position: 0 0, 0 0; } 25% { background-position: 0 0, 37px 61px; } 50% { background-position: 0 0, 91px 13px; } 75% { background-position: 0 0, 22px 101px; } }
 body:not(.night) .night-only { display: none !important; }
+
+/* Karriere: Auszeichnungen im Hauptmenü */
+#menu-stats .medals { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 6px; max-width: 720px; }
+#menu-stats .medal { font-size: 11px; padding: 2px 6px; border: 1px solid rgba(232, 200, 90, 0.5); border-radius: 3px; color: #e8d38a; background: rgba(40, 36, 20, 0.6); }
