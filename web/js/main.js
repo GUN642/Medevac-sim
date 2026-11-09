@@ -793,7 +793,8 @@ class Game {
     bind('set-aimassist', 'aimAssist', String);
     if (s.realism === undefined) s.realism = true;
     if (s.weather === undefined) s.weather = true;
-    if (s.tts === undefined) s.tts = true;
+    // Sprachausgabe standardmäßig aus (auch bei älteren Einstellungen einmalig abgeschaltet)
+    if (!s.ttsV2) { s.tts = false; s.ttsV2 = true; PF.saveSettings(s); }
     bind('set-realism', 'realism', Boolean);
     bind('set-weather', 'weather', Boolean);
     bind('set-tts', 'tts', Boolean, (on) => { if (!on) this.voice.stop(); });

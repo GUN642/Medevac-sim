@@ -237,7 +237,7 @@ public class MainActivity extends Activity {
                 try {
                     if (tts == null || !ttsReady) return;
                     if (text == null || text.isEmpty()) { tts.stop(); return; }
-                    tts.setLanguage(Locale.forLanguageTag(lang));
+                    setMaleVoice(Locale.forLanguageTag(lang));
                     tts.setSpeechRate(rate);
                     tts.setPitch(pitch);
                     tts.speak(text, flush ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, "hotlz" + System.nanoTime());
@@ -264,6 +264,31 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String netHosts() { return net.hostsJson(); }
         @JavascriptInterface public String netIp() { return LanNet.localIp(); }
         @JavascriptInterface public void netStop() { net.stop(); net.scan(false); multicast(false); }
+    }
+
+    private String voiceLang;
+
+    /** Männliche Stimme der Sprache wählen (Name mit "male" bzw. bekannte männliche Google-Stimmen), sonst Standardstimme. */
+    private void setMaleVoice(Locale loc) {
+        if (loc.toLanguageTag().equals(voiceLang)) return;
+        voiceLang = loc.toLanguageTag();
+        tts.setLanguage(loc);
+        try {
+            android.speech.tts.Voice best = null;
+            int bestScore = 0;
+            for (android.speech.tts.Voice v : tts.getVoices()) {
+                if (v.getLocale() == null || !v.getLocale().getLanguage().equals(loc.getLanguage())) continue;
+                String n = v.getName().toLowerCase(Locale.ROOT);
+                int sc = 1;
+                if (n.contains("female")) sc = 0;
+                else if (n.contains("male")) sc = 5;
+                else if (n.matches(".*-(deg|deb|iom|tpd|iob|tpc|rjs|gbd|gbb)-.*")) sc = 4;
+                if (sc > 0 && !v.isNetworkConnectionRequired()) sc++;
+                if (v.getLocale().getCountry().equals(loc.getCountry())) sc++;
+                if (sc > bestScore) { bestScore = sc; best = v; }
+            }
+            if (best != null && bestScore >= 4) tts.setVoice(best);
+        } catch (Throwable ignored) { }
     }
 
     /** Manche Geräte filtern Broadcasts im WLAN, solange keine Multicast-Sperre gehalten wird. */

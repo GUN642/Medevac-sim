@@ -23,11 +23,23 @@ export class Voice {
 
   get on() { return this.g.settings.tts !== false && (this.native || this.web); }
 
-  // Stimmlage je Sprecher (gleicher Sprecher = gleiche Stimme)
+  // Stimmlage je Sprecher (gleicher Sprecher = gleiche Stimme), tief für eine männliche Stimme
   pitchFor(from) {
     let h = 0;
     for (const c of from || 'x') h = (h * 31 + c.charCodeAt(0)) >>> 0;
-    return 0.8 + (h % 9) * 0.06;
+    return 0.78 + (h % 6) * 0.04;
+  }
+
+  // männliche Stimme der Sprache bevorzugen
+  maleVoice(lang) {
+    const key = lang.slice(0, 2);
+    if (this._male && this._male.k === key && this.voices.length === this._male.n) return this._male.v;
+    const list = this.voices.filter((x) => x.lang && x.lang.toLowerCase().startsWith(key));
+    const male = /\bmale\b|männlich|stefan|hans|markus|conrad|klaus|jonas|florian|daniel|david|mark|guy|ryan|christopher|eric|brian|james|george|alex|fred|thomas/i;
+    const female = /female|weiblich|anna|petra|katja|hedda|marlene|vicki|zira|samantha|susan|aria|jenny|libby|sonia|karen|moira|tessa|helena|amala|seraphina/i;
+    const v = list.find((x) => male.test(x.name) && !female.test(x.name)) || list.find((x) => !female.test(x.name)) || list[0] || null;
+    this._male = { k: key, n: this.voices.length, v };
+    return v;
   }
 
   clean(text) {
@@ -52,8 +64,8 @@ export class Voice {
     else if (w.pending && this.queue >= 2) return;
     const u = new SpeechSynthesisUtterance(t);
     u.lang = lang; u.rate = rate; u.pitch = pitch; u.volume = Math.min(1, (this.g.settings.volume ?? 0.8) + 0.2);
-    const v = this.voices.filter((x) => x.lang && x.lang.toLowerCase().startsWith(lang.slice(0, 2)));
-    if (v.length) u.voice = v[Math.floor(pitch * 100) % v.length];
+    const v = this.maleVoice(lang);
+    if (v) u.voice = v;
     this.queue++;
     u.onend = u.onerror = () => { this.queue = Math.max(0, this.queue - 1); };
     w.speak(u);
