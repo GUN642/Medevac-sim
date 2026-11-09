@@ -994,7 +994,7 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
       { side: 'left', pos: [-1.62, 0.15, -5.1], baseYaw: HALFPI, fig: [-1.15, 0, -4.85], sitY: -0.35, post: true },
       { side: 'right', pos: [1.62, 0.15, -5.1], baseYaw: -HALFPI, fig: [1.15, 0, -4.85], sitY: -0.35, post: true },
       // Heckschütze mit Minigun auf der Rampe, Blick nach hinten
-      { side: 'ramp', pos: [0, -0.4, 7.6], baseYaw: Math.PI, fig: [0, 0, 7.05], sitY: -0.35, eye: [0, 0.32, 0.55], arc: { yaw: 1.15, pmin: -1.0, pmax: 0.25 } },
+      { side: 'ramp', pos: [0, -0.4, 8.6], baseYaw: Math.PI, fig: [0, 0, 8.05], sitY: -0.35, eye: [0, 0.32, 0.55], arc: { yaw: 1.15, pmin: -1.0, pmax: 0.25 } },
     ],
     floor: -1.08,
     pilots: { x: 0.65, z: -7.25, sitY: -0.35 },
@@ -1002,8 +1002,8 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
     beacon: [0, 3.3, 4.6],
   });
   const seatList = [];
-  for (let i = 0; i < 12; i++) for (const s of [-1, 1]) seatList.push([s * 1.25, -3.6 + i * 0.85, s < 0 ? HALFPI : -HALFPI, 'floor']);
-  for (let i = 0; i < 9; i++) seatList.push([(i % 3 - 1) * 0.55, -1.5 + Math.floor(i / 3) * 2.2, 0, 'floor']);
+  // Truppensitze an den Bordwänden, Rücken zur Wand, Blick zur Kabinenmitte
+  for (let i = 0; i < 17; i++) for (const s of [-1, 1]) seatList.push([s * 1.25, -4.3 + i * 0.62, s < 0 ? -HALFPI : HALFPI, 'floor']);
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor: front, tailRotor: rear, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
     guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.5]), isStatic, ramp,
@@ -1123,7 +1123,7 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
       { side: 'left', pos: [-1.42, 0.25, -3.9], baseYaw: HALFPI, fig: [-0.95, 0, -3.65], sitY: -0.3, post: true },
       { side: 'right', pos: [1.42, 0.25, -3.9], baseYaw: -HALFPI, fig: [0.95, 0, -3.65], sitY: -0.3, post: true },
       // Heckschütze auf der Rampe, Blick nach hinten
-      { side: 'ramp', pos: [0, -0.35, 5.3], baseYaw: Math.PI, fig: [0, 0, 4.75], sitY: -0.32, eye: [0, 0.32, 0.55], arc: { yaw: 1.15, pmin: -1.0, pmax: 0.25 } },
+      { side: 'ramp', pos: [0, -0.35, 6.3], baseYaw: Math.PI, fig: [0, 0, 5.75], sitY: -0.32, eye: [0, 0.32, 0.55], arc: { yaw: 1.15, pmin: -1.0, pmax: 0.25 } },
     ],
     floor: -1.02,
     pilots: { x: 0.6, z: -5.5, sitY: -0.32 },
@@ -1131,8 +1131,8 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
     beacon: [0, 2.6, 3.0],
   });
   const seatList = [];
-  for (let i = 0; i < 9; i++) for (const s of [-1, 1]) seatList.push([s * 1.05, -2.8 + i * 0.8, s < 0 ? HALFPI : -HALFPI, 'floor']);
-  for (let i = 0; i < 6; i++) seatList.push([(i % 2 - 0.5) * 0.7, -1.5 + Math.floor(i / 2) * 2.0, 0, 'floor']);
+  // Truppensitze an den Bordwänden, Rücken zur Wand, Blick zur Kabinenmitte
+  for (let i = 0; i < 12; i++) for (const s of [-1, 1]) seatList.push([s * 1.05, -2.9 + i * 0.62, s < 0 ? -HALFPI : HALFPI, 'floor']);
   return {
     group, body: h.skin, glass: h.glass, detail: f.detail, mainRotor, tailRotor, rotorDisc: f.rotorDisc, discMat: f.discMat, beacon: f.beacon, beaconMat: f.beaconMat,
     guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.45]), isStatic, ramp, retract,
