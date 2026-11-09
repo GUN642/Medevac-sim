@@ -1054,6 +1054,7 @@ class Game {
       this.tr.scan(true);
       $('mp-myip').textContent = this.tr.ip ? 'Eigene IP: ' + this.tr.ip() : '';
       clearInterval(this.scanTimer);
+      this._hostsHtml = null;
       this.scanTimer = setInterval(() => this.refreshHosts(), 800);
       this.refreshHosts();
     }
@@ -1069,13 +1070,30 @@ class Game {
 
   refreshHosts() {
     const list = this.tr.hosts();
-    $('mp-hosts').innerHTML = list.length
+    const html = list.length
       ? list.map((h) => {
         const map = THEMES[h.info.map] ? h.info.map : 'vietnam';
         const types = (h.info.types || []).map((t) => (HELI_TYPES[t] ? HELI_TYPES[t].short : t)).join(' + ') || (h.info.heli2 ? '2 Hubschrauber' : 'UH-1D');
         return `<button data-ip="${esc(h.ip)}" data-port="${h.port}" data-map="${map}">${esc(h.info.name || 'Host')} · ${h.info.n || 1} Spieler · ${THEMES[map].name}<small>${esc(types)} · ${esc(h.ip)}${map !== T.id ? ' · Karte wird gewechselt' : ''}</small></button>`;
       }).join('')
       : '<p class="note">Suche nach Spielen im Netzwerk …</p>';
+    // Nur neu aufbauen, wenn sich etwas geändert hat – sonst verliert die Fernbedienung/der Controller die Auswahl
+    const box = $('mp-hosts');
+    if (html === this._hostsHtml) return;
+    const first = !this._hostsHtml || !this._hostsHtml.includes('data-ip');
+    this._hostsHtml = html;
+    const act = document.activeElement;
+    const key = act && box.contains(act) ? act.dataset.ip + ':' + act.dataset.port : null;
+    box.innerHTML = html;
+    if (key) {
+      const b = [...box.querySelectorAll('button')].find((x) => x.dataset.ip + ':' + x.dataset.port === key) || box.querySelector('button');
+      if (b) b.focus();
+      else $('btn-host').focus();
+    } else if (first && list.length && this.input.device !== 'touch' && (!act || act === document.body || act.id === 'btn-host')) {
+      // erstes gefundenes Spiel gleich auswählen (Beitreten mit OK/Ⓐ)
+      const b = box.querySelector('button');
+      if (b) b.focus();
+    }
   }
 
   myName() { return ($('mp-name').value || 'Pilot').trim().slice(0, 16) || 'Pilot'; }
