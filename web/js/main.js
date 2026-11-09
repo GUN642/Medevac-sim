@@ -9,6 +9,7 @@ import { VrView } from './vr.js';
 import { Voice } from './voice.js';
 import { WeatherSys } from './weather.js';
 import { Career } from './career.js';
+import { Tutorial } from './tutorial.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
 import { NightSys } from './night.js';
 import { T, setTheme, themeOf, heliTypeFor, HELI_TYPES, THEMES } from './theme.js';
@@ -706,6 +707,8 @@ class Game {
     on('btn-start-foot', () => { this.startGame(); if (this.seat !== 'foot') this.wantSeat(this.myHeli, 'foot'); });
     on('btn-continue', () => this.startGame());
     on('btn-help', () => this.openPanel('help'));
+    this.tutorial = new Tutorial(this);
+    on('btn-tutorial', () => this.tutorial.open(0));
     on('btn-map', () => this.cycleMap());
     on('btn-time', () => {
       if (this.started) return;

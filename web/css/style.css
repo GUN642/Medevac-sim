@@ -329,3 +329,21 @@ body:not(.night) .night-only { display: none !important; }
 
 /* Menüpunkt hier nicht verfügbar: bleibt an seinem Platz, ausgegraut */
 .menu-buttons .off { opacity: 0.4; pointer-events: none; }
+
+/* Tutorial: Bild mit Erklärung, blättern per Knopf, Pfeiltasten oder Wischen */
+#tutorial { z-index: 31; }
+#tutorial .tut { width: min(900px, 96vw); display: flex; flex-direction: column; gap: 8px; }
+#tutorial .tut-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+#tutorial .tut-head h2 { margin: 0; }
+#tut-page { color: var(--amber); font-size: 13px; white-space: nowrap; }
+#tut-img { width: 100%; aspect-ratio: 16 / 9; object-fit: contain; border: 1px solid rgba(216, 207, 168, 0.35); border-radius: 4px; background: #111; max-height: 52vh; }
+#tut-text { margin: 0; font-size: 15px; line-height: 1.45; }
+#tutorial .tut-nav { display: flex; gap: 8px; justify-content: space-between; }
+#tutorial .tut-nav button { flex: 1; margin: 0; }
+@media (max-height: 520px) {
+  #tutorial .tut { flex-direction: row; flex-wrap: wrap; width: 98vw; padding: 8px 12px; }
+  #tutorial .tut-head { width: 100%; }
+  #tut-img { width: 56%; max-height: 62vh; }
+  #tut-text { flex: 1; min-width: 200px; font-size: 13px; max-height: 62vh; overflow-y: auto; }
+  #tutorial .tut-nav { width: 100%; }
+}
