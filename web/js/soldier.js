@@ -282,6 +282,19 @@ export class Soldier {
     const zf = zoom ? (this.magFactor() > 1 ? 0.18 : 0.45) : 1;
     this.yaw -= look.dx * zf;
     this.pitch = clamp(this.pitch - look.dy * zf, -1.25, 1.2);
+    // Am Steuer: Bewegungs-Stick fährt, rechter Stick dreht die Kamera um das Fahrzeug
+    if (this.drive) {
+      this.camOff = clamp((this.camOff || 0) - look.dx * zf, -3, 3);
+      this.camPitch = clamp((this.camPitch ?? 0.25) + look.dy * zf, -0.1, 1.1);
+      if (!look.dx) this.camOff *= Math.max(0, 1 - dt * 0.8);
+      g.vehicles.drive(dt, inp.move);
+      this.pos.copy(this.drive.pos);
+      this.pos.y += 1.2;
+      this.moving = false; this.vy = 0;
+      this.sync();
+      this.prevFire = fire;
+      return;
+    }
     // An einer MG-Lafette: keine Bewegung, Blick führt das MG
     if (this.mount) {
       this.moving = false; this.onGround = true; this.vy = 0;

@@ -1,7 +1,7 @@
 // Besetzbare schwere MGs: Stellungen an der FOB-Mauer und Dachlafetten der Konvoi-Fahrzeuge.
 // Unbesetzt schießt ein KI-Schütze (nur Host), der Spieler kann zu Fuß einsteigen (E / Ⓐ) und selbst feuern.
 import * as THREE from './lib/three.module.min.js';
-import { P, merge, vcMat, m2Geo, Figure } from './models.js';
+import { P, merge, vcMat, m2Geo, Figure, eotechParts } from './models.js';
 import { T } from './theme.js';
 import { rand, dist2, clamp } from './util.js';
 
@@ -100,7 +100,7 @@ export class Mounts {
 
   worldYaw(M) { M.yawG.parent.getWorldQuaternion(_q); _e.setFromQuaternion(_q, 'YXZ'); return _e.y; }
   seatPos(M, out) { M.yawG.updateWorldMatrix(true, false); return M.yawG.localToWorld(out.set(0, M.kind === 'veh' ? -0.95 : 0, 0.85)); }
-  eyePos(M, out) { M.pitchG.updateWorldMatrix(true, false); return M.pitchG.localToWorld(out.set(0, 0.33, 0.95)); }
+  eyePos(M, out) { M.pitchG.updateWorldMatrix(true, false); return M.pitchG.localToWorld(M.optic ? out.set(0, 0.23, 0.42) : out.set(0, 0.33, 0.95)); }
   muzzle(M, out) { M.pitchG.updateWorldMatrix(true, false); return M.pitchG.localToWorld(out.set(0, 0.01, -1.63)); }
 
   // nächste freie Lafette für den Spieler zu Fuß
@@ -115,7 +115,14 @@ export class Mounts {
     return best;
   }
 
-  mount(M) {
+  // Rotpunktvisier (EOTech) auf dem MG; Blick genau durch das Fenster
+  addOptic(M) {
+    M.optic = true;
+    const o = new THREE.Mesh(merge(eotechParts(0.23, 0.2, 0.125)), vcMat);
+    M.pitchG.add(o);
+  }
+
+  mount(M, silent) {
     const S = this.g.soldier;
     M.occupied = true;
     M.crew.group.visible = false;
@@ -123,15 +130,15 @@ export class Mounts {
     S.reloadT = 0;
     S.yaw = this.worldYaw(M) + M.yaw;
     S.pitch = M.pitch;
-    this.g.radio(M.kind === 'veh' ? 'Sie bedienen das MG auf dem Fahrzeug – Konvoi fährt mit Ihnen. E/Ⓐ zum Absitzen.' : `Sie besetzen die ${M.name}. E/Ⓐ zum Verlassen.`, 'Crew', false, true);
+    if (!silent) this.g.radio(M.veh && M.veh.drivable ? `Sie bedienen das ${M.name}. WAFFE/Tab: ans Steuer, E/Ⓐ zum Aussteigen.` : M.kind === 'veh' ? 'Sie bedienen das MG auf dem Fahrzeug – Konvoi fährt mit Ihnen. E/Ⓐ zum Absitzen.' : `Sie besetzen die ${M.name}. E/Ⓐ zum Verlassen.`, 'Crew', false, true);
   }
 
-  dismount() {
+  dismount(silent) {
     const S = this.g.soldier, M = S.mount;
     if (!M) return;
     S.mount = null;
     M.occupied = false;
-    M.crew.group.visible = !(M.veh && M.veh.dead);
+    M.crew.group.visible = !(M.veh && M.veh.dead) && !M.noAI;
     // neben der Lafette bzw. neben dem Fahrzeug absetzen
     const w = this.g.world, yaw = this.worldYaw(M);
     const off = M.kind === 'veh' ? 2.4 : 1.2;
@@ -166,7 +173,7 @@ export class Mounts {
     const enemies = g.units.enemies;
     for (const M of this.list) {
       if (M.veh && M.veh.dead) { M.crew.group.visible = false; continue; }
-      if (M.occupied) continue;
+      if (M.occupied || M.noAI) continue;
       const p = M.yawG.getWorldPosition(_w);
       if (!g.isNearAny(p.x, p.z) && !M.veh) continue;
       M.fireT -= dt;

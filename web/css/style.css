@@ -347,3 +347,10 @@ body:not(.night) .night-only { display: none !important; }
   #tut-text { flex: 1; min-width: 200px; font-size: 13px; max-height: 62vh; overflow-y: auto; }
   #tutorial .tut-nav { width: 100%; }
 }
+
+/* Rotpunktvisier am Fahrzeug-MG: 65-MOA-Ring mit Punkt in der Bildmitte */
+#mg-dot { display: none; position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border: 2px solid rgba(255, 60, 40, 0.9); border-radius: 50%; box-shadow: 0 0 6px rgba(255, 40, 20, 0.7); pointer-events: none; }
+#mg-dot::after { content: ''; position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: #ff3a28; box-shadow: 0 0 5px #ff2010; }
+body.mg-optic #mg-dot { display: block; }
+body.mg-optic #crosshair { display: none !important; }
+body.driving #crosshair { display: none !important; }

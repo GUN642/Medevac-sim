@@ -161,7 +161,7 @@ export class HUD {
       fh.innerHTML = `<div class="fh-hp"><span class="lbl">GESUNDHEIT</span><div class="bar h"><div class="fill ${hpCls}" style="--v:${S.hp}%"></div></div></div>`
         + `<div class="fh-w"><b>${wpn.name}</b> <small>${wpn.desc}${wpn.optic ? (S.magOn ? ' · <b class="fh-mag">3x AN</b>' : ' · 3x aus') : ''}</small></div>`
         + `<div class="fh-ammo">${S.reloadT > 0 ? 'LÄDT …' : S.curMag} <small>/ ${S.curRes}</small></div>`
-        + `<div class="fh-st">${S.mount ? 'AM MG' : S.crouch ? 'GEDUCKT' : 'STEHEND'}${S.zoom ? ' · ZIELEN' : ''}</div>`;
+        + `<div class="fh-st">${S.drive ? `AM STEUER · ${Math.round(Math.abs(S.drive.speed) * 3.6)} km/h` : S.mount ? 'AM MG' : S.crouch ? 'GEDUCKT' : 'STEHEND'}${S.zoom ? ' · ZIELEN' : ''}</div>`;
     }
     // Warnungen
     this.el.warnings.innerHTML = info.warnings.map((w) => `<div class="warn ${w.level || ''}">${w.text}</div>`).join('');

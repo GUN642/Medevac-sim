@@ -10,6 +10,7 @@ import { Voice } from './voice.js';
 import { WeatherSys } from './weather.js';
 import { Career } from './career.js';
 import { Mounts } from './mounts.js';
+import { Vehicles } from './vehicles.js';
 import { Tutorial } from './tutorial.js';
 import { AirSupport, SUPPORT } from './airsupport.js';
 import { NightSys } from './night.js';
@@ -149,6 +150,8 @@ class Game {
     this.units.spawnFobDefenders();
     this.mounts = new Mounts(this);
     this.mounts.buildFob();
+    this.vehicles = new Vehicles(this);
+    this.vehicles.buildFob();
     this.units.spawnVehiclePatrols(T.id === 'afghanistan' || T.id === 'mali' ? 5 : 3);
 
     window.addEventListener('resize', () => this.onResize());
@@ -476,8 +479,12 @@ class Game {
   useAction() {
     if (this.seat === 'foot') {
       if (!this.soldier.alive) return;
+      // Fahrzeug verlassen bzw. einsteigen (FOB-Fahrzeuge)
+      if (this.soldier.drive) { this.vehicles.exit(); return; }
       // MG-Lafette verlassen bzw. besetzen (Stellung an der FOB, Dachlafette im Konvoi)
       if (this.soldier.mount) { this.mounts.dismount(); return; }
+      const veh = this.vehicles.nearest(this.soldier.pos);
+      if (veh && !(veh.mount && veh.mount.occupied)) { this.vehicles.enter(veh); return; }
       const mt = this.mounts.nearest(this.soldier.pos);
       if (mt) { this.mounts.mount(mt); return; }
       if (this.nearRack()) {
@@ -1270,6 +1277,9 @@ class Game {
       }
       if (this.seat === 'foot') {
         const S = this.soldier;
+        // im Fahrzeug: WAFFE/Tab wechselt zwischen Steuer und MG
+        if ((S.drive || S.mount) && (a === 'seat-next' || a === 'wnext' || a === 'seat-prev' || a === 'wprev')) { this.vehicles.swapSeat(); continue; }
+        if (S.drive && ['seat-pilot', 'seat-left', 'seat-right', 'num4', 'num5', 'reload', 'crouch', 'camera', 'dpad-left', 'dpad-right'].includes(a)) continue;
         const wmap = { 'seat-pilot': 0, 'seat-left': 1, 'seat-right': 2, num4: 3, num5: 4 };
         if (a in wmap) { S.setWeapon(wmap[a]); continue; }
         if (a === 'seat-next' || a === 'wnext') { S.setWeapon(S.w + 1); continue; }
@@ -1482,6 +1492,10 @@ class Game {
     if (this.role === 'client') { this.units.updateMirror(dt); this.air.updateMirror(dt); }
     else { this.units.update(dt); this.units.updateFobAttack(dt); this.fobAttack = !!this.units.attack || !!this.units.raid; this.air.update(dt); }
     this.mounts.update(dt);
+    this.vehicles.update(dt);
+    if (this.soldier.drive && (!this.soldier.alive || this.seat !== 'foot')) this.vehicles.exit();
+    document.body.classList.toggle('mg-optic', !!(this.seat === 'foot' && this.soldier.mount && this.soldier.mount.optic));
+    document.body.classList.toggle('driving', !!(this.seat === 'foot' && this.soldier.drive));
     // gefallen oder Fahrzeug zerstört: vom MG herunter
     { const S = this.soldier, M = S.mount; if (M && (!S.alive || this.seat !== 'foot' || (M.veh && M.veh.dead))) { if (M.veh && M.veh.dead && S.alive) S.takeDamage(35); this.mounts.dismount(); } }
     this.combat.update(dt);
@@ -1529,8 +1543,13 @@ class Game {
       for (const hh of this.helis) { const d = dist2(S.pos.x, S.pos.z, hh.pos.x, hh.pos.z); if (d < nd && !hh.crashed) { nd = d; near = hh; } }
       const key = this.input.device === 'gamepad' ? 'Ⓐ' : this.input.device === 'touch' ? 'EIN/AUS' : 'E';
       const rack = this.nearRack();
-      const mt = S.mount ? null : this.mounts.nearest(S.pos);
-      if (S.mount) hint = `${key}: MG verlassen${S.reloadT > 0 ? ' · Nachladen …' : ''}`;
+      const mt = S.mount || S.drive ? null : this.mounts.nearest(S.pos);
+      const vh = S.mount || S.drive ? null : this.vehicles.nearest(S.pos);
+      const swapKey = this.input.device === 'gamepad' ? 'R1' : this.input.device === 'touch' ? 'WAFFE' : 'Tab';
+      if (S.drive) hint = `${key}: Aussteigen${S.drive.mount ? ` · ${swapKey}: ans MG` : ''} · ${Math.round(Math.abs(S.drive.speed) * 3.6)} km/h`;
+      else if (S.mount && S.mount.veh && S.mount.veh.drivable) hint = `${key}: Aussteigen · ${swapKey}: ans Steuer${S.reloadT > 0 ? ' · Nachladen …' : ''}`;
+      else if (S.mount) hint = `${key}: MG verlassen${S.reloadT > 0 ? ' · Nachladen …' : ''}`;
+      else if (vh && !(vh.mount && vh.mount.occupied)) hint = `${key}: ${vh.name} fahren`;
       else if (mt) hint = `${key}: ${mt.kind === 'veh' ? 'Auf das Fahrzeug – MG bedienen' : mt.name + ' besetzen'}`;
       else if (rack) hint = `${key}: Panzerfaust aufnehmen`;
       else if (near) hint = near.contact ? `${key}: In ${near.spec.short} #${near.index + 1} einsteigen` : 'Hubschrauber noch in der Luft – warten bis er gelandet ist';
@@ -1661,7 +1680,20 @@ class Game {
       const S = this.soldier;
       const zoom = S.zoom && S.alive;
       let yaw = S.yaw, pitch = S.pitch;
-      if (S.mount && S.alive) {
+      if (S.drive && S.alive) {
+        // Verfolgerkamera hinter dem Fahrzeug (rechter Stick schwenkt)
+        const V = S.drive, yaw = V.yaw + (S.camOff || 0), pc = S.camPitch ?? 0.25, dist = 9;
+        S.group.visible = false;
+        S.updateViewModel(dt, cam, false);
+        document.body.classList.remove('fp-view', 'fp-ads', 'fp-mag');
+        const tx = V.pos.x + Math.sin(yaw) * Math.cos(pc) * dist, tz = V.pos.z + Math.cos(yaw) * Math.cos(pc) * dist;
+        const ty = Math.max(V.pos.y + 2 + Math.sin(pc) * dist, this.world.groundHeight(tx, tz) + 1.2);
+        if (!this.camInit) { cam.position.set(tx, ty, tz); this.camInit = true; }
+        const k = damp(8, dt);
+        cam.position.x += (tx - cam.position.x) * k; cam.position.y += (ty - cam.position.y) * k; cam.position.z += (tz - cam.position.z) * k;
+        cam.lookAt(V.pos.x, V.pos.y + 1.6, V.pos.z);
+        fov = 70;
+      } else if (S.mount && S.alive) {
         // am MG: Blick über die Waffe
         S.group.visible = false;
         S.updateViewModel(dt, cam, false);
