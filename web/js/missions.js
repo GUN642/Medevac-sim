@@ -633,7 +633,7 @@ export class Missions {
       const s = this.stale[i];
       if (s.points.every((p) => helis.every((h) => dist2(p.x, p.z, h.pos.x, h.pos.z) > 1300))) { this.cleanup(s.m); this.stale.splice(i, 1); }
     }
-    if (g.role === 'client') { this.updateMirror(); return; }
+    if (g.role === 'client') { this.updateMirror(); this.mirrorConvoy(dt); return; }
     if (this.nextTimer > 0) {
       this.nextTimer -= dt;
       if (this.nextTimer <= 0) this.generate();
@@ -746,6 +746,20 @@ export class Missions {
 
   spawnConvoy(m) {
     const g = this.game, U = g.units, R = m.route, len = R[R.length - 1].s;
+    this.buildConvoy(m);
+    // Hinterhalte entlang der Route (seitlich versetzt), zum Teil mit Technicals
+    for (const f of [0.3 + rand() * 0.1, 0.62 + rand() * 0.12]) {
+      const p = this.routeAt(R, len * f), side = rand() < 0.5 ? -1 : 1, off = 170 + rand() * 90;
+      const ax = p.x + Math.cos(p.yaw) * off * side, az = p.z - Math.sin(p.yaw) * off * side;
+      U.spawnEnemies(ax, az, 7 + Math.floor(rand() * 5) + Math.min(5, Math.floor(this.count / 3)), { missionId: m.id, rMin: 0, rMax: 60, heavy: rand() < 0.5 });
+      if (U.spawnVehicles && rand() < 0.5) U.spawnVehicles(ax, az, 1, { missionId: m.id, rMin: 20, rMax: 80 });
+    }
+    g.radio(`${m.unit}: Konvoi ist bereit. Wir rollen an, sobald Sie über uns sind.`, m.unit);
+  }
+
+  // Fahrzeuge mit Dachlafetten (Host und Mitspieler)
+  buildConvoy(m) {
+    const g = this.game, R = m.route, len = R[R.length - 1].s;
     const vehs = [];
     for (let i = 0; i < m.count; i++) {
       const tanker = i === m.count - 1 && m.count > 4;
@@ -761,14 +775,46 @@ export class Missions {
     const C = { vehs, len, v: 0, started: false, threat: 0, noCover: false, wasThreat: false };
     this.convoys.set(m.id, C);
     this.placeConvoy(C, m);
-    // Hinterhalte entlang der Route (seitlich versetzt), zum Teil mit Technicals
-    for (const f of [0.3 + rand() * 0.1, 0.62 + rand() * 0.12]) {
-      const p = this.routeAt(R, len * f), side = rand() < 0.5 ? -1 : 1, off = 170 + rand() * 90;
-      const ax = p.x + Math.cos(p.yaw) * off * side, az = p.z - Math.sin(p.yaw) * off * side;
-      U.spawnEnemies(ax, az, 7 + Math.floor(rand() * 5) + Math.min(5, Math.floor(this.count / 3)), { missionId: m.id, rMin: 0, rMax: 60, heavy: rand() < 0.5 });
-      if (U.spawnVehicles && rand() < 0.5) U.spawnVehicles(ax, az, 1, { missionId: m.id, rMin: 20, rMax: 80 });
+    return C;
+  }
+
+  // Host: Konvoi-Stand für die Mitspieler (Strecke je Fahrzeug, ausgefallen)
+  convoyNet() {
+    const m = this.current;
+    if (!m || m.type !== 'convoy' || this.phase !== 'active') return null;
+    const C = this.convoys.get(m.id);
+    return C ? { id: m.id, v: C.vehs.map((v) => [Math.round(v.s * 10) / 10, v.dead ? 1 : 0]) } : null;
+  }
+
+  // Mitspieler: Fahrzeuge aufbauen und zur gemeldeten Position gleiten lassen
+  applyConvoyNet(d) {
+    const m = this.current;
+    if (!d || !m || m.id !== d.id || !m.route) return;
+    let C = this.convoys.get(m.id);
+    if (!C) C = this.buildConvoy(m);
+    d.v.forEach(([s, dead], i) => {
+      const v = C.vehs[i];
+      if (!v) return;
+      v.netS = s;
+      if (dead && !v.dead) {
+        v.dead = true;
+        v.obj.material = this._wreckMat || (this._wreckMat = new THREE.MeshLambertMaterial({ color: 0x2a2624 }));
+        const p = v.obj.position;
+        this.game.effects.explosion(p.x, p.y + 1, p.z, 1.1);
+      }
+    });
+  }
+
+  mirrorConvoy(dt) {
+    const m = this.current;
+    const C = m && this.convoys.get(m.id);
+    if (!C) return;
+    for (const v of C.vehs) {
+      if (v.netS === undefined) continue;
+      const diff = v.netS - v.s;
+      v.s = Math.abs(diff) > 40 ? v.netS : v.s + clamp(diff * 3, -15, 15) * dt;
     }
-    g.radio(`${m.unit}: Konvoi ist bereit. Wir rollen an, sobald Sie über uns sind.`, m.unit);
+    this.placeConvoy(C, m);
   }
 
   placeConvoy(C, m) {
@@ -803,7 +849,8 @@ export class Missions {
     }
     const lp = L.obj.position;
     // Luftsicherung oder ein Spieler am MG eines Konvoi-Fahrzeugs
-    const aboard = g.mounts && g.mounts.playerOnConvoy(m.id);
+    const aboard = (g.mounts && g.mounts.playerOnConvoy(m.id)) || g.footTargets().some((ft) => ft.pid !== g.myId
+      && C.vehs.some((v) => !v.dead && Math.hypot(ft.s.pos.x - v.obj.position.x, ft.s.pos.z - v.obj.position.z) < 3 && ft.s.pos.y > v.obj.position.y + 1.5));
     const cover = aboard || g.helis.some((h) => !h.crashed && Math.hypot(h.pos.x - lp.x, h.pos.z - lp.z) < (C.started ? 1600 : 900));
     if (!C.started && cover) { C.started = true; g.radio(aboard ? `${m.unit}: MG ist besetzt – Konvoi rollt!` : `${m.unit}: Luftsicherung ist da – Konvoi rollt!`, m.unit); this.changed(); }
     // Feind in Reichweite der Fahrzeuge?

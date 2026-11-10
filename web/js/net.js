@@ -221,6 +221,8 @@ export class Net {
     for (const [pid, a] of g.avatars) if (a.active && a.isFoot && !g.seatOf(pid) && a.tgt) P.push([pid, a.tgt]);
     const msg = { t: 's', T: Math.round(g.time * 10) / 10, H, E: this.ev, P, A: g.fobAttack ? 1 : 0, X: g.air.snapshot() };
     if (this.snapN % 2 === 0) msg.U = g.units.snapshot();
+    const cv = g.missions.convoyNet();
+    if (cv) msg.C = cv;
     this.ev = [];
     this.send(msg);
   }
@@ -359,6 +361,7 @@ export class Net {
       });
     });
     if (m.U) g.units.applySnapshot(m.U);
+    if (m.C) g.missions.applyConvoyNet(m.C);
     g.fobAttack = !!m.A;
     if (m.X) g.air.applyNet(m.X);
     // Mitspieler zu Fuß
