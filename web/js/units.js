@@ -268,6 +268,7 @@ export class Units {
     const g = this.game;
     if (T.peaceful) return;
     if (this.attackT === undefined) this.attackT = 150 + rand() * 90;
+    this.updateRaid(dt);
     if (!this.attack) {
       if (!g.started) return;
       this.attackT -= dt;
@@ -285,6 +286,45 @@ export class Units {
       this.attack.fleeing = true;
       g.radio('TOC: Der Feind zieht sich zurück – letzte Angreifer stellen!', 'TOC');
     }
+  }
+
+  // Fahrzeugangriffe: Technicals bzw. Lkw mit schweren MGs fahren auf die FOB zu
+  // – Panzerfäuste an der Mauer und die MG-Stellungen sind die Antwort
+  updateRaid(dt) {
+    const g = this.game;
+    if (this.raidT === undefined) this.raidT = 90 + rand() * 60;
+    if (!this.raid) {
+      if (!g.started || this.attack) return;
+      this.raidT -= dt;
+      if (this.raidT <= 0) this.startRaid();
+      return;
+    }
+    if (this.raid.members.every((e) => !e.alive)) {
+      g.radio('TOC: Alle Feindfahrzeuge vernichtet – Fahrzeugangriff abgewehrt!', 'TOC');
+      g.stats.score += 200;
+      g.hud.showResult({ title: 'FAHRZEUGANGRIFF ABGEWEHRT', lines: [['Fahrzeuge zerstört', `${this.raid.members.length}`], ['Gesamt', '200 Punkte']] });
+      this.raid = null;
+      this.raidT = 170 + rand() * 150;
+    }
+  }
+
+  startRaid() {
+    const g = this.game, f = g.world.fob;
+    this.raids = (this.raids || 0) + 1;
+    let cx = 0, cz = 0, members = [];
+    const n = Math.min(5, 2 + Math.floor(rand() * 2) + Math.floor(this.raids / 2));
+    // mehrere Richtungen versuchen (im Dschungel ist nicht überall Platz für Fahrzeuge)
+    for (let k = 0; k < 12 && !members.length; k++) {
+      const a = rand() * Math.PI * 2, d = 560 + rand() * 160;
+      cx = f.x + Math.cos(a) * d; cz = f.z + Math.sin(a) * d;
+      if (g.world.height(cx, cz) <= 1 || Math.abs(cx) > HALF - 150 || Math.abs(cz) > HALF - 150) continue;
+      members = this.spawnVehicles(cx, cz, n, { rMin: 0, rMax: 160, nearFob: true, missionId: 'fob', stop: 215 + rand() * 40, to: f });
+    }
+    if (!members.length) { this.raidT = 60; return; }
+    for (const e of members) { e.range = 520; e.fob = true; }
+    this.raid = { members };
+    const dir = dirName(bearing(f.x, f.z, cx, cz));
+    g.radio(`TOC: ALARM! ${members.length} Feindfahrzeuge mit schweren MGs greifen die ${f.name} aus Richtung ${dir} an! Panzerfäuste an der Mauer aufnehmen, MG-Stellungen besetzen!`, 'TOC', true);
   }
 
   startFobAttack() {
@@ -305,7 +345,7 @@ export class Units {
       e.fireT = 6 + rand() * 6;
       this.setPose(e, 0);
     }
-    if (this.waves > 1) members.push(...this.spawnVehicles(cx, cz, 1 + Math.floor(rand() * 2), { rMin: 0, rMax: 80, nearFob: true, missionId: 'fob', stop: 280, to: f }));
+    members.push(...this.spawnVehicles(cx, cz, 1 + Math.floor(rand() * 2) + Math.min(2, Math.floor(this.waves / 2)), { rMin: 0, rMax: 80, nearFob: true, missionId: 'fob', stop: 240, to: f }));
     this.attack = { members, dir: dirName(bearing(f.x, f.z, cx, cz)) };
     g.radio(`TOC: ALARM! Feindangriff auf die ${f.name} aus Richtung ${this.attack.dir}! Etwa ${n} Mann – alle verfügbaren Kräfte zur Verteidigung!`, 'TOC', true);
   }
@@ -505,7 +545,7 @@ export class Units {
           const ds = Math.hypot(sp.x - e.x, sp.y - e.y, sp.z - e.z);
           if (ds < Math.min(bestD, ENEMY_RANGE) && w.los(e.x, e.y + 1.5, e.z, sp.x, sp.y + 1.4, sp.z)) { bestD = ds; e.tgt = ft; }
         }
-        if (!e.tgt && m) {
+        if (!e.tgt && (m || e.missionId === 'fob')) {
           let best = 350;
           for (const f of this.friendlies) {
             const d = dist2(f.x, f.z, e.x, e.z);

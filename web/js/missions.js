@@ -748,11 +748,15 @@ export class Missions {
     const g = this.game, U = g.units, R = m.route, len = R[R.length - 1].s;
     const vehs = [];
     for (let i = 0; i < m.count; i++) {
-      const parts = i === m.count - 1 && m.count > 4 ? fuelTruckAfg() : i % 2 ? mrapParts() : dingoParts();
+      const tanker = i === m.count - 1 && m.count > 4;
+      const parts = tanker ? fuelTruckAfg() : i % 2 ? mrapParts() : dingoParts();
       const obj = new THREE.Mesh(merge(parts), vcMat);
       obj.castShadow = true;
       g.scene.add(obj);
-      vehs.push({ obj, s: (m.count - 1 - i) * 26, hp: 100, dead: false });
+      const v = { obj, s: (m.count - 1 - i) * 26, hp: 100, dead: false };
+      // Dachlafette mit schwerem MG (besetzbar für Infanterie)
+      if (!tanker && g.mounts) v.mount = g.mounts.addVehicle(obj, i % 2 ? 3.15 : 2.75, m.id, v);
+      vehs.push(v);
     }
     const C = { vehs, len, v: 0, started: false, threat: 0, noCover: false, wasThreat: false };
     this.convoys.set(m.id, C);
@@ -782,6 +786,7 @@ export class Missions {
   clearConvoy(id) {
     const C = this.convoys.get(id);
     if (!C) return;
+    if (this.game.mounts) this.game.mounts.removeConvoy(id);
     for (const v of C.vehs) this.game.scene.remove(v.obj);
     this.convoys.delete(id);
   }
@@ -797,8 +802,10 @@ export class Missions {
       return;
     }
     const lp = L.obj.position;
-    const cover = g.helis.some((h) => !h.crashed && Math.hypot(h.pos.x - lp.x, h.pos.z - lp.z) < (C.started ? 1600 : 900));
-    if (!C.started && cover) { C.started = true; g.radio(`${m.unit}: Luftsicherung ist da – Konvoi rollt!`, m.unit); this.changed(); }
+    // Luftsicherung oder ein Spieler am MG eines Konvoi-Fahrzeugs
+    const aboard = g.mounts && g.mounts.playerOnConvoy(m.id);
+    const cover = aboard || g.helis.some((h) => !h.crashed && Math.hypot(h.pos.x - lp.x, h.pos.z - lp.z) < (C.started ? 1600 : 900));
+    if (!C.started && cover) { C.started = true; g.radio(aboard ? `${m.unit}: MG ist besetzt – Konvoi rollt!` : `${m.unit}: Luftsicherung ist da – Konvoi rollt!`, m.unit); this.changed(); }
     // Feind in Reichweite der Fahrzeuge?
     const foes = g.units.enemies.filter((e) => e.alive && e.missionId === m.id);
     let threat = 0;

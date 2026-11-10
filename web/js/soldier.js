@@ -4,6 +4,7 @@ import { Figure, weaponGeo, vcMat, OPTICS } from './models.js';
 import { HALF, G } from './config.js';
 import { clamp, rand, dist2 } from './util.js';
 import { T } from './theme.js';
+import { MOUNT_WEAPON } from './mounts.js';
 
 // Handwaffen der Infanterie (Vietnam 1968 / Afghanistan 2010)
 const WEAPONS_VN = [
@@ -157,7 +158,12 @@ export class Soldier {
     this.group.visible = false;
   }
 
-  get weapon() { return WEAPONS[this.w]; }
+  get weapon() { return this.mount ? MOUNT_WEAPON : WEAPONS[this.w]; }
+  // Munition der aktuellen Waffe (an der Lafette: Munition des MGs)
+  get curMag() { return this.mount ? this.mount.ammo.mag : this.mag[this.w]; }
+  set curMag(v) { if (this.mount) this.mount.ammo.mag = v; else this.mag[this.w] = v; }
+  get curRes() { return this.mount ? this.mount.ammo.res : this.res[this.w]; }
+  set curRes(v) { if (this.mount) this.mount.ammo.res = v; else this.res[this.w] = v; }
   // 3x-Vergrößerer nur bei Waffen mit Rotpunktvisier
   magFactor() { return this.weapon.optic && this.magOn ? 3 : 1; }
   toggleMagnifier() {
@@ -246,7 +252,7 @@ export class Soldier {
 
   startReload() {
     const w = this.weapon;
-    if (this.reloadT > 0 || this.mag[this.w] >= w.mag || this.res[this.w] <= 0) return;
+    if (this.reloadT > 0 || this.curMag >= w.mag || this.curRes <= 0) return;
     this.reloadT = w.reload;
     this.game.audio.shot('click', 1);
   }
@@ -276,6 +282,14 @@ export class Soldier {
     const zf = zoom ? (this.magFactor() > 1 ? 0.18 : 0.45) : 1;
     this.yaw -= look.dx * zf;
     this.pitch = clamp(this.pitch - look.dy * zf, -1.25, 1.2);
+    // An einer MG-Lafette: keine Bewegung, Blick führt das MG
+    if (this.mount) {
+      this.moving = false; this.onGround = true; this.vy = 0;
+      g.mounts.updatePlayer(this);
+      this.sync();
+      this.updateGun(dt, fire);
+      return;
+    }
 
     // Bewegung
     const w = this.weapon;
@@ -306,27 +320,7 @@ export class Soldier {
     else this.fig.stand();
     this.sync();
 
-    // Waffe
-    this.cool = Math.max(-0.1, this.cool - dt);
-    if (this.reloadT > 0) {
-      this.reloadT -= dt;
-      if (this.reloadT <= 0) {
-        const need = w.mag - this.mag[this.w];
-        const take = Math.min(need, this.res[this.w]);
-        this.mag[this.w] += take; this.res[this.w] -= take;
-      }
-    } else if (fire) {
-      if (this.mag[this.w] <= 0) {
-        if (this.res[this.w] > 0) this.startReload();
-        else if (!this.prevFire) g.audio.shot('click', 1);
-      } else {
-        for (let n = 0; this.cool <= 0 && (w.auto || !this.prevFire) && this.mag[this.w] > 0 && n < 3; n++) {
-          this.shoot();
-          if (!w.auto) break;
-        }
-      }
-    }
-    this.prevFire = fire;
+    this.updateGun(dt, fire);
 
     // Erholung und Nachschub in der FOB
     const f = world.fob;
@@ -341,6 +335,31 @@ export class Soldier {
     }
   }
 
+  // Abzug, Nachladen (Handwaffe oder MG an der Lafette)
+  updateGun(dt, fire) {
+    const g = this.game, w = this.weapon;
+    this.cool = Math.max(-0.1, this.cool - dt);
+    if (this.reloadT > 0) {
+      this.reloadT -= dt;
+      if (this.reloadT <= 0) {
+        const need = w.mag - this.curMag;
+        const take = Math.min(need, this.curRes);
+        this.curMag += take; this.curRes -= take;
+      }
+    } else if (fire) {
+      if (this.curMag <= 0) {
+        if (this.curRes > 0) this.startReload();
+        else if (!this.prevFire) g.audio.shot('click', 1);
+      } else {
+        for (let n = 0; this.cool <= 0 && (w.auto || !this.prevFire) && this.curMag > 0 && n < 3; n++) {
+          this.shoot();
+          if (!w.auto) break;
+        }
+      }
+    }
+    this.prevFire = fire;
+  }
+
   animateDead(dt) {
     this.deadT += dt;
     this.group.rotation.x = -Math.min(Math.PI / 2, this.deadT * 4);
@@ -348,6 +367,7 @@ export class Soldier {
   }
 
   muzzlePos(out) {
+    if (this.mount) return this.game.mounts.muzzle(this.mount, out);
     if (this.vm && this.vm.visible) {
       this.vm.updateMatrixWorld(true);
       return this.vmGun.localToWorld(out.set(0, this.weapon.sight[0] - 0.05, this.weapon.sight[2] - 0.05));
@@ -359,7 +379,7 @@ export class Soldier {
   shoot() {
     const g = this.game, w = this.weapon, cam = g.camera;
     this.cool += 60 / w.rpm;
-    this.mag[this.w]--;
+    this.curMag--;
     // Zielpunkt: Geländetreffer entlang der Blickrichtung der Kamera
     cam.getWorldDirection(_d);
     const t = g.world.raycast(cam.position, _d, 900);
@@ -385,11 +405,11 @@ export class Soldier {
         d.x += (rand() - 0.5) * spread * 2; d.y += (rand() - 0.5) * spread * 2; d.z += (rand() - 0.5) * spread * 2;
         d.normalize();
         const tracer = !!w.tracer && this.shots % w.tracer === 0 && p === 0;
-        g.combat.fire(muzzle, d, ZERO, tracer, false, w.vel);
+        g.combat.fire(muzzle, d, ZERO, tracer, false, w.vel, false, false, !!w.big);
         if (g.net && p === 0) g.net.footFire(muzzle, d, w.id, tracer);
       }
     }
-    g.effects.muzzle(muzzle.x + dir.x * 0.2, muzzle.y + dir.y * 0.2, muzzle.z + dir.z * 0.2, w.id === 'm60' || w.id === 'ithaca');
+    g.effects.muzzle(muzzle.x + dir.x * 0.2, muzzle.y + dir.y * 0.2, muzzle.z + dir.z * 0.2, w.id === 'm60' || w.id === 'ithaca' || w.id === 'm2');
     g.audio.shot(w.sound, 3);
     this.pitch = Math.min(1.2, this.pitch + w.recoil * (this.crouch ? 0.6 : 1));
     this.kick = Math.min(0.08, (this.kick || 0) + 0.02 + w.recoil * 0.4);

@@ -494,7 +494,6 @@ export function wreckParts(kind) {
 
 // ---------------------------------------------------------------- Handwaffen (Ursprung = Griff, Lauf zeigt nach -Z)
 // Afghanistan-Waffen nutzen die Grundformen der Vietnam-Waffen mit Kunststoff statt Holz
-const WEAPON_ALIAS = { m4: 'm16', m249: 'm60', m320: 'm79', m590: 'ithaca', m9: 'm1911' };
 // Holografisches Visier (EOTech 552): Fenster mittig auf der Visierlinie H, Mitte bei z = zc
 export const OPTICS = { m4: { H: 0.165, zc: -0.07, base: 0.075 }, m249: { H: 0.155, zc: -0.05, base: 0.06 } };
 export function eotechParts(H, zc, base) {
@@ -510,66 +509,284 @@ export function eotechParts(H, zc, base) {
   ];
 }
 
+// Bauteile entlang der Laufachse (z von z0 bis z1, Lauf zeigt nach -Z)
+const WK = 0x1a1b1c, WG = 0x2c2e2f, WP = 0x232425, WOOD = 0x6b4527, WOODD = 0x4a2f19, WOD = 0x565c3c, WTAN = 0x7c6f50;
+const tubeZ = (r, z0, z1, y, col, seg = 12, x = 0) => P(cyl(r, r, Math.abs(z1 - z0), seg), col, [x, y, (z0 + z1) / 2], [HALFPI, 0, 0]);
+const boxZ = (w, h, z0, z1, y, col, x = 0, rot = [0, 0, 0]) => P(box(w, h, Math.abs(z1 - z0)), col, [x, y, (z0 + z1) / 2], rot);
+const coneZ = (r0, r1, z0, z1, y, col, seg = 12) => P(cyl(r1, r0, Math.abs(z1 - z0), seg), col, [0, y, (z0 + z1) / 2], [HALFPI, 0, 0]);
+
+// AR-15-Grundteile (M16A1, M4A1): Unter- und Oberschale, Magazinschacht, Griff, Abzugsbügel
+function arLower(parts, col = WK) {
+  parts.push(
+    boxZ(0.042, 0.052, -0.16, 0.1, 0.006, col),                       // Unterschale
+    boxZ(0.04, 0.05, -0.16, -0.065, -0.036, col),                     // Magazinschacht
+    boxZ(0.006, 0.008, -0.07, 0.035, -0.047, col),                    // Abzugsbügel
+    boxZ(0.006, 0.03, -0.072, -0.064, -0.034, col),
+    P(box(0.004, 0.022, 0.006), WG, [0, -0.032, -0.02]),              // Abzug
+    P(box(0.032, 0.105, 0.044), WP, [0, -0.083, 0.062], [-0.36, 0, 0]),   // Pistolengriff
+    P(box(0.012, 0.012, 0.02), WG, [0.024, 0.006, 0.03]),             // Sicherungshebel
+    P(box(0.008, 0.016, 0.018), WG, [0.022, -0.012, -0.1]),           // Magazinhalter
+  );
+}
+
 export function weaponGeo(id) {
   const optic = OPTICS[id];
-  const flatTop = id === 'm4';
-  const modern = !!WEAPON_ALIAS[id];
-  if (modern) id = WEAPON_ALIAS[id];
-  const blk = 0x1b1c1c, wood = modern ? 0x2c2c2a : 0x6e4a2a, od = modern ? 0x6b6450 : 0x4b5330;
-  let parts;
-  if (id === 'at4' || id === 'law') {
-    // Einweg-Panzerfaust: Rohr mit Griff, Kimme/Korn sitzen oben auf dem Rohr
-    const c = id === 'at4' ? 0x6f6a4e : 0x4b5330, r = id === 'at4' ? 0.045 : 0.035;
-    return merge([
-      P(cyl(r, r, 1.0, 12), c, [0, 0.04, -0.15], [HALFPI, 0, 0]),
-      P(cyl(r + 0.012, r + 0.012, 0.08, 12), 0x2a2a28, [0, 0.04, -0.66], [HALFPI, 0, 0]),
-      P(cyl(r + 0.01, r + 0.01, 0.06, 12), 0x2a2a28, [0, 0.04, 0.36], [HALFPI, 0, 0]),
-      P(box(0.035, 0.1, 0.05), 0x222222, [0, -0.04, 0.02], [-0.3, 0, 0]),
-      P(box(0.035, 0.08, 0.04), 0x222222, [0, -0.02, -0.22]),
-    ]);
+  const parts = [];
+  const add = (...p) => parts.push(...p);
+  if (id === 'at4') {
+    // AT4: Glasfaserrohr mit Stoßdämpfern vorn und hinten, Visiergehäuse, Spannhebel, Schulterstütze
+    const c = 0x6f6a4e;
+    add(
+      tubeZ(0.045, 0.34, -0.66, 0.04, c, 16),
+      tubeZ(0.054, -0.6, -0.68, 0.04, 0x2a2a26, 16), tubeZ(0.054, 0.3, 0.38, 0.04, 0x2a2a26, 16),
+      coneZ(0.045, 0.05, 0.38, 0.44, 0.04, 0x2a2a26, 16),
+      boxZ(0.03, 0.022, -0.47, -0.43, 0.094, 0x2a2a26), boxZ(0.03, 0.03, 0.16, 0.2, 0.098, 0x2a2a26),   // Visiergehäuse
+      P(box(0.03, 0.03, 0.12), 0x2a2a26, [-0.045, 0.07, -0.1]),        // Spannhebel
+      P(box(0.035, 0.1, 0.05), 0x2a2a26, [0, -0.045, 0.02], [-0.3, 0, 0]),   // Griff
+      P(box(0.035, 0.08, 0.04), 0x2a2a26, [0, -0.03, -0.22]),          // vorderer Griff
+      boxZ(0.06, 0.02, 0.18, 0.3, -0.01, 0x2a2a26),                    // Schulterstütze
+      P(box(0.002, 0.03, 0.4), 0xd8c070, [0.046, 0.04, -0.1]),          // Warnstreifen
+    );
+    return merge(parts);
   }
-  if (id === 'ak') parts = [
-    P(box(0.055, 0.09, 0.4), 0x2a2a28, [0, 0, -0.08]),
-    P(cyl(0.013, 0.013, 0.42, 6), 0x2a2a28, [0, 0.02, -0.5], [HALFPI, 0, 0]),
-    P(box(0.06, 0.07, 0.24), 0x7a4a26, [0, -0.005, -0.38]),
-    P(box(0.03, 0.03, 0.26), 0x2a2a28, [0, 0.05, -0.38]),
-    P(box(0.045, 0.1, 0.32), 0x7a4a26, [0, -0.04, 0.28], [-0.12, 0, 0]),
-    P(box(0.035, 0.09, 0.045), 0x5a3a1e, [0, -0.08, 0.04], [-0.3, 0, 0]),
-    P(box(0.04, 0.14, 0.07), 0x2a2a28, [0, -0.11, -0.16], [0.25, 0, 0]),
-    P(box(0.04, 0.1, 0.07), 0x2a2a28, [0, -0.21, -0.12], [0.55, 0, 0]),
-    P(box(0.012, 0.05, 0.012), 0x2a2a28, [0, 0.055, -0.68]),
+  if (id === 'law') {
+    // M72 LAW: ausgezogenes Teleskoprohr, Endkappen, Abzugsgummi oben
+    add(
+      tubeZ(0.034, -0.05, -0.62, 0.04, WOD, 14), tubeZ(0.037, 0.36, -0.05, 0.04, WOD, 14),
+      tubeZ(0.04, -0.62, -0.66, 0.04, 0x2a2a24, 14), tubeZ(0.04, 0.36, 0.4, 0.04, 0x2a2a24, 14),
+      boxZ(0.028, 0.012, -0.47, -0.43, 0.077, 0x2a2a24), boxZ(0.03, 0.012, 0.1, 0.14, 0.079, 0x2a2a24),
+      P(box(0.03, 0.025, 0.06), 0x222222, [0, 0.085, -0.15]),           // Abzug (Gummitaste)
+      P(box(0.005, 0.03, 0.5), 0xd8c070, [0.035, 0.04, 0.05]),
+      P(box(0.012, 0.012, 0.4), 0x3a3a30, [-0.04, 0.04, 0.0]),          // Trageriemen
+    );
+    return merge(parts);
+  }
+  if (id === 'ak') {
+    add(
+      boxZ(0.05, 0.075, -0.2, 0.09, 0.0, 0x2e2f2c),                     // Gehäuse
+      boxZ(0.046, 0.022, -0.2, 0.06, 0.047, 0x353633),                  // Deckel
+      boxZ(0.054, 0.05, -0.4, -0.2, -0.004, WOOD),                      // unterer Handschutz
+      boxZ(0.036, 0.024, -0.4, -0.22, 0.048, WOOD),                     // oberer Handschutz
+      tubeZ(0.012, -0.22, -0.46, 0.05, 0x2e2f2c, 8),                    // Gasrohr
+      tubeZ(0.011, -0.2, -0.64, 0.012, 0x2e2f2c, 8),                    // Lauf
+      tubeZ(0.015, -0.64, -0.7, 0.012, 0x2e2f2c, 8),                    // Mündungsbremse
+      boxZ(0.012, 0.05, -0.6, -0.58, 0.045, 0x2e2f2c),                  // Kornträger
+      P(box(0.03, 0.09, 0.07), 0x6a3a1a, [0, -0.09, -0.13], [0.18, 0, 0]),   // Magazin (Bakelit)
+      P(box(0.03, 0.08, 0.066), 0x6a3a1a, [0, -0.17, -0.105], [0.45, 0, 0]),
+      P(box(0.03, 0.095, 0.04), WOODD, [0, -0.075, 0.07], [-0.35, 0, 0]),
+      P(box(0.042, 0.075, 0.3), WOOD, [0, -0.03, 0.24], [-0.13, 0, 0]),
+      boxZ(0.044, 0.09, 0.38, 0.4, -0.05, 0x2e2f2c),
+      boxZ(0.006, 0.008, -0.06, 0.02, -0.044, 0x2e2f2c),
+    );
+    return merge(parts);
+  }
+  if (id === 'm16') {
+    // M16A1: Tragegriff mit Kimme, dreieckiger Handschutz, Vogelkäfig-Mündungsfeuerdämpfer, 20-Schuss-Magazin
+    arLower(parts);
+    add(
+      boxZ(0.046, 0.042, -0.21, 0.12, 0.05, WK),                        // Oberschale
+      boxZ(0.002, 0.024, -0.08, 0.02, 0.05, WG, 0.024),                 // Hülsenauswurf
+      tubeZ(0.008, 0.0, 0.05, 0.06, WK, 8, 0.027),                      // Schließhilfe
+      boxZ(0.03, 0.012, 0.11, 0.15, 0.066, WK),                         // Spannhebel
+      boxZ(0.02, 0.018, -0.21, -0.005, 0.105, WK),                      // Tragegriff
+      boxZ(0.018, 0.035, -0.21, -0.18, 0.085, WK), boxZ(0.018, 0.035, -0.03, 0.0, 0.085, WK),
+      boxZ(0.026, 0.03, -0.02, 0.02, 0.12, WK),                         // Kimmengehäuse
+      tubeZ(0.034, -0.205, -0.225, 0.04, WK, 14),                       // Deltaring
+      P(cyl(0.031, 0.03, 0.27, 3), WP, [0, 0.036, -0.36], [HALFPI, 0, Math.PI]),   // Handschutz (dreieckig)
+      tubeZ(0.026, -0.495, -0.505, 0.04, WK, 12),
+      tubeZ(0.0105, -0.5, -0.74, 0.04, WK, 8),                          // Lauf
+      boxZ(0.026, 0.026, -0.68, -0.64, 0.04, WK),                       // Kornfuß
+      P(box(0.01, 0.07, 0.016), WK, [0, 0.08, -0.66], [0.15, 0, 0]),    // Kornträger
+      boxZ(0.012, 0.014, -0.7, -0.66, 0.016, WK),                       // Bajonetthalter
+      tubeZ(0.0135, -0.74, -0.8, 0.04, WK, 6),                          // Mündungsfeuerdämpfer
+      P(box(0.03, 0.125, 0.066), WG, [0, -0.115, -0.112], [0.06, 0, 0]),   // 20-Schuss-Magazin
+      boxZ(0.04, 0.055, 0.1, 0.24, 0.03, WP),                           // Schaft
+      boxZ(0.04, 0.085, 0.24, 0.4, 0.012, WP),
+      boxZ(0.043, 0.1, 0.4, 0.42, 0.01, WK),                            // Schaftkappe
+      P(box(0.006, 0.02, 0.03), WK, [0, -0.04, 0.36]),                  // Riemenbügel
+    );
+    return merge(parts);
+  }
+  if (id === 'm4') {
+    // M4A1: Flat-Top mit Schiene, Quad-Rail-Handschutz, Griff vorn, Laser, Teleskopschaft, 30-Schuss-Magazin
+    arLower(parts);
+    add(
+      boxZ(0.046, 0.04, -0.21, 0.12, 0.046, WK),                        // Oberschale
+      boxZ(0.026, 0.01, -0.21, 0.11, 0.071, WK),                        // Picatinny-Schiene
+      boxZ(0.002, 0.024, -0.08, 0.02, 0.046, WG, 0.024),
+      tubeZ(0.008, 0.0, 0.05, 0.056, WK, 8, 0.027),
+      boxZ(0.03, 0.012, 0.11, 0.15, 0.062, WK),
+      boxZ(0.054, 0.054, -0.42, -0.21, 0.04, WG),                       // Quad-Rail
+      boxZ(0.022, 0.008, -0.42, -0.21, 0.07, WK), boxZ(0.022, 0.008, -0.42, -0.21, 0.01, WK),
+      boxZ(0.008, 0.022, -0.42, -0.21, 0.04, WK, 0.03), boxZ(0.008, 0.022, -0.42, -0.21, 0.04, WK, -0.03),
+      P(box(0.012, 0.05, 0.018), WK, [0, 0.085, -0.43], [0.15, 0, 0]),  // Kornträger
+      tubeZ(0.01, -0.42, -0.6, 0.04, WK, 8),
+      tubeZ(0.013, -0.6, -0.65, 0.04, WK, 6),
+      P(cyl(0.017, 0.015, 0.09, 10), WP, [0, -0.035, -0.31]),           // Griff vorn
+      boxZ(0.03, 0.03, -0.36, -0.27, 0.04, WTAN, 0.046),                // Laser-Lichtmodul
+      tubeZ(0.009, -0.4, -0.37, 0.04, 0x334455, 8, 0.046),
+      P(box(0.03, 0.085, 0.068), WG, [0, -0.08, -0.112], [0.1, 0, 0]),  // 30-Schuss-Magazin (gebogen)
+      P(box(0.03, 0.075, 0.066), WG, [0, -0.152, -0.095], [0.32, 0, 0]),
+      tubeZ(0.016, 0.1, 0.27, 0.035, WK, 10),                           // Puffer-Rohr
+      P(box(0.04, 0.085, 0.13), WP, [0, 0.012, 0.25]),                  // Teleskopschaft
+      boxZ(0.042, 0.1, 0.31, 0.325, 0.012, WK),
+      boxZ(0.02, 0.02, 0.17, 0.25, -0.03, WP),
+    );
+    if (optic) add(...eotechParts(optic.H, optic.zc, optic.base));
+    return merge(parts);
+  }
+  if (id === 'm60') {
+    // M60: Gehäuse mit Zuführdeckel, Lauf mit Tragegriff, Zweibein, Gurtbeutel
+    add(
+      boxZ(0.07, 0.1, -0.26, 0.15, 0.005, WK),
+      boxZ(0.074, 0.024, -0.2, 0.05, 0.066, WG),                        // Zuführdeckel
+      boxZ(0.06, 0.068, -0.5, -0.26, -0.008, WP),                       // Vorderschaft
+      tubeZ(0.014, -0.5, -0.78, -0.034, WK, 8),                         // Gaszylinder
+      tubeZ(0.02, -0.26, -0.98, 0.01, WK, 10),                          // Lauf
+      tubeZ(0.024, -0.98, -1.05, 0.01, WK, 8),                          // Mündungsfeuerdämpfer
+      boxZ(0.008, 0.04, -0.94, -0.92, 0.05, WK),                        // Korn
+      boxZ(0.01, 0.012, -0.66, -0.44, 0.058, WK, 0.04),                 // Tragegriff
+      boxZ(0.01, 0.03, -0.62, -0.6, 0.038, WK, 0.04), boxZ(0.01, 0.03, -0.5, -0.48, 0.038, WK, 0.04),
+      P(box(0.008, 0.008, 0.28), WK, [0.02, -0.045, -0.72], [0.06, 0, 0]),   // Zweibein (eingeklappt)
+      P(box(0.008, 0.008, 0.28), WK, [-0.02, -0.045, -0.72], [0.06, 0, 0]),
+      P(box(0.035, 0.11, 0.045), WP, [0, -0.1, 0.02], [-0.3, 0, 0]),
+      boxZ(0.006, 0.008, -0.07, 0.0, -0.06, WK),
+      boxZ(0.05, 0.085, 0.15, 0.48, -0.012, WP),                        // Schaft
+      boxZ(0.054, 0.1, 0.48, 0.5, -0.016, WK),
+      boxZ(0.09, 0.095, -0.21, -0.05, -0.06, WOD, -0.085),              // Gurtbeutel
+      boxZ(0.03, 0.012, -0.16, -0.1, 0.0, 0xb08a3a, -0.05),             // Gurt
+      P(box(0.012, 0.03, 0.04), WG, [0.04, 0.02, -0.15]),               // Spannschieber
+    );
+    return merge(parts);
+  }
+  if (id === 'm249') {
+    // M249: Gehäuse mit Schiene, Hitzeschild, Gurtkasten, Zweibein, Skelettschaft
+    add(
+      boxZ(0.07, 0.09, -0.23, 0.12, 0.0, WK),
+      boxZ(0.032, 0.012, -0.15, 0.05, 0.054, WK),                       // Schiene auf dem Deckel
+      boxZ(0.064, 0.058, -0.42, -0.23, -0.006, WP),                     // Handschutz
+      boxZ(0.066, 0.006, -0.4, -0.25, 0.012, WK), boxZ(0.066, 0.006, -0.4, -0.25, -0.02, WK),
+      tubeZ(0.016, -0.23, -0.9, 0.0, WK, 10),                           // Lauf
+      boxZ(0.03, 0.01, -0.64, -0.42, 0.028, WK),                        // Hitzeschild
+      tubeZ(0.02, -0.9, -0.96, 0.0, WK, 8),
+      tubeZ(0.012, -0.42, -0.72, -0.036, WK, 8),                        // Gasrohr
+      boxZ(0.014, 0.05, -0.9, -0.86, 0.03, WK),                         // Kornträger
+      boxZ(0.01, 0.012, -0.6, -0.42, 0.055, WK, 0.038),                 // Tragegriff
+      P(box(0.008, 0.008, 0.26), WK, [0.02, -0.04, -0.72], [0.05, 0, 0]),
+      P(box(0.008, 0.008, 0.26), WK, [-0.02, -0.04, -0.72], [0.05, 0, 0]),
+      boxZ(0.1, 0.12, -0.2, -0.04, -0.1, WTAN, -0.02),                  // 200-Schuss-Kasten
+      boxZ(0.1, 0.012, -0.2, -0.04, -0.035, 0x5f5640, -0.02),
+      P(box(0.034, 0.105, 0.044), WP, [0, -0.09, 0.03], [-0.32, 0, 0]),
+      boxZ(0.006, 0.008, -0.06, 0.01, -0.05, WK),
+      boxZ(0.04, 0.03, 0.12, 0.42, 0.022, WP),                          // Skelettschaft
+      boxZ(0.04, 0.025, 0.15, 0.41, -0.06, WP),
+      P(box(0.04, 0.09, 0.025), WP, [0, -0.02, 0.2]),
+      boxZ(0.046, 0.12, 0.41, 0.44, -0.02, WK),
+    );
+    if (optic) add(...eotechParts(optic.H, optic.zc, optic.base));
+    return merge(parts);
+  }
+  if (id === 'm79') {
+    // M79: Kipplauf 40 mm, Holzschaft mit Gummikappe, Klappvisier
+    add(
+      tubeZ(0.034, -0.08, -0.5, 0.03, WK, 18),
+      tubeZ(0.037, -0.485, -0.5, 0.03, WK, 18),
+      P(new THREE.CircleGeometry(0.028, 16), 0x080808, [0, 0.03, -0.501], [0, Math.PI, 0]),
+      boxZ(0.064, 0.075, -0.11, 0.05, 0.004, WK),                       // Verschluss
+      boxZ(0.012, 0.016, -0.06, -0.02, 0.05, WK, 0.025),                // Kipphebel
+      boxZ(0.05, 0.034, -0.36, -0.12, -0.018, WOOD),                    // Vorderschaft
+      boxZ(0.006, 0.008, -0.05, 0.03, -0.045, WK),
+      P(box(0.004, 0.02, 0.006), WG, [0, -0.032, -0.01]),
+      P(box(0.05, 0.085, 0.3), WOOD, [0, -0.034, 0.2], [-0.09, 0, 0]),  // Schaft
+      boxZ(0.054, 0.105, 0.34, 0.375, -0.05, 0x2a2a2a),                 // Gummikappe
+      boxZ(0.03, 0.01, -0.09, -0.03, 0.04, WK),                         // Klappvisier (Rahmen)
+    );
+    return merge(parts);
+  }
+  if (id === 'm320') {
+    // M320 als eigenständige Waffe: seitlich abklappbarer Lauf, Pistolengriff, Teleskopschaft
+    add(
+      tubeZ(0.032, -0.06, -0.47, 0.03, WG, 18),
+      tubeZ(0.035, -0.455, -0.47, 0.03, WG, 18),
+      P(new THREE.CircleGeometry(0.026, 16), 0x080808, [0, 0.03, -0.471], [0, Math.PI, 0]),
+      boxZ(0.07, 0.085, -0.22, 0.06, 0.0, WP),                          // Gehäuse
+      boxZ(0.02, 0.012, -0.2, 0.05, 0.065, WK),                         // Schiene
+      boxZ(0.02, 0.06, -0.12, -0.04, 0.0, WK, 0.04),                    // Laufverriegelung
+      P(box(0.032, 0.105, 0.044), WP, [0, -0.085, 0.07], [-0.36, 0, 0]),
+      boxZ(0.006, 0.008, -0.05, 0.04, -0.05, WP), boxZ(0.006, 0.04, -0.06, -0.05, -0.03, WP),
+      tubeZ(0.016, 0.06, 0.24, 0.03, WK, 10),
+      P(box(0.04, 0.085, 0.13), WP, [0, 0.005, 0.22]),
+      boxZ(0.042, 0.1, 0.28, 0.295, 0.005, WK),
+      boxZ(0.03, 0.01, -0.09, -0.03, 0.04, WK),
+    );
+    return merge(parts);
+  }
+  if (id === 'ithaca' || id === 'm590') {
+    // Vorderschaftrepetierflinte: Gehäuse, Lauf mit Röhrenmagazin, gerippter Vorderschaft, Schaft
+    const modern = id === 'm590';
+    const st = modern ? WP : WOOD, fore = modern ? WP : WOODD;
+    add(
+      boxZ(0.05, 0.072, -0.13, 0.08, 0.008, WK),
+      boxZ(0.002, 0.03, -0.09, -0.01, 0.012, WG, 0.026),                // Auswurföffnung
+      tubeZ(0.016, -0.13, -0.73, 0.02, WK, 10),                         // Lauf
+      tubeZ(0.013, -0.13, -0.62, -0.018, WK, 10),                       // Röhrenmagazin
+      tubeZ(0.014, -0.62, -0.64, -0.018, WG, 10),
+      tubeZ(0.025, -0.2, -0.42, -0.012, fore, 12),                      // Vorderschaft
+      boxZ(0.006, 0.008, -0.05, 0.03, -0.04, WK),
+      P(box(0.004, 0.02, 0.006), WG, [0, -0.03, -0.01]),
+      P(box(0.04, 0.085, 0.07), st, [0, -0.045, 0.1], [-0.35, 0, 0]),   // Kolbenhals
+      P(box(0.044, 0.085, 0.27), st, [0, -0.045, 0.27], [-0.1, 0, 0]),  // Schaft
+      boxZ(0.046, 0.1, 0.4, 0.42, -0.06, 0x2a2a2a),
+    );
+    for (let i = 0; i < 7; i++) add(tubeZ(0.0265, -0.22 - i * 0.028, -0.23 - i * 0.028, -0.012, WK, 12));   // Rillen
+    if (modern) {
+      for (let i = 0; i < 4; i++) add(tubeZ(0.009, -0.1 + i * 0.025, -0.08 + i * 0.025, 0.0, 0x8a2a1e, 8, -0.033));   // Seitenträger mit Patronen
+      add(boxZ(0.006, 0.04, -0.11, -0.0, 0.0, WP, -0.028));
+    }
+    return merge(parts);
+  }
+  if (id === 'm9' || id === 'm1911') {
+    // Pistole: Schlitten mit Riefen, Rahmen, Griffschalen, Abzugsbügel, Hahn
+    const m9 = id === 'm9', c = m9 ? 0x1c1d1e : 0x2b2e30, grip = m9 ? 0x222222 : 0x5a3820;
+    add(
+      boxZ(0.028, 0.034, -0.19, 0.03, 0.028, c),                        // Schlitten
+      boxZ(0.026, 0.024, -0.17, 0.025, 0.0, c),                         // Rahmen
+      tubeZ(0.009, -0.19, -0.196, 0.02, 0x111111, 8),                   // Mündung
+      boxZ(0.006, 0.006, -0.075, -0.03, -0.028, c),                     // Abzugsbügel
+      boxZ(0.006, 0.028, -0.078, -0.072, -0.016, c),
+      P(box(0.004, 0.018, 0.006), WG, [0, -0.016, -0.045]),
+      P(box(0.03, 0.11, 0.048), c, [0, -0.06, 0.012], [-0.24, 0, 0]),   // Griffstück
+      P(box(0.032, 0.085, 0.036), grip, [0, -0.06, 0.012], [-0.24, 0, 0]),   // Griffschalen
+      P(box(0.01, 0.018, 0.012), c, [0, 0.032, 0.035], [-0.4, 0, 0]),   // Hahn
+      boxZ(0.012, 0.008, -0.03, 0.0, 0.0, WG, m9 ? -0.016 : 0.016),     // Sicherung / Schlittenfang
+    );
+    for (let i = 0; i < 5; i++) add(boxZ(0.029, 0.026, 0.0 - i * 0.008, -0.003 - i * 0.008, 0.028, 0x0e0e0e));
+    if (m9) add(boxZ(0.016, 0.01, -0.17, -0.06, 0.046, 0x0e0e0e));     // offener Schlitten (Beretta)
+    return merge(parts);
+  }
+  // Fallback: einfache Pistole
+  add(boxZ(0.035, 0.05, -0.18, 0.02, 0.02, WK), P(box(0.03, 0.11, 0.05), WOOD, [0, -0.05, 0.0], [-0.2, 0, 0]));
+  return merge(parts);
+}
+
+// Schweres MG M2 (.50) für Stellungen und Fahrzeuge: Gehäuse, Kühlmantel, Spatengriffe, Munitionskasten
+export function m2Geo() {
+  const parts = [
+    boxZ(0.16, 0.17, -0.45, 0.42, 0.0, 0x2a2c2c),
+    boxZ(0.17, 0.03, -0.45, 0.3, 0.095, 0x1e2020),                     // Deckel
+    tubeZ(0.042, -0.45, -0.75, 0.01, 0x262828, 14),                     // gelochter Kühlmantel
+    tubeZ(0.022, -0.75, -1.55, 0.01, 0x1c1d1d, 10),                     // Lauf
+    tubeZ(0.03, -1.55, -1.63, 0.01, 0x1c1d1d, 10),                      // Mündungsfeuerdämpfer
+    boxZ(0.012, 0.05, -1.5, -1.47, 0.05, 0x1c1d1d),
+    boxZ(0.03, 0.11, 0.42, 0.44, 0.0, 0x1c1d1d),                        // Rückplatte
+    P(box(0.026, 0.12, 0.03), 0x1c1d1d, [0.07, -0.02, 0.5], [0.15, 0, 0]),   // Spatengriffe
+    P(box(0.026, 0.12, 0.03), 0x1c1d1d, [-0.07, -0.02, 0.5], [0.15, 0, 0]),
+    boxZ(0.03, 0.03, 0.44, 0.52, -0.06, 0x1c1d1d),
+    P(box(0.04, 0.05, 0.1), 0x1c1d1d, [0.1, 0.03, -0.1]),               // Spannhebel
+    boxZ(0.12, 0.2, -0.25, 0.05, -0.08, 0x4f5636, -0.17),               // Munitionskasten
+    boxZ(0.06, 0.02, -0.15, -0.05, 0.03, 0xb08a3a, -0.1),               // Gurt
+    boxZ(0.1, 0.03, 0.15, 0.33, 0.13, 0x1e2020),                        // Visier
   ];
-  else if (id === 'm16') parts = [
-    P(box(0.06, 0.1, 0.5), blk, [0, 0, -0.1]),
-    P(cyl(0.014, 0.014, 0.45, 6), blk, [0, 0.02, -0.55], [HALFPI, 0, 0]),
-    P(box(0.05, 0.06, 0.3), blk, [0, -0.02, 0.28]),
-    flatTop ? P(box(0.034, 0.025, 0.34), blk, [0, 0.062, -0.14]) : P(box(0.04, 0.12, 0.05), blk, [0, 0.09, -0.22]),
-    P(box(0.05, 0.13, 0.05), blk, [0, -0.09, -0.12], [0.2, 0, 0]),
-    P(box(0.035, 0.08, 0.05), blk, [0, -0.07, 0.02], [-0.3, 0, 0]),
-  ];
-  else if (id === 'm60') parts = [
-    P(box(0.09, 0.12, 0.55), blk, [0, 0, -0.1]),
-    P(cyl(0.02, 0.02, 0.6, 6), blk, [0, 0.01, -0.65], [HALFPI, 0, 0]),
-    P(box(0.07, 0.1, 0.3), wood, [0, -0.02, 0.3]),
-    P(box(0.15, 0.12, 0.2), od, [-0.11, -0.04, -0.12]),
-    P(box(0.02, 0.25, 0.02), blk, [0.05, -0.12, -0.75], [0.4, 0, 0.3]),
-    P(box(0.02, 0.25, 0.02), blk, [-0.05, -0.12, -0.75], [0.4, 0, -0.3]),
-  ];
-  else if (id === 'm79') parts = [
-    P(cyl(0.035, 0.035, 0.36, 10), 0x2a2b2a, [0, 0.03, -0.3], [HALFPI, 0, 0]),
-    P(box(0.07, 0.09, 0.18), blk, [0, 0, -0.05]),
-    P(box(0.06, 0.11, 0.32), wood, [0, -0.03, 0.2]),
-  ];
-  else if (id === 'ithaca') parts = [
-    P(cyl(0.016, 0.016, 0.55, 6), blk, [0, 0.02, -0.45], [HALFPI, 0, 0]),
-    P(cyl(0.02, 0.02, 0.3, 6), wood, [0, -0.02, -0.38], [HALFPI, 0, 0]),
-    P(box(0.06, 0.09, 0.25), blk, [0, 0, -0.08]),
-    P(box(0.06, 0.1, 0.32), wood, [0, -0.03, 0.2]),
-  ];
-  else parts = [
-    P(box(0.035, 0.05, 0.2), blk, [0, 0.02, -0.08]),
-    P(box(0.03, 0.11, 0.05), wood, [0, -0.05, 0.0], [-0.2, 0, 0]),
-  ];
-  if (optic) parts.push(...eotechParts(optic.H, optic.zc, optic.base));
+  for (let i = 0; i < 5; i++) parts.push(tubeZ(0.044, -0.48 - i * 0.055, -0.5 - i * 0.055, 0.01, 0x101111, 14));
   return merge(parts);
 }

@@ -87,7 +87,8 @@ export class Combat {
         const hr = e.vehicle ? 2.2 : 0.85;
         if (d2 < hr * hr && (e.vehicle || !(rand() < (e.cover || 0) + (b.ai ? 0.3 : 0)))) {
           if (b.he) { this.explode(b.p.x, b.p.y, b.p.z, false, 0.6); dead = true; break; }
-          if (e.vehicle) { g.units.damageEnemy(e, b.big ? 2.5 : 1); fx.sparks(b.p.x, b.p.y, b.p.z); dead = true; break; }
+          // gepanzert: Handwaffen kratzen nur, schwere MGs wirken, Panzerfaust/Rakete zerstört
+          if (e.vehicle) { g.units.damageEnemy(e, b.big ? 2.5 : 0.3); fx.sparks(b.p.x, b.p.y, b.p.z); dead = true; break; }
           g.units.killEnemy(e);
           fx.puff(e.x, e.y + 1, e.z, 0.35, 0.12, 0.1, 2, 0.8, 1, 0.8);
           dead = true;
