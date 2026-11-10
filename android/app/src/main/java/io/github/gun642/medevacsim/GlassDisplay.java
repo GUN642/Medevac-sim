@@ -63,6 +63,7 @@ final class GlassDisplay {
         shot.setScaleType(ImageView.ScaleType.FIT_XY);
         pad.addView(shot, new FrameLayout.LayoutParams(-1, -1));
         pad.setOnTouchListener((v, e) -> forward(v, e));
+        if (a instanceof MainActivity) ((MainActivity) a).mouse.attach(pad);
         dm.registerDisplayListener(listener, ui);
     }
 
@@ -79,6 +80,7 @@ final class GlassDisplay {
     };
 
     boolean active() { return pres != null; }
+    View padView() { return pad; }
 
     // Brillenbild etwa 20-mal pro Sekunde auf das Handy kopieren
     private final Runnable copyLoop = new Runnable() {

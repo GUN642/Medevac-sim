@@ -45,43 +45,29 @@ export class Input {
       e.preventDefault(); e.stopPropagation();
       const cb = this.capture; this.capture = null; cb('Mouse' + e.button);
     }, true);
+    // Android-App: Maus über die App einfangen (WebView kennt kein Pointer Lock) – Bewegung/Tasten kommen über HotLZ_mouse
+    this.native = !!(window.AndroidApp && window.AndroidApp.capturePointer);
+    this.nativeLock = false;
+    window.HotLZ_mouse = (dx, dy, buttons, wheel) => {
+      this.device = 'keyboard';
+      for (let b = 0; b < 3; b++) {
+        const down = !!(buttons & [1, 4, 2][b]);   // Android: 1 primär, 2 sekundär, 4 Mitte -> DOM: 0 links, 1 Mitte, 2 rechts
+        if (down !== this.mouseDown[b]) (down ? this.mouseButton(b, true) : this.mouseButton(b, false));
+      }
+      if (dx || dy) this.mouseMove(dx, dy);
+      if (wheel) this.mouseWheel(-wheel);
+    };
+    window.HotLZ_mouseLock = (on) => { this.nativeLock = !!on; if (!on) { this.mPitch = 0; this.mRoll = 0; for (let b = 0; b < 3; b++) if (this.mouseDown[b]) this.mouseButton(b, false); } };
     canvas.addEventListener('mousedown', (e) => {
       this.device = 'keyboard';
-      this.mouseDown[e.button] = true;
-      this.pressCode('Mouse' + e.button);
-      this.keys.add('Mouse' + e.button);
+      this.mouseButton(e.button, true);
       const want = this.mode !== 'pilot' || (this.settings.mouseFly && e.button === 0);
-      if (this.mode === 'foot' && e.button === 0 && document.pointerLockElement !== canvas) this.lockClick = true;
-      if (want && document.pointerLockElement !== canvas && canvas.requestPointerLock) {
-        try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (_) {}
-      }
+      if (want && !this.locked) this.lockPointer();
     });
-    document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas) { this.mPitch = 0; this.mYaw = 0; } });
-    window.addEventListener('mouseup', (e) => { this.mouseDown[e.button] = false; this.keys.delete('Mouse' + e.button); });
-    window.addEventListener('mousemove', (e) => {
-      const locked = document.pointerLockElement === canvas;
-      if (this.mode === 'pax' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
-        this.look.dx += e.movementX * 0.005;
-        this.look.dy += e.movementY * 0.005;
-      } else if (this.mode !== 'pilot' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
-        const s = 0.0022 * this.settings.sensitivity;
-        this.aim.dx += e.movementX * s;
-        this.aim.dy += e.movementY * s * (this.settings.invertY ? -1 : 1);
-      } else if (this.mode === 'pilot' && locked && this.settings.mouseFly && !this.mouseDown[2]) {
-        // Maus-Flugsteuerung: links/rechts = Pedale, vor/zurück = Zyklisch vor/zurück
-        this.mfx += e.movementX;
-        this.mfy += e.movementY;
-      } else if (this.mouseDown[0] || this.mouseDown[2]) {
-        this.look.dx += e.movementX * 0.005;
-        this.look.dy += e.movementY * 0.005;
-      }
-    });
-    canvas.addEventListener('wheel', (e) => {
-      if (this.mode === 'foot') this.actions.push(e.deltaY > 0 ? 'wnext' : 'wprev');
-      else this.look.zoom += Math.sign(e.deltaY);
-      e.preventDefault();
-    }, { passive: false });
-    window.addEventListener('mouseup', (e) => { if (e.button === 0) this.lockClick = false; });
+    document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas) { this.mPitch = 0; this.mRoll = 0; } });
+    window.addEventListener('mouseup', (e) => { if (!this.nativeLock) this.mouseButton(e.button, false); });
+    window.addEventListener('mousemove', (e) => { if (!this.nativeLock) this.mouseMove(e.movementX, e.movementY); });
+    canvas.addEventListener('wheel', (e) => { this.mouseWheel(e.deltaY); e.preventDefault(); }, { passive: false });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('gamepadconnected', () => { this.gpConnected = true; this.device = 'gamepad'; this.onDevice && this.onDevice(); });
     window.addEventListener('gamepaddisconnected', () => { this.gpConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((g) => g); });
@@ -137,6 +123,55 @@ export class Input {
     }
   }
 
+  // Zeiger eingefangen (Browser: Pointer Lock, App: Pointer Capture)
+  get locked() { return document.pointerLockElement === this.canvas || this.nativeLock; }
+
+  lockPointer() {
+    // der Klick, der den Zeiger einfängt, löst keinen Schuss aus
+    if (this.mode === 'foot') this.lockClick = true;
+    if (this.native) {
+      try { if (window.AndroidApp.capturePointer(true)) return; } catch (_) { /* weiter mit Pointer Lock */ }
+    }
+    if (this.canvas.requestPointerLock) {
+      try { const r = this.canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (_) {}
+    }
+  }
+
+  unlockPointer() {
+    if (this.nativeLock) { try { window.AndroidApp.capturePointer(false); } catch (_) {} this.nativeLock = false; }
+    if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+  }
+
+  mouseButton(b, down) {
+    this.mouseDown[b] = down;
+    if (down) { this.pressCode('Mouse' + b); this.keys.add('Mouse' + b); }
+    else { this.keys.delete('Mouse' + b); if (b === 0) this.lockClick = false; }
+  }
+
+  mouseWheel(dy) {
+    if (this.mode === 'foot') this.actions.push(dy > 0 ? 'wnext' : 'wprev');
+    else this.look.zoom += Math.sign(dy);
+  }
+
+  mouseMove(mx, my) {
+    const locked = this.locked;
+    if (this.mode === 'pax' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
+      this.look.dx += mx * 0.005;
+      this.look.dy += my * 0.005;
+    } else if (this.mode !== 'pilot' && (locked || this.mouseDown[0] || this.mouseDown[2])) {
+      const s = 0.0022 * this.settings.sensitivity;
+      this.aim.dx += mx * s;
+      this.aim.dy += my * s * (this.settings.invertY ? -1 : 1);
+    } else if (this.mode === 'pilot' && locked && this.settings.mouseFly && !this.mouseDown[2]) {
+      // Maus als Steuerknüppel: links/rechts = rollen, vor/zurück = nicken
+      this.mfx += mx;
+      this.mfy += my;
+    } else if (this.mouseDown[0] || this.mouseDown[2]) {
+      this.look.dx += mx * 0.005;
+      this.look.dy += my * 0.005;
+    }
+  }
+
   onKey(e, down) {
     const k = e.code;
     if (down && this.capture) {
@@ -163,7 +198,7 @@ export class Input {
 
   setMode(mode) {
     this.mode = mode;
-    if ((mode === 'pilot' || mode === 'pax') && document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
+    if ((mode === 'pilot' && !this.settings.mouseFly) || mode === 'pax') this.unlockPointer();
     const gunner = mode === 'left' || mode === 'right' || mode === 'ramp';
     document.body.classList.toggle('gunner-mode', gunner);
     document.body.classList.toggle('foot-mode', mode === 'foot');
@@ -299,19 +334,21 @@ export class Input {
       const gc = this.gyroControl();
       if (gc) { f.roll += gc.roll; f.pitch += gc.pitch; }
     }
-    // Maus als Steuerknüppel (nur Pilot, Zeiger gesperrt)
-    this.mouseFlying = this.mode === 'pilot' && this.settings.mouseFly && document.pointerLockElement === this.canvas;
+    // Maus als Steuerknüppel (nur Pilot, Zeiger eingefangen): Ausschlag wie ein echter Stick,
+    // links/rechts = rollen, vor/zurück = nicken; ohne Bewegung zentriert er sich langsam
+    this.mouseFlying = this.mode === 'pilot' && this.settings.mouseFly && this.locked;
     if (this.mouseFlying) {
       const sens = this.settings.sensitivity;
-      const yt = clamp((this.mfx / Math.max(dt, 0.001)) * 0.0022 * sens, -1, 1);
-      this.mYaw += (yt - this.mYaw) * Math.min(1, dt * 14);
       const inv = this.settings.mouseFlyInvert ? -1 : 1;
       this.mPitch = clamp(this.mPitch - this.mfy * 0.004 * sens * inv, -1, 1);
+      this.mRoll = clamp((this.mRoll || 0) + this.mfx * 0.004 * sens, -1, 1);
       if (this.mfy === 0) this.mPitch -= clamp(this.mPitch, -dt * 0.35, dt * 0.35);
+      if (this.mfx === 0) this.mRoll -= clamp(this.mRoll, -dt * 0.35, dt * 0.35);
       if (kp) this.mPitch = 0;
-      f.yaw += this.mYaw;
+      if (kr) this.mRoll = 0;
       f.pitch += this.mPitch;
-    } else { this.mYaw = 0; this.mPitch = 0; }
+      f.roll += this.mRoll;
+    } else { this.mPitch = 0; this.mRoll = 0; }
     this.mfx = 0; this.mfy = 0;
     const mv = { x: 0, y: 0 };
     this.sprint = false;

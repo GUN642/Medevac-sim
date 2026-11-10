@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
     private WifiManager.MulticastLock mcLock;
     private GlassDisplay glass;
     private TextToSpeech tts;
+    MouseCapture mouse;
     private boolean ttsReady;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
@@ -56,6 +57,8 @@ public class MainActivity extends Activity {
 
         web = new WebView(this);
         HeadTracking.attach(web);
+        mouse = new MouseCapture(web);
+        mouse.attach(web);
         HeadTracking.start(this);
         web.setBackgroundColor(0xFF1B2013);
         FrameLayout root = new FrameLayout(this);
@@ -155,6 +158,13 @@ public class MainActivity extends Activity {
         super.onDestroy();
     }
 
+    // Maus-Einfangen beendet oder begonnen (z. B. Fokusverlust)
+    @Override
+    public void onPointerCaptureChanged(boolean hasCapture) {
+        if (Build.VERSION.SDK_INT >= 26) super.onPointerCaptureChanged(hasCapture);
+        if (mouse != null) mouse.lost(hasCapture);
+    }
+
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
@@ -231,6 +241,12 @@ public class MainActivity extends Activity {
         @JavascriptInterface public boolean glassesConnected() { return HeadTracking.connected(); }
         @JavascriptInterface public boolean glasses3D(boolean on) { return HeadTracking.set3D(on); }
         @JavascriptInterface public boolean headRecenter() { return HeadTracking.recenter(); }
+        /** Maus einfangen (Zeiger verstecken, relative Bewegung ans Spiel) bzw. freigeben. */
+        @JavascriptInterface public boolean capturePointer(boolean on) {
+            if (!MouseCapture.supported()) return false;
+            runOnUiThread(() -> mouse.capture(glass != null && glass.active() ? glass.padView() : web, on));
+            return true;
+        }
         /** Funkspruch vorlesen (Sprachausgabe des Geräts); leerer Text = verstummen. */
         @JavascriptInterface public void speak(String text, String lang, float rate, float pitch, boolean flush) {
             runOnUiThread(() -> {

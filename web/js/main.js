@@ -1030,7 +1030,7 @@ class Game {
       $('pause').classList.remove('hidden');
       $('pause-mp-note').classList.toggle('hidden', this.role === 'solo');
       if (this.role === 'solo') this.audio.suspend();
-      if (document.pointerLockElement) document.exitPointerLock();
+      this.input.unlockPointer();
       this.focusFirst($('pause'));
     } else if (!on && this.state === 'paused') {
       $('pause').classList.add('hidden');
@@ -1165,7 +1165,7 @@ class Game {
   onNetLost() {
     this.netReady = false;
     $('netlost').classList.remove('hidden');
-    if (document.pointerLockElement) document.exitPointerLock();
+    this.input.unlockPointer();
   }
 
   // ------------------------------------------------------------ Spielereignisse
@@ -1442,7 +1442,7 @@ class Game {
     if (!onFoot && h.crashed && !this.crashShown && this.time - (this.crashAt ?? -10) > 4) {
       this.crashShown = true;
       this.hud.showCrash(h.crashCause);
-      if (document.pointerLockElement) document.exitPointerLock();
+      this.input.unlockPointer();
       this.focusFirst($('crashscreen'));
     }
     if (this.crashShown && (!h.crashed || onFoot)) { this.crashShown = false; this.hud.hideCrash(); }
@@ -1468,7 +1468,7 @@ class Game {
       if (!S.alive && !this.deathShown && this.time - (this.deathAt ?? -10) > 3) {
         this.deathShown = true;
         this.hud.showCrash('Gefallen', 'Sie wurden im Gefecht getroffen.', 'ZURÜCK IN DIE FOB');
-        if (document.pointerLockElement) document.exitPointerLock();
+        this.input.unlockPointer();
         this.focusFirst($('crashscreen'));
       }
     }
@@ -1578,7 +1578,7 @@ class Game {
       if (!hint && h.fuel < 35 && dF < 600) hint = 'Zum Tanken auf Pad POL (gelber Rand, neben dem Tankwagen) landen';
       if (!hint && h.spec.capacity > 0 && this.missions.target(h) === 'from' && this.heliLoad(h) >= h.spec.capacity) hint = 'Kabine voll!';
       if (!hint && this.seat === 'pilot' && h.spec.rockets && this.time < 90) hint = this.input.device === 'gamepad' ? 'Raketen: R · Kanone: KI-Waffensystemoffizier' : this.input.device === 'touch' ? 'Raketen: linken Stick kurz antippen (oder RAKETE)' : 'Raketen: G · Kanone schießt der Waffensystemoffizier';
-      if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus ←→ drehen, ↑↓ vor/zurück)';
+      if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus = Steuerknüppel: ←→ rollen, ↑↓ vor/zurück)';
     }
     if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });
     if ((this.storm || 0) > 0.35) warnings.push({ text: 'SANDSTURM – SICHT EINGESCHRÄNKT', level: 'warn' });

@@ -177,7 +177,7 @@ export class HUD {
     const ms = document.getElementById('mouse-stick');
     if (ms) {
       ms.style.display = g.input.mouseFlying ? 'block' : 'none';
-      if (g.input.mouseFlying) ms.firstElementChild.style.transform = `translate(${g.input.mYaw * 40}px, ${-g.input.mPitch * 40}px)`;
+      if (g.input.mouseFlying) ms.firstElementChild.style.transform = `translate(${(g.input.mRoll || 0) * 40}px, ${-g.input.mPitch * 40}px)`;
     }
     this.drawMinimap(heading, wp);
     if (this.mapOpen) this.drawFullMap();
@@ -326,7 +326,7 @@ export class HUD {
   toggleCrew(force) {
     this.crewOpen = force ?? !this.crewOpen;
     this.el.crew.classList.toggle('hidden', !this.crewOpen);
-    if (document.pointerLockElement) document.exitPointerLock();
+    this.game.input.unlockPointer();
     if (this.crewOpen) { this.lastCrewHtml = null; this.updateCrew(); this.game.focusFirst(this.el['crew-list']); }
   }
 
