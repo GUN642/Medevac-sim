@@ -354,3 +354,9 @@ body:not(.night) .night-only { display: none !important; }
 body.mg-optic #mg-dot { display: block; }
 body.mg-optic #crosshair { display: none !important; }
 body.driving #crosshair { display: none !important; }
+
+/* Mehrspieler-Spielcode */
+.mp-code { font-size: 1.3em; letter-spacing: 0.18em; color: #ffd75e; }
+#pause-mp-code a { color: #9fd3ff; word-break: break-all; }
+#pause-mp-code button { padding: 2px 10px; font-size: 0.85em; margin-left: 6px; }
+#mp-ip { text-transform: uppercase; }

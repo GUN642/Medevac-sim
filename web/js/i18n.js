@@ -297,6 +297,12 @@ const EN = {
   'Viking 4, Fernspäher': 'Viking 4, long-range recon', 'Taurus 2, 1/320. Feldartillerie': 'Taurus 2, 1/320 Field Artillery',
   'Bell UH-1D „Huey“': 'Bell UH-1D “Huey”', 'Sikorsky UH-60 „Black Hawk“': 'Sikorsky UH-60 “Black Hawk”', 'Boeing CH-47F „Chinook“': 'Boeing CH-47F “Chinook”',
   'Boeing AH-64E „Apache Guardian“': 'Boeing AH-64E “Apache Guardian”',
+  'MEHRSPIELER': 'MULTIPLAYER', 'Spielcode': 'Game code', 'Oder Spielcode / IP-Adresse': 'Or game code / IP address', 'z. B. K7RQ2': 'e.g. K7RQ2', 'K7RQ2 oder 192.168.0.23': 'K7RQ2 or 192.168.0.23',
+  'Dieser Browser unterstützt kein WebRTC. Mehrspieler geht in aktuellen Browsern (Chrome, Edge, Firefox, Safari) und in der': 'This browser does not support WebRTC. Multiplayer works in current browsers (Chrome, Edge, Firefox, Safari) and in the',
+  'Spielcode: Wer eröffnet, bekommt einen fünfstelligen Code (Funkspruch und Pause-Menü). Mitspieler geben ihn hier ein oder öffnen den Einladungslink – so spielen auch Browser, PC und App zusammen, sogar über das Internet. Für die Vermittlung wird kurz der kostenlose PeerJS-Server genutzt, danach laufen die Daten direkt zwischen den Geräten.': 'Game code: the host gets a five-character code (radio call and pause menu). Other players enter it here or open the invite link – browsers, PCs and the app can play together, even over the internet. The free PeerJS server is used briefly to connect; after that, data flows directly between the devices.',
+  'Spielcode ': 'Game code ', ' · Einladungslink: ': ' · Invite link: ', 'KOPIEREN': 'COPY', 'Kein Spiel mit diesem Code gefunden – Code prüfen.': 'No game found with this code – check the code.', 'KOPIERT': 'COPIED',
+  'Spielcodes gehen nur mit Internetverbindung (WebRTC).': 'Game codes need an internet connection (WebRTC).',
+  'Spielcode konnte nicht vergeben werden – keine Internetverbindung zum Vermittlungsserver?': 'Could not get a game code – no internet connection to the matchmaking server?',
 };
 
 // Vorlagen mit Platzhaltern
@@ -498,6 +504,8 @@ const EN_T = {
   '{0} ist dem Einsatz beigetreten.': '{0} has joined the mission.', '{0} hat den Einsatz verlassen.': '{0} has left the mission.',
   'TOC: ALARM! Feindangriff auf die {0} aus Richtung {1}! Etwa {2} Mann – alle verfügbaren Kräfte zur Verteidigung!': 'TOC: ALERT! Enemy attack on {0} from the {1}! About {2} fighters – all available forces to the defense!',
   'Feindangriff aus Richtung {0}': 'Enemy attack from the {0}',
+  'Spielcode {0} – Mitspieler geben ihn unter MEHRSPIELER ein oder öffnen den Einladungslink (Pause-Menü).': 'Game code {0} – other players enter it under MULTIPLAYER or open the invite link (pause menu).',
+  'Flieg mit mir – Spielcode {0}': 'Fly with me – game code {0}',
 };
 
 const exact = new Map(Object.entries(EN));

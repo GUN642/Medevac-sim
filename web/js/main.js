@@ -23,7 +23,7 @@ import { Missions } from './missions.js';
 import { HUD } from './hud.js';
 import { Input } from './input.js';
 import { AudioSys } from './audio.js';
-import { Net, netTransport, COLORS } from './net.js';
+import { Net, netTransport, isGameCode, COLORS } from './net.js';
 import { Soldier, WEAPONS, setWeaponSet } from './soldier.js';
 import { FUEL } from './config.js';
 import { clamp, damp, dist2, rand, wrapAngle } from './util.js';
@@ -169,6 +169,14 @@ class Game {
       const aj = JSON.parse(sessionStorage.getItem('dustoff.autojoin') || 'null');
       if (aj) { sessionStorage.removeItem('dustoff.autojoin'); this.openLobby(); if (this.tr) this.startJoin(aj.ip, aj.port); }
     } catch (e) { /* privat */ }
+    // Einladungslink ?join=CODE: direkt beitreten
+    const jm = /[?&]join=([A-Za-z0-9]{4,6})/.exec(location.search);
+    if (jm && this.tr && this.tr.code && !this.net) {
+      try { history.replaceState(null, '', location.pathname + location.search.replace(/([?&])join=[^&]*&?/, '$1').replace(/[?&]$/, '') + location.hash); } catch (e) { /* egal */ }
+      this.openLobby();
+      $('mp-ip').value = jm[1].toUpperCase();
+      this.startJoin(jm[1].toUpperCase(), 0);
+    }
     this.last = performance.now();
     window.game = this; // für Debugging
     this.renderer.setAnimationLoop(() => this.frame());
@@ -763,10 +771,17 @@ class Game {
     on('btn-join-ip', () => {
       const v = ($('mp-ip').value || '').trim();
       if (!v) return;
+      if (isGameCode(v)) { if (this.tr.code) this.startJoin(v.toUpperCase(), 0); else this.onNetStatus('Spielcodes gehen nur mit Internetverbindung (WebRTC).', true); return; }
       const [ip, port] = v.split(':');
       this.startJoin(ip, +port || 47790);
     });
     on('btn-lobby-close', () => this.closeLobby());
+    on('btn-copy-link', () => {
+      const link = $('pause-link').href;
+      const done = () => { $('btn-copy-link').textContent = 'KOPIERT'; setTimeout(() => { $('btn-copy-link').textContent = 'KOPIEREN'; }, 1500); };
+      if (navigator.share && this.input.device === 'touch') navigator.share({ title: 'Hot LZ', text: 'Flieg mit mir – Spielcode ' + $('pause-code').textContent, url: link }).catch(() => {});
+      else if (navigator.clipboard) navigator.clipboard.writeText(link).then(done, () => {});
+    });
     on('btn-netlost', () => location.reload());
     on('crew-close', () => this.hud.toggleCrew(false));
     $('crew-list').addEventListener('click', (e) => {
@@ -1029,6 +1044,7 @@ class Game {
       this.state = 'paused';
       $('pause').classList.remove('hidden');
       $('pause-mp-note').classList.toggle('hidden', this.role === 'solo');
+      this.updateMpNote();
       if (this.role === 'solo') this.audio.suspend();
       this.input.unlockPointer();
       this.focusFirst($('pause'));
@@ -1066,7 +1082,13 @@ class Game {
     $('mp-status').textContent = '';
     if (ok) {
       this.tr.scan(true);
-      $('mp-myip').textContent = this.tr.ip ? 'Eigene IP: ' + this.tr.ip() : '';
+      const myip = this.tr.ip ? this.tr.ip() : '';
+      $('mp-myip').textContent = myip ? 'Eigene IP: ' + myip : '';
+      $('mp-iplabel').textContent = this.tr.kind === 'peer' ? 'Spielcode' : this.tr.code ? 'Oder Spielcode / IP-Adresse' : 'Oder IP-Adresse';
+      $('mp-ip').placeholder = this.tr.kind === 'peer' ? 'z. B. K7RQ2' : this.tr.code ? 'K7RQ2 oder 192.168.0.23' : '192.168.0.23';
+      $('mp-hosts-h').classList.toggle('hidden', this.tr.kind === 'peer');
+      $('mp-hosts').classList.toggle('hidden', this.tr.kind === 'peer');
+      $('mp-peerhelp').classList.toggle('hidden', !this.tr.code);
       clearInterval(this.scanTimer);
       this._hostsHtml = null;
       this.scanTimer = setInterval(() => this.refreshHosts(), 800);
@@ -1122,10 +1144,46 @@ class Game {
     this.role = 'host';
     this.myId = 0;
     this.netReady = true;
-    const ip = String(r).split(':').slice(1).join(':');
-    this.radio(`Mehrspieler-Spiel eröffnet (${ip}). Mitspieler im selben WLAN können jetzt beitreten.`, 'TOC', false, true);
+    const ip = String(r).startsWith('ok:') ? String(r).split(':').slice(1).join(':') : '';
+    const code = this.tr.code ? this.tr.code() : '';
+    if (ip) this.radio(`Mehrspieler-Spiel eröffnet (${ip}). Mitspieler im selben WLAN können jetzt beitreten.`, 'TOC', false, true);
+    if (code) this.watchPeerHost(code);
     this.startGame();
     this.hud.updateCrew();
+  }
+
+  // Spielcode-Anmeldung beim Vermittlungsserver beobachten und Ergebnis funken
+  watchPeerHost(code) {
+    let n = 0;
+    clearInterval(this.peerWatch);
+    this.peerWatch = setInterval(() => {
+      if (!this.net || !this.tr.status) { clearInterval(this.peerWatch); return; }
+      const st = this.tr.status();
+      if (st === 'ready') {
+        clearInterval(this.peerWatch);
+        this.radio(`Spielcode ${this.tr.code()} – Mitspieler geben ihn unter MEHRSPIELER ein oder öffnen den Einladungslink (Pause-Menü).`, 'TOC', false, true);
+      } else if (String(st).startsWith('err') || ++n > 40) {
+        clearInterval(this.peerWatch);
+        if (this.tr.kind === 'peer') this.radio('Spielcode konnte nicht vergeben werden – keine Internetverbindung zum Vermittlungsserver?', 'TOC', false, true);
+      }
+    }, 500);
+  }
+
+  inviteLink() {
+    const code = this.tr && this.tr.code ? this.tr.code() : '';
+    if (!code || this.tr.status() !== 'ready' || /^(file|content|https?:\/\/appassets)/.test(location.href)) return '';
+    return location.origin + location.pathname + '?join=' + code;
+  }
+
+  updateMpNote() {
+    const el = $('pause-mp-code');
+    const code = this.role === 'host' && this.tr && this.tr.code && this.tr.status() === 'ready' ? this.tr.code() : '';
+    el.classList.toggle('hidden', !code);
+    if (!code) return;
+    const link = this.inviteLink() || 'https://gun642.github.io/Medevac-sim/?join=' + code;
+    $('pause-code').textContent = code;
+    $('pause-link').textContent = link;
+    $('pause-link').href = link;
   }
 
   startJoin(ip, port) {

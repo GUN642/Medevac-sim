@@ -106,7 +106,7 @@
     <button id="btn-continue" class="primary hidden">FORTSETZEN</button>
     <button id="btn-help">STEUERUNG</button>
     <button id="btn-tutorial">TUTORIAL</button>
-    <button id="btn-mp">MEHRSPIELER (LAN)</button>
+    <button id="btn-mp">MEHRSPIELER</button>
     <button id="btn-settings">EINSTELLUNGEN</button>
     <button id="btn-update" class="app-only">NACH UPDATES SUCHEN</button>
     <button id="btn-quit" class="hidden">SPIEL BEENDEN</button>
@@ -138,22 +138,22 @@
     <button id="btn-pause-menu">HAUPTMENÜ</button>
   </div>
   <p id="pause-mp-note" class="note hidden">Mehrspieler: Das Spiel läuft weiter, Ihr Hubschrauber schwebt solange auf der Stelle.</p>
+  <p id="pause-mp-code" class="note hidden">Spielcode <b id="pause-code" class="mp-code"></b> · Einladungslink: <a id="pause-link" target="_blank" rel="noopener"></a> <button id="btn-copy-link" class="small">KOPIEREN</button></p>
 </div>
 
 <div id="lobby" class="overlay dim hidden">
   <div class="panel-inner">
-    <h2>MEHRSPIELER IM LOKALEN NETZWERK</h2>
+    <h2>MEHRSPIELER</h2>
     <div id="mp-unavailable" class="hidden">
-      <p>Der LAN-Mehrspieler funktioniert in der <b>Android-App</b> (Handy, Tablet, Android TV). Alle Geräte müssen im selben WLAN sein.</p>
-      <p class="note">Browser können aus Sicherheitsgründen keine direkten Netzwerkverbindungen öffnen. Zum Ausprobieren auf einem PC: Seite mit <code>?net=test</code> in zwei Tabs öffnen.</p>
+      <p>Dieser Browser unterstützt kein WebRTC. Mehrspieler geht in aktuellen Browsern (Chrome, Edge, Firefox, Safari) und in der <b>Android-App</b>.</p>
     </div>
     <div id="mp-form">
       <label>Ihr Name <input id="mp-name" type="text" maxlength="16"></label>
       <label>Zweiter Hubschrauber <select id="mp-heli2"></select></label>
       <button id="btn-host" class="primary">SPIEL ERÖFFNEN</button>
-      <h3>Gefundene Spiele</h3>
+      <h3 id="mp-hosts-h">Gefundene Spiele</h3>
       <div id="mp-hosts"></div>
-      <label>Oder IP-Adresse <input id="mp-ip" type="text" placeholder="192.168.0.23"> <button id="btn-join-ip">VERBINDEN</button></label>
+      <label><span id="mp-iplabel">Oder IP-Adresse</span> <input id="mp-ip" type="text" placeholder="192.168.0.23" autocapitalize="characters" autocomplete="off" spellcheck="false"> <button id="btn-join-ip">VERBINDEN</button></label>
       <p id="mp-myip" class="note"></p>
       <p id="mp-status"></p>
       <ul class="howto">
@@ -161,6 +161,7 @@
         <li>Zusammen fliegen: einer ist Pilot, die anderen sitzen an den Bord-MGs. Freie Plätze übernimmt die KI.</li>
         <li>Mit dem zweiten Hubschrauber fliegen zwei Piloten gemeinsam. Über <b>CREW</b> (Taste X, Controller ⊖) wechseln Sie den Platz – auch in die andere Maschine, wenn beide nebeneinander gelandet sind.</li>
         <li>Gäste-WLANs mit „Client-Isolation“ verhindern die Verbindung.</li>
+        <li id="mp-peerhelp" class="hidden">Spielcode: Wer eröffnet, bekommt einen fünfstelligen Code (Funkspruch und Pause-Menü). Mitspieler geben ihn hier ein oder öffnen den Einladungslink – so spielen auch Browser, PC und App zusammen, sogar über das Internet. Für die Vermittlung wird kurz der kostenlose PeerJS-Server genutzt, danach laufen die Daten direkt zwischen den Geräten.</li>
       </ul>
     </div>
     <button id="btn-lobby-close">ZURÜCK</button>
