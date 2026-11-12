@@ -184,8 +184,9 @@ und installiert sie über den Android-PackageInstaller. Beim ersten Update fragt
 Erlaubnis „Apps aus dieser Quelle installieren“; ab Android 12 laufen weitere Updates meist ohne Rückfrage.
 Im Hauptmenü gibt es zusätzlich „Nach Updates suchen“.
 
-**Signatur:** Updates funktionieren nur, wenn jede APK mit demselben Schlüssel signiert ist. Standardmäßig nutzt
-die CI den Keystore `android/keystore/release.jks` aus dem Repository (Passwort `dustoff1968`) – bequem, aber
-öffentlich. Für einen privaten Schlüssel die Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
-`ANDROID_KEY_ALIAS` und `ANDROID_KEY_PASSWORD` anlegen. Achtung: Nach einem Schlüsselwechsel muss die App einmal
-deinstalliert und neu installiert werden.
+**Signatur und Freigabe:** Der Signaturschlüssel liegt nicht im Repository, sondern nur als Secrets in der
+geschützten GitHub-Umgebung `release` (siehe `android/keystore/README.md`). Bei jedem Push baut die CI nur eine
+unsignierte Prüf-APK. Signiert und auf GitHub Pages veröffentlicht wird ausschließlich vom Standardbranch, und
+erst nachdem der Eigentümer das Release in GitHub freigegeben hat (Actions → Lauf → „Review deployments“).
+Der frühere, öffentlich bekannte Schlüssel wird nur noch für die Schlüsselrotation genutzt, damit installierte
+Apps das Update ohne Neuinstallation annehmen.

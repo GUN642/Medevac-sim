@@ -1,5 +1,12 @@
 name: Build & Deploy
 
+# Sicherheit:
+#  - "check" läuft bei jedem Push auf jedem Branch, ohne Secrets und ohne Veröffentlichung.
+#  - Signieren und Veröffentlichen ("release", "deploy") nur auf dem Standardbranch und nur in der
+#    geschützten Umgebung "release": Die Signaturschlüssel liegen ausschließlich dort, und jedes
+#    Release muss vom Eigentümer freigegeben werden (Settings → Environments → release →
+#    Required reviewers). Ein gestohlener Token allein kann so keine signierte APK verteilen.
+
 on:
   push:
     branches: ['**']
@@ -7,27 +14,53 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Spieldateien in die App kopieren
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r web/. android/app/src/main/assets/www/
+
+      - name: App bauen (Prüfung, unsigniert)
+        run: gradle -p android assembleRelease --no-daemon
+
+  release:
+    needs: check
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    environment: release
     env:
       VERSION_CODE: ${{ github.run_number }}
       VERSION_NAME: 1.0.${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Update-URL bestimmen
         run: |
           OWNER=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
           REPO="${GITHUB_REPOSITORY#*/}"
-          echo "PAGES_URL=https://${OWNER}.github.io/${REPO}" >> "$GITHUB_ENV"
           echo "UPDATE_URL=https://${OWNER}.github.io/${REPO}/version.json" >> "$GITHUB_ENV"
 
       - name: version.json erzeugen
@@ -49,38 +82,46 @@ jobs:
 
       - name: Spieldateien in die App kopieren
         run: |
-          rm -rf android/app/src/main/assets/www
           mkdir -p android/app/src/main/assets/www
           cp -r web/. android/app/src/main/assets/www/
           cp version.json android/app/src/main/assets/www/version.json
 
-      - name: Signaturschlüssel (optional aus Secrets)
+      - name: APK bauen (unsigniert)
+        run: gradle -p android assembleRelease --no-daemon --stacktrace
+
+      - name: APK signieren (Schlüsselrotation alt → neu)
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$KS_B64" ]; then
-            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
-            echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
-            echo "Eigener Keystore aus Secrets wird verwendet."
-          else
-            echo "Repository-Keystore android/keystore/release.jks wird verwendet."
-          fi
-
-      - name: APK bauen
-        env:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: gradle -p android assembleRelease --no-daemon --stacktrace
+          OLD_PASS: dustoff1968
+        run: |
+          if [ -z "$KS_B64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Signaturschlüssel fehlen in der Umgebung 'release' (siehe android/keystore/README.md)."
+            exit 1
+          fi
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/new.jks"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          OLD=android/keystore/legacy-release.jks
+          "$BT/apksigner" rotate --out "$RUNNER_TEMP/lineage" \
+            --old-signer --ks "$OLD" --ks-key-alias dustoff --ks-pass env:OLD_PASS --key-pass env:OLD_PASS \
+            --new-signer --ks "$RUNNER_TEMP/new.jks" --ks-key-alias "$KEY_ALIAS" --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD
+          "$BT/apksigner" sign --out "$RUNNER_TEMP/signed.apk" \
+            --ks "$OLD" --ks-key-alias dustoff --ks-pass env:OLD_PASS --key-pass env:OLD_PASS \
+            --next-signer --ks "$RUNNER_TEMP/new.jks" --ks-key-alias "$KEY_ALIAS" --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD \
+            --lineage "$RUNNER_TEMP/lineage" \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$BT/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/signed.apk" | grep -E "Verified|Signer|SHA-256" || true
+          rm -f "$RUNNER_TEMP/new.jks"
 
       - name: Website zusammenstellen
         run: |
           mkdir -p _site/apk
           cp -r web/. _site/
           cp version.json _site/version.json
-          cp android/app/build/outputs/apk/release/app-release.apk _site/apk/medevac-sim.apk
+          cp "$RUNNER_TEMP/signed.apk" _site/apk/medevac-sim.apk
           touch _site/.nojekyll
-          ls -la _site _site/apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -92,9 +133,12 @@ jobs:
           path: _site
 
   deploy:
-    needs: build
+    needs: release
     if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

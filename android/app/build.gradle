@@ -25,22 +25,11 @@ android {
         buildConfig true
     }
 
-    signingConfigs {
-        release {
-            storeFile file(envOr('KEYSTORE_FILE', "${rootDir}/keystore/release.jks"))
-            storePassword envOr('KEYSTORE_PASSWORD', 'dustoff1968')
-            keyAlias envOr('KEY_ALIAS', 'dustoff')
-            keyPassword envOr('KEY_PASSWORD', 'dustoff1968')
-        }
-    }
-
+    // Signiert wird nicht mehr hier: Gradle baut ein unsigniertes Release-APK, die CI signiert es
+    // in der geschützten Umgebung „release“ (Schlüssel nur dort, Freigabe per Klick).
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.release
-        }
-        debug {
-            signingConfig signingConfigs.release
         }
     }
 
