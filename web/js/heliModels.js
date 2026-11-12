@@ -901,7 +901,7 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   ];
   const gunWin = [{ z0: -5.85, z1: -4.55, a0: -0.75, a1: 0.6 }, { z0: -5.6, z1: -4.6, a0: PI - 0.6, a1: PI + 0.25 }];
   const cabWin = [];
-  for (let i = 0; i < 6; i++) cabWin.push(...both(-3.4 + i * 1.75, -3.0 + i * 1.75, 0.05, 0.35));
+  for (let i = 0; i < 5; i++) cabWin.push(...both(-2.6 + i * 1.9, -2.15 + i * 1.9, 0.08, 0.36));
   const fus = [
     { z: -8.75, w: 0.6, top: -0.35, bot: -0.8 },
     { z: -8.35, w: 2.25, top: 0.4, bot: -1.05, nt: 2.1, nb: 2.4 },
@@ -911,17 +911,21 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
     { z: 6.9, w: 3.32, top: 1.56, bot: -1.15, nt: 2.6, nb: 6 },
     { z: 7.45, w: 3.2, top: 1.5, bot: -1.15, nt: 2.6, nb: 6 },   // Heck über der Rampe offen
   ];
+  // hoher hinterer Pylon mit fast senkrechter Hinterkante (Rotor deutlich höher als vorn)
   const rearPylon = [
-    { z: 3.4, w: 0.9, top: 1.6, bot: 1.45 },
-    { z: 4.6, w: 1.55, top: 2.85, bot: 1.4, nt: 2.8, nb: 4 },
-    { z: 7.25, w: 1.5, top: 3.25, bot: 1.4, nt: 2.8, nb: 4 },
-    { z: 7.95, w: 0.9, top: 2.6, bot: 1.55, nt: 2.4, nb: 3 },
+    { z: 2.9, w: 0.8, top: 1.62, bot: 1.5 },
+    { z: 4.1, w: 1.5, top: 2.95, bot: 1.42, nt: 2.8, nb: 4 },
+    { z: 6.3, w: 1.62, top: 3.8, bot: 1.42, nt: 2.6, nb: 4 },
+    { z: 7.6, w: 1.55, top: 3.78, bot: 1.45, nt: 2.6, nb: 4 },
+    { z: 8.0, w: 1.1, top: 3.2, bot: 1.55, nt: 2.4, nb: 3 },
   ];
+  // vorderer Pylon über dem Cockpit, nach vorn abgeschrägt
   const frontPylon = [
-    { z: -7.25, w: 0.7, top: 1.25, bot: 1.1 },
-    { z: -6.6, w: 1.4, top: 2.3, bot: 1.15, nt: 2.6, nb: 4 },
-    { z: -5.0, w: 1.3, top: 2.25, bot: 1.2, nt: 2.6, nb: 4 },
-    { z: -4.2, w: 0.7, top: 1.75, bot: 1.4 },
+    { z: -7.45, w: 0.65, top: 1.12, bot: 1.0 },
+    { z: -6.95, w: 1.42, top: 2.15, bot: 1.08, nt: 2.6, nb: 4 },
+    { z: -5.5, w: 1.48, top: 2.5, bot: 1.18, nt: 2.6, nb: 4 },
+    { z: -4.5, w: 1.0, top: 2.1, bot: 1.35, nt: 2.4, nb: 3 },
+    { z: -4.1, w: 0.6, top: 1.8, bot: 1.45 },
   ];
   const spine = [{ z: -4.6, w: 0.55, top: 1.8, bot: 1.4 }, { z: -4.2, w: 0.65, top: 1.95, bot: 1.4 }, { z: 3.8, w: 0.65, top: 1.95, bot: 1.4 }, { z: 4.2, w: 0.55, top: 1.85, bot: 1.4 }];
   const sponson = (sx) => [
@@ -930,11 +934,12 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
     { z: 3.9, w: 0.85, top: -0.2, bot: -1.12, x: sx * 1.98, nt: 3, nb: 3 },
     { z: 4.5, w: 0.3, top: -0.4, bot: -0.9, x: sx * 1.8 },
   ];
+  // große Triebwerksgondeln seitlich am hinteren Pylon
   const engineNac = (sx) => [
-    { z: 4.3, w: 0.6, top: 1.85, bot: 1.25, x: sx * 1.95 },
-    { z: 4.6, w: 0.95, top: 2.05, bot: 1.05, x: sx * 1.98, nt: 2.2, nb: 2.2 },
-    { z: 7.0, w: 0.95, top: 2.05, bot: 1.05, x: sx * 2.0, nt: 2.2, nb: 2.2 },
-    { z: 7.5, w: 0.65, top: 1.88, bot: 1.22, x: sx * 2.0 },
+    { z: 4.15, w: 0.75, top: 2.0, bot: 1.2, x: sx * 2.05 },
+    { z: 4.5, w: 1.1, top: 2.18, bot: 1.0, x: sx * 2.08, nt: 2.2, nb: 2.2 },
+    { z: 7.0, w: 1.08, top: 2.16, bot: 1.02, x: sx * 2.1, nt: 2.2, nb: 2.2 },
+    { z: 7.6, w: 0.72, top: 1.95, bot: 1.22, x: sx * 2.1 },
   ];
   const h = hull(group, 'ch47', [
     { keys: fus, holes: [...cockpitWin, ...gunWin, ...cabWin], glass: [...cockpitWin, ...cabWin], radial: 40 },
@@ -952,13 +957,21 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   for (const sx of [-1, 1]) {
     parts.push(P(box(0.45, 0.08, 9.8), 0x4a5054, [sx * 1.35, -0.6, 0.6]));
     parts.push(P(box(0.06, 0.55, 9.8), 0x454b4f, [sx * 1.6, -0.3, 0.6]));
-    // vorne und hinten je ein Rad pro Seite
-    for (const z of [-4.6, 5.05]) {
-      wheel(parts, 0.45, 0.3, [sx * 1.6, -1.3, z]);
-      parts.push(P(box(0.16, 0.65, 0.16), COL.metal, [sx * 1.6, -0.95, z]));
-    }
-    parts.push(P(cyl(0.36, 0.32, 0.25, 14), 0x1b1b19, [sx * 2.0, 1.55, 7.55], [HALFPI, 0, 0]));
-    parts.push(P(tor(0.4, 0.06, 14), 0x2a2a2a, [sx * 1.95, 1.55, 4.32]));
+    // vorne Doppelräder, hinten je ein Rad pro Seite
+    for (const dx of [-0.2, 0.2]) wheel(parts, 0.42, 0.24, [sx * 1.6 + dx, -1.33, -4.6]);
+    parts.push(P(box(0.16, 0.65, 0.16), COL.metal, [sx * 1.6, -0.95, -4.6]));
+    wheel(parts, 0.45, 0.3, [sx * 1.6, -1.3, 5.05]);
+    parts.push(P(box(0.16, 0.65, 0.16), COL.metal, [sx * 1.6, -0.95, 5.05]));
+    parts.push(P(box(0.1, 0.08, 0.9), COL.metal, [sx * 1.6, -0.75, 5.4], [0.5, 0, 0]));
+    // Triebwerke: Einlauf mit Gitter, Abgasdüse, Haltestreben
+    parts.push(P(cyl(0.4, 0.34, 0.3, 14), 0x1b1b19, [sx * 2.1, 1.59, 7.72], [HALFPI, 0, 0]));
+    parts.push(P(cyl(0.3, 0.3, 0.05, 14), 0x050505, [sx * 2.1, 1.59, 7.88], [HALFPI, 0, 0]));
+    parts.push(P(tor(0.46, 0.065, 14), 0x2a2a2a, [sx * 2.06, 1.59, 4.17]));
+    parts.push(P(cyl(0.42, 0.42, 0.04, 14), 0x23262a, [sx * 2.06, 1.59, 4.2], [HALFPI, 0, 0]));
+    for (const z of [5.0, 6.6]) parts.push(P(box(0.55, 0.1, 0.12), 0x3f4448, [sx * 1.68, 1.55, z]));
+    // Rückspiegel, Trittstufen an der Tür
+    parts.push(P(box(0.04, 0.26, 0.18), 0x222222, [sx * 1.55, 0.45, -8.0]));
+    parts.push(P(box(0.05, 0.05, 0.42), 0x2a2b2b, [sx * 1.72, -0.65, -5.2]));
     parts.push(P(box(0.3, 0.04, 0.3), 0x2a2b2b, [sx * 1.7, -1.0, -5.3]));
   }
   // Heckrampe: Scharnier am Kabinenboden, abgesenkt bis zum Boden
@@ -966,7 +979,10 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   const ramp = rampPart(group, { y: -1.12, z: 6.95, w: 2.6, len: 2.3, col: 0x3c4246, open: 0.28 });
   parts.push(P(box(3.0, 1.9, 0.06), 0x353a3e, [0, 0.0, -6.55]));
   cockpit(parts, group, { z: -8.0, w: 2.5, y: -0.25, seatX: 0.65, seatZ: -7.15, seatY: -0.45 });
-  parts.push(P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 2.6, -6.0]), P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 3.35, 6.8]));
+  parts.push(P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 2.75, -6.0]), P(cyl(0.2, 0.24, 0.65, 12), COL.metal, [0, 4.05, 6.8]));
+  // Antennen, Positionslichter, Wartungsklappen-Rahmen am Pylon
+  parts.push(P(box(0.03, 0.45, 0.16), 0x161616, [0, -1.35, 0.5], [0.3, 0, 0]), P(box(0.03, 0.4, 0.15), 0x161616, [0, 1.95, -2.8], [-0.3, 0, 0]));
+  parts.push(P(box(1.0, 0.04, 2.0), 0x2c3134, [0, 3.83, 6.95]));
   parts.push(P(box(0.04, 0.5, 0.25), 0x111111, [0, 1.9, -2.0], [0.35, 0, 0]));
   parts.push(P(cyl(0.03, 0.03, 1.6, 6), 0x111111, [0.4, -1.0, -8.0], [1.2, 0, 0]));
   // Luftbetankungssonde (deutsche CH-47F): rechts unten am Bug, weit über die Nase hinaus
@@ -981,11 +997,11 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
     decal(group, number, 1.2, 0.3, [0.79, 2.65, 6.1], s);
   }
   const front = new THREE.Group();
-  front.position.set(0, 2.95, -6.0);
+  front.position.set(0, 3.1, -6.0);
   front.add(new THREE.Mesh(rotorGeo(3, 9.1, 0.8, { hubR: 0.45 }), detailMat));
   group.add(front);
   const rear = new THREE.Group();
-  rear.position.set(0, 3.7, 6.8);
+  rear.position.set(0, 4.4, 6.8);
   rear.add(new THREE.Mesh(rotorGeo(3, 9.1, 0.8, { hubR: 0.45 }), detailMat));
   group.add(rear);
   const f = finish(group, parts, {
@@ -1009,7 +1025,7 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
     guns: f.guns, pilots: f.pilots, seats: seatsGrid(seatList, [0.35, -0.5]), isStatic, ramp,
     eyePilot: new THREE.Vector3(0.65, 0.74, -7.66),
     spin: [[front, 'y', 18], [rear, 'y', -18]],
-    exhaust: new THREE.Vector3(2.0, 1.55, 7.6),
+    exhaust: new THREE.Vector3(2.1, 1.59, 7.85),
     gear: [[-1.6, -1.75, -4.6], [1.6, -1.75, -4.6], [-1.6, -1.75, 5.05], [1.6, -1.75, 5.05]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
   };
 }
@@ -1037,17 +1053,21 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
     { z: 11.7, w: 0.62, top: 2.45, bot: 1.62, nt: 2.2, nb: 2.2 },
     { z: 12.3, w: 0.4, top: 2.55, bot: 1.92 },
   ];
+  // langer Aufbau über der Kabine (Getriebe, Triebwerke), läuft flach in den Heckausleger aus
   const top = [
-    { z: -2.7, w: 1.0, top: 1.6, bot: 1.35 },
-    { z: -2.1, w: 2.0, top: 2.5, bot: 1.3, nt: 2.8, nb: 4 },
-    { z: 2.0, w: 2.0, top: 2.5, bot: 1.35, nt: 2.8, nb: 4 },
-    { z: 2.8, w: 1.1, top: 1.9, bot: 1.4 },
+    { z: -5.05, w: 0.7, top: 1.3, bot: 1.05 },
+    { z: -4.5, w: 1.65, top: 2.0, bot: 1.15, nt: 2.6, nb: 4 },
+    { z: -1.2, w: 2.05, top: 2.55, bot: 1.25, nt: 2.9, nb: 4 },
+    { z: 2.3, w: 1.95, top: 2.5, bot: 1.3, nt: 2.9, nb: 4 },
+    { z: 4.8, w: 1.25, top: 2.05, bot: 1.4, nt: 2.6, nb: 4 },
+    { z: 6.6, w: 0.62, top: 1.95, bot: 1.6 },
   ];
+  // Triebwerksgondeln seitlich am Aufbau, Einlauf vorn hinter dem Cockpit
   const nac = (sx) => [
-    { z: -2.1, w: 0.75, top: 2.35, bot: 1.6, x: sx * 1.35 },
-    { z: -1.8, w: 1.0, top: 2.5, bot: 1.45, x: sx * 1.38, nt: 2.2, nb: 2.2 },
-    { z: 1.3, w: 1.0, top: 2.5, bot: 1.45, x: sx * 1.4, nt: 2.2, nb: 2.2 },
-    { z: 1.75, w: 0.75, top: 2.35, bot: 1.6, x: sx * 1.42 },
+    { z: -4.0, w: 0.82, top: 2.28, bot: 1.52, x: sx * 1.3 },
+    { z: -3.7, w: 0.98, top: 2.42, bot: 1.42, x: sx * 1.32, nt: 2.3, nb: 2.3 },
+    { z: 0.2, w: 0.98, top: 2.42, bot: 1.42, x: sx * 1.36, nt: 2.3, nb: 2.3 },
+    { z: 1.05, w: 0.7, top: 2.3, bot: 1.58, x: sx * 1.42 },
   ];
   const sponson = (sx) => [
     { z: -1.7, w: 0.4, top: -0.3, bot: -0.85, x: sx * 1.75 },
@@ -1061,9 +1081,13 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
     { z: 2.4, w: 0.85, top: 0.2, bot: -0.7, x: sx * 2.8, nt: 2, nb: 2 },
     { z: 3.1, w: 0.1, top: -0.2, bot: -0.3, x: sx * 2.8 },
   ];
-  const fin = plate([[11.0, 1.7], [12.3, 1.9], [13.0, 5.6], [12.2, 5.7], [11.5, 3.3]], 0.3, 'zy');
-  const stab = plate([[0, 12.0], [3.4, 12.25], [3.4, 13.0], [0, 12.95]], 0.09, 'xz');
-  stab.translate(0.15, 5.2, 0);   // Höhenflosse rechts, gerade (CH-53G/GS)
+  // Heckpylon: breit am Fuß, nach hinten gepfeilt und – typisch CH-53 – um ca. 20° nach links geneigt
+  const CANT = 0.35, PIV = 1.9;
+  const fin = plate([[10.3, 1.75], [12.55, 1.95], [13.2, 5.8], [12.45, 5.95], [11.55, 3.3]], 0.44, 'zy');
+  fin.translate(0, -PIV, 0); fin.rotateZ(CANT); fin.translate(0, PIV, 0);
+  const lean = (y) => -Math.sin(CANT) * (y - PIV);
+  const stab = plate([[0, 12.05], [3.3, 12.3], [3.3, 13.0], [0, 12.95]], 0.1, 'xz');
+  stab.translate(lean(5.1) + 0.2, 5.1, 0);   // Höhenflosse rechts am Pylon, gerade (CH-53G/GS)
   const h = hull(group, 'ch53', [
     { keys: fus, holes: [...cockpitWin, ...gunWin, ...cabWin, { z0: 4.5, z1: 6.9, a0: PI + 0.45, a1: 2 * PI - 0.45 }], glass: [...cockpitWin, ...cabWin], capEnd: true, radial: 40 },
     { keys: top, capStart: true, capEnd: true, radial: 24 },
@@ -1083,8 +1107,14 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
     gearParts.push(P(box(0.18, 0.5, 0.2), COL.metal, [sx * 1.95, -0.95, 0.4]));
     // Fahrwerksschacht unten in der Stummelfläche
     parts.push(P(box(0.5, 0.03, 1.0), 0x1d1f19, [sx * 1.95, -1.03, 0.4]));
-    parts.push(P(tor(0.4, 0.07, 14), 0x2a2a2a, [sx * 1.36, 1.98, -2.1]));
-    parts.push(P(cyl(0.4, 0.34, 0.45, 14), 0x1b1b19, [sx * 1.45, 1.98, 1.95], [HALFPI, 0, sx * -0.4]));
+    // Triebwerkseinlauf mit Schutzgitter, Abgasrohr nach außen geknickt
+    parts.push(P(tor(0.4, 0.07, 14), 0x2a2a2a, [sx * 1.3, 1.9, -4.02]));
+    parts.push(P(cyl(0.36, 0.36, 0.04, 14), 0x16171a, [sx * 1.3, 1.9, -3.98], [HALFPI, 0, 0]));
+    parts.push(P(cyl(0.3, 0.36, 0.7, 14), 0x1b1b19, [sx * 1.62, 1.95, 1.35], [HALFPI, sx * 0.55, 0]));
+    parts.push(P(cyl(0.24, 0.24, 0.05, 14), 0x050505, [sx * 1.82, 1.95, 1.65], [HALFPI, sx * 0.55, 0]));
+    // Rückspiegel und Trittstufen
+    parts.push(P(box(0.04, 0.28, 0.2), 0x222222, [sx * 1.25, 0.55, -6.6]), P(cyl(0.015, 0.015, 0.45, 5), 0x222222, [sx * 1.12, 0.55, -6.6], [0, 0, HALFPI]));
+    for (const y of [-0.55, -0.15]) parts.push(P(box(0.05, 0.05, 0.4), 0x2a2b2b, [sx * 1.52, y, -4.0]));
     parts.push(P(box(0.3, 0.04, 0.3), 0x2a2b2b, [sx * 1.55, -0.95, -4.0]));
   }
   wheel(gearParts, 0.32, 0.22, [-0.3, -1.33, -5.6]);
@@ -1102,8 +1132,13 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   parts.push(P(box(2.9, 2.2, 0.06), 0x34372c, [0, 0.1, -4.75]));
   cockpit(parts, group, { z: -6.45, w: 2.3, y: -0.2, seatX: 0.6, seatZ: -5.45, seatY: -0.42 });
   parts.push(P(cyl(0.24, 0.28, 0.85, 12), COL.metal, [0, 2.7, 0]));
-  parts.push(P(box(0.04, 0.5, 0.28), 0x111111, [0, 2.6, 3.0], [0.35, 0, 0]));
-  parts.push(P(cyl(0.2, 0.2, 0.5, 10), COL.gun, [-0.25, 3.9, 12.5], [0, 0, HALFPI]));
+  parts.push(P(box(0.04, 0.5, 0.28), 0x111111, [0, 2.75, 3.6], [0.35, 0, 0]));
+  // Wärmebildkamera (FLIR) unter der Nase, Antennen, Hilfstriebwerk-Auslass
+  parts.push(P(sph(0.26, 12, 8), 0x2a2d2c, [0, -1.05, -6.4]), P(cyl(0.16, 0.16, 0.2, 10), 0x2a2d2c, [0, -0.86, -6.4]));
+  parts.push(P(box(0.03, 0.4, 0.16), 0x161616, [0, -1.3, -1.0], [0.3, 0, 0]), P(box(0.03, 0.35, 0.14), 0x161616, [0, 1.95, 7.6], [-0.4, 0, 0]));
+  parts.push(P(cyl(0.12, 0.12, 0.3, 8), 0x1a1a1a, [0.7, 2.2, 3.2], [0, 0, HALFPI]));
+  // Heckrotornabe am geneigten Pylon
+  parts.push(P(cyl(0.2, 0.2, 0.55, 10), COL.gun, [lean(4.9) - 0.3, 4.9, 12.55], [0, 0, HALFPI + CANT]));
   for (const s of [-1, 1]) {
     decal(group, 'LUFTWAFFE', 2.4, 0.48, [h.X(1.8), 0.95, 1.8], s);
     ironCross(group, 0.9, [h.X(-1.4), 0.6, -1.4], s);
@@ -1113,10 +1148,14 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
   mainRotor.position.set(0, 3.1, 0);
   mainRotor.add(new THREE.Mesh(rotorGeo(6, 11, 0.7, { hubR: 0.5 }), detailMat));
   group.add(mainRotor);
+  // Heckrotor links am geneigten Pylon: äußere Gruppe neigt, innere dreht
+  const trTilt = new THREE.Group();
+  trTilt.position.set(lean(4.9) - 0.62, 4.9, 12.55);
+  trTilt.rotation.z = CANT;
   const tailRotor = new THREE.Group();
-  tailRotor.position.set(-0.45, 3.9, 12.6);
   tailRotor.add(new THREE.Mesh(tailRotorGeo(4, 3.0, 0.32), detailMat));
-  group.add(tailRotor);
+  trTilt.add(tailRotor);
+  group.add(trTilt);
   const f = finish(group, parts, {
     gunGeo: m3mGeo(),
     gunMounts: [
@@ -1139,7 +1178,7 @@ function buildCH53({ static: isStatic = false, number = '85+12' } = {}) {
     hoist: new THREE.Vector3(1.75, 1.0, -3.9),
     eyePilot: new THREE.Vector3(0.6, 0.76, -5.92),
     spin: [[mainRotor, 'y', 17], [tailRotor, 'x', 60]],
-    exhaust: new THREE.Vector3(1.45, 2.0, 2.1),
+    exhaust: new THREE.Vector3(1.8, 1.95, 1.7),
     gear: [[-1.95, -1.65, 0.4], [1.95, -1.65, 0.4], [0, -1.65, -5.6]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
   };
 }

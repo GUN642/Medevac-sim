@@ -1,4 +1,5 @@
 // Tageszeit (Tag/Nacht), Sternenhimmel, Landescheinwerfer und Nachtsichtgerät (NVG)
+import { ENV } from './gfx.js';
 import * as THREE from './lib/three.module.min.js';
 import { T } from './theme.js';
 
@@ -66,6 +67,7 @@ export class NightSys {
     for (const c of w.clouds.children) c.material.opacity = this.night ? 0.08 : 0.55 + (c.id % 7) * 0.04;
     for (const p of [g.effects.smoke, g.effects.glow]) p.mat.uniforms.fogColor.value.copy(g.scene.fog.color);
     this.applyLights();
+    if (ENV.update) ENV.update();
   }
 
   // Restlichtverstärker: Szene heller rechnen und per CSS grün einfärben, Röhrenrand und Rauschen darüber

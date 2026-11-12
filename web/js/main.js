@@ -1,4 +1,5 @@
 // Dustoff – Medevac-Hubschraubersimulator (Vietnam 1968 / Afghanistan 2010): Hauptprogramm
+import { buildEnv, applyWaterEnv, GrassField } from './gfx.js';
 import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
 import { AfghanWorld } from './worldAfg.js';
@@ -121,6 +122,13 @@ class Game {
 
     await this.step('Erzeuge Gelände …', 10);
     this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : T.id === 'mali' ? new MaliWorld(this.scene, q, 2017) : T.id === 'norway' ? new NorwayWorld(this.scene, q, 1952) : new World(this.scene, q);
+    buildEnv(this.renderer, this.world.sky, T.sky.hemiGround);
+    applyWaterEnv(this.world.water);
+    // Grasbüschel im Nahbereich (nicht im Schnee, nicht bei niedriger Qualität)
+    if (q !== 'low' && !T.snow) {
+      const dry = T.id === 'afghanistan' || T.id === 'mali';
+      this.grass = new GrassField(this.scene, this.world, { radius: q === 'high' ? 75 : 55, step: q === 'high' ? 1.7 : 2.1, density: dry ? 0.4 : 0.95, tint: dry ? [1.4, 1.3, 0.95] : [1.2, 1.4, 1.0] });
+    }
     await this.step('Effekte …', 60);
     this.effects = new Effects(this.scene, q);
     this.combat = new Combat(this);
@@ -1465,6 +1473,7 @@ class Game {
     this.updateShadow(h.pos);
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time + this.attractT, this.camera);
+    if (this.grass) this.grass.update(this.time + this.attractT, this.camera);
   }
 
   tick(dt, background) {
@@ -1649,6 +1658,7 @@ class Game {
 
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time, this.camera);
+    if (this.grass) this.grass.update(this.time, this.camera);
     this.updateWeather(dt);
     this.updateCamera(dt);
     this.vr.updateCamera(this.camera, this.seat);

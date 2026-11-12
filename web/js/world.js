@@ -6,6 +6,7 @@ import { makeRng, smoothstep, clamp, lerp, dist2 } from './util.js';
 import * as M from './models.js';
 import { T, HELI_TYPES } from './theme.js';
 import { buildHeliModel } from './heliModels.js';
+import { terrainMaterial, softenTree, upgradeWater, animateWater } from './gfx.js';
 
 const SITE_NAMES = [
   'LZ X-Ray', 'LZ Albany', 'LZ Bravo', 'LZ Dog', 'LZ Tango', 'LZ Sierra', 'LZ Hotel', 'LZ Juliet',
@@ -24,6 +25,7 @@ export function drawUSFlag(fx) {
 }
 
 export class World {
+  get rockColor() { return 0x6e665a; }
   constructor(scene, quality = 'medium', seed = 1968) {
     this.scene = scene;
     this.quality = quality;
@@ -40,6 +42,7 @@ export class World {
     this.generateHeights();
     this.buildTerrain();
     this.buildWater();
+    upgradeWater(this.water, WORLD_SIZE);
     this.buildSky();
     this.buildFOB();
     this.buildVillages();
@@ -298,6 +301,13 @@ export class World {
     }
     return true;
   }
+  // Bodenfarbe (linear) an einer Stelle, z. B. für Grasbüschel
+  groundColor(x, z, out) {
+    const N = this.N;
+    const ix = clamp(Math.round((x + HALF) / CELL), 0, GRID), iz = clamp(Math.round((z + HALF) / CELL), 0, GRID);
+    const i = (iz * N + ix) * 3;
+    return out.setRGB(s2l(this.colors[i]), s2l(this.colors[i + 1]), s2l(this.colors[i + 2]));
+  }
   nearFlat(x, z, pad = 0) {
     for (const f of this.flats) if (dist2(f.x, f.z, x, z) < f.r + pad) return f;
     return null;
@@ -360,7 +370,7 @@ export class World {
       col[i * 3] = s2l(c[0]); col[i * 3 + 1] = s2l(c[1]); col[i * 3 + 2] = s2l(c[2]);
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, map: this.detailTexture() });
+    const mat = terrainMaterial({ rock: this.rockColor, detail: this.quality === 'low' ? 0.7 : 1 });
     this.terrain = new THREE.Mesh(geo, mat);
     this.terrain.receiveShadow = true;
     this.scene.add(this.terrain);
@@ -408,9 +418,19 @@ export class World {
     const geo = new THREE.SphereGeometry(4800, 24, 12);
     const mat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { top: { value: new THREE.Color(T.sky.top) }, horizon: { value: new THREE.Color(T.sky.horizon) } },
+      uniforms: { top: { value: new THREE.Color(T.sky.top) }, horizon: { value: new THREE.Color(T.sky.horizon) }, sunDir: { value: new THREE.Vector3(-0.5, 1, 0.35).normalize() }, sunCol: { value: new THREE.Color(T.sky.sun || 0xfff2dc) } },
       vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'uniform vec3 top; uniform vec3 horizon; varying vec3 vP; void main(){ float h = normalize(vP).y; vec3 c = mix(horizon, top, pow(clamp(h,0.0,1.0), 0.55)); gl_FragColor = vec4(c,1.0); }',
+      // Verlauf Horizont–Zenit, heller Dunst am Horizont, Sonnenhof (schwächer bei dunklem Himmel)
+      fragmentShader: `uniform vec3 top; uniform vec3 horizon; uniform vec3 sunDir; uniform vec3 sunCol; varying vec3 vP;
+        void main(){
+          vec3 d = normalize(vP); float h = d.y;
+          vec3 c = mix(horizon, top, pow(clamp(h, 0.0, 1.0), 0.55));
+          float lum = max(max(horizon.r, horizon.g), horizon.b);
+          c += horizon * 0.18 * exp(-abs(h) * 14.0) * lum;
+          float s = max(dot(d, sunDir), 0.0);
+          c += sunCol * (pow(s, 7.0) * 0.16 + pow(s, 60.0) * 0.35 + smoothstep(0.9993, 0.9997, s) * 1.6) * lum * lum;
+          gl_FragColor = vec4(c, 1.0);
+        }`,
     });
     this.sky = new THREE.Mesh(geo, mat);
     this.sky.renderOrder = -10;
@@ -609,6 +629,7 @@ export class World {
     this.nearR = { low: 380, medium: 560, high: 780 }[q] || 560;
     this.cellCache = new Map();
     this.treeTypes = this.treeDefs;
+    for (const t of this.treeTypes) { softenTree(t.geo); if (t.near) softenTree(t.near); }
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this._m4 = new THREE.Matrix4(); this._q4 = new THREE.Quaternion(); this._e4 = new THREE.Euler(); this._p4 = new THREE.Vector3(); this._s4 = new THREE.Vector3();
     this._c4 = new THREE.Color();
@@ -874,6 +895,7 @@ export class World {
 
   update(dt, t, camera) {
     this.sky.position.copy(camera.position);
+    animateWater(this.water, t);
     this.updateTrees(camera.position);
     // Flaggen flattern
     for (const fl of this.flags || []) {

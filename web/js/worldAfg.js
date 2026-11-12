@@ -15,6 +15,7 @@ const SITE_NAMES = [
 const VILLAGE_NAMES = ['Chahar Dara', 'Isa Khel', 'Gor Tepa', 'Quatliam', 'Nahr-e Saraj', 'Haji Amanullah', 'Basus', 'Malgir', 'Shin Kalay', 'Karez-e Bala'];
 
 export class AfghanWorld extends World {
+  get rockColor() { return 0x8c7c66; }
   get outerColor() { return 0x9c8462; }
   get waterColor() { return 0x5f7466; }
   get villageClear() { return 95; }

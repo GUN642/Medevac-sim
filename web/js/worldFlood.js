@@ -18,6 +18,7 @@ const VILLAGE_NAMES = ['Altenbrück', 'Lindenau', 'Mühlbach', 'Rosenau', 'Kirch
 const WATER_FLOOR = -2.4;
 
 export class FloodWorld extends World {
+  get rockColor() { return 0x6c665c; }
   get outerColor() { return 0x2e4424; }
   get waterColor() { return 0x6e5d3e; }
   get villageClear() { return 0; }

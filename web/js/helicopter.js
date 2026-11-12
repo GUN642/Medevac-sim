@@ -1,4 +1,5 @@
 // Hubschrauber: Flugmodell (arcade-nah mit Flugassistent), Treibstoff, Schaden, Kabine – Werte je nach Typ
+import { applyEnv } from './gfx.js';
 import * as THREE from './lib/three.module.min.js';
 import { FUEL, G, HALF } from './config.js';
 import { Figure } from './models.js';
@@ -51,6 +52,7 @@ export class Helicopter {
     this.spec = HELI_TYPES[this.type];
     if (this.model) this.scene.remove(this.model.group);
     this.model = buildHeliModel(this.spec, { number: this.spec.numbers[this.index % this.spec.numbers.length] });
+    applyEnv(this.model.group);
     // eigene Materialkopien (zum Abdunkeln nach einem Absturz)
     this.model.tint = [this.model.body, this.model.detail].filter(Boolean).map((m) => (m.material = m.material.clone()));
     this.model.rotorHome = this.model.mainRotor.position.clone();

@@ -20,6 +20,7 @@ function mesaAt(n, x, z) {
 }
 
 export class MaliWorld extends AfghanWorld {
+  get rockColor() { return 0x8a5c40; }
   get outerColor() { return 0xa8653e; }
   get waterColor() { return 0x5b6a5c; }
   get villageClear() { return 80; }

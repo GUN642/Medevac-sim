@@ -18,6 +18,7 @@ const WALLS_NO = [0x8c2a22, 0x9a3328, 0xc9a23a, 0xe8e2d6, 0x7a2a22, 0xd9d2c0];
 const ROOFS_NO = [0x2e2e30, 0x3a3a3c, 0x3d4a2c];
 
 export class NorwayWorld extends World {
+  get rockColor() { return 0x63686e; }
   get outerColor() { return 0xdde4ea; }
   get waterColor() { return 0x2f4756; }
   get villageClear() { return 60; }
