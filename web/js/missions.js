@@ -5,12 +5,16 @@ import { wreckAfg, dingoParts, mrapParts, fuelTruckAfg } from './afgModels.js';
 import { rand, clamp, bearing, dirName, fmtDist, fmtBearing, dist2 } from './util.js';
 import { wreckParts, merge, vcMat, P, Figure } from './models.js';
 import { SlingLoad, ROPE } from './sling.js';
+import { EXTRA, genMods, describeMods, acceptMods, updateMods, scoreMods, hudMods } from './missionExtras.js';
 
 const NATO = ['Kilo', 'Lima', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Tango', 'Victor', 'Whiskey', 'Yankee', 'Zulu', 'Hotel'];
 // Aufträge, bei denen Soldaten/Personen/Ladung transportiert werden (nicht Verwundete)
-const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip', 'boat', 'convoy', 'sling', 'auto'];
-const TYPE_WEIGHTS = [['medevac', 30], ['transport', 13], ['csar', 11], ['insert', 10], ['exfil', 10], ['resupply', 10], ['recon', 8], ['vip', 8], ['boat', 8], ['sling', 9], ['auto', 5]];
+const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip', 'boat', 'convoy', 'sling', 'auto', 'fastrope', 'fire'];
+const TYPE_WEIGHTS = [['medevac', 24], ['transport', 10], ['csar', 9], ['insert', 8], ['exfil', 8], ['resupply', 7], ['recon', 6], ['vip', 5], ['boat', 7], ['sling', 12], ['auto', 4], ['fire', 8], ['fastrope', 9], ['search', 8]];
 const SMOKES = ['gelb', 'rot', 'grün', 'violett'];
+const SLING_WHAT = { net: 'Netz mit Nachschubkisten', bags: 'Big Bags mit Sandsäcken für den Deich', jeep: 'liegengebliebenes Fahrzeug bergen', howitzer: 'leichte Feldhaubitze (105 mm)', bladder: 'Treibstoffblase (1900 l)', water: 'Trinkwassertanks', container: 'Container mit Notstromaggregat', boat: 'Rettungsboot mit Außenborder' };
+const SLING_PTS = { jeep: 650, howitzer: 620, bladder: 560, container: 540, water: 520, boat: 470, net: 480, bags: 480 };
+const SLING_DONE = { jeep: 'Fahrzeug geborgen', bags: 'Sandsäcke am Deich abgesetzt', howitzer: 'Geschütz in Stellung gebracht', bladder: 'Treibstoff geliefert', water: 'Trinkwasser geliefert', container: 'Container abgesetzt', boat: 'Rettungsboot abgesetzt', net: 'Nachschub als Außenlast geliefert' };
 const SMOKE_ADJ = { gelb: 'Gelber', rot: 'Roter', grün: 'Grüner', violett: 'Violetter' };
 
 export class Missions {
@@ -82,7 +86,7 @@ export class Missions {
     let type = T.peaceful ? 'winch' : 'medevac';
     if (this.count > 1) {
       // nicht dieselbe Auftragsart wie bei den letzten beiden Aufträgen
-      const pool = (T.missionWeights || TYPE_WEIGHTS).filter(([t]) => !this.recentTypes.slice(-2).includes(t));
+      const pool = (T.missionWeights || TYPE_WEIGHTS).filter(([t]) => !this.recentTypes.slice(-3).includes(t));
       let x = r * pool.reduce((a, t) => a + t[1], 0);
       for (const [t, wgt] of pool) { if ((x -= wgt) <= 0) { type = t; break; } }
     }
@@ -97,6 +101,9 @@ export class Missions {
     // Außenlast nur mit Transporthubschrauber, Autorotationsübung nur mit menschlichem Piloten
     if (type === 'sling' && !g.helis.some((x) => x.spec.capacity > 0)) type = 'medevac';
     if (type === 'auto' && !g.crews.some((c) => c && c.pilot != null)) type = 'medevac';
+    // neue Auftragsarten: nur wenn ein passender Ort gefunden wird
+    const plan = EXTRA[type] ? EXTRA[type].can(this) : null;
+    if (EXTRA[type] && !plan) type = 'medevac';
     const hotChance = clamp(0.3 + this.count * 0.05, 0.3, 0.7);
     const m = {
       id: 'M' + this.count + '_' + Math.floor(rand() * 1e6), num: this.count, type,
@@ -189,8 +196,9 @@ export class Missions {
       m.to = this.sitePoint(site);
       m.hot = false; m.hotAt = null;
     } else if (type === 'sling') {
-      const kind = T.id === 'flood' ? 'bags' : T.peaceful ? 'net' : rand() < 0.45 ? 'jeep' : 'net';
-      const site = this.pickSite();
+      const kinds = { vietnam: ['net', 'howitzer', 'bladder', 'jeep', 'howitzer'], afghanistan: ['net', 'water', 'bladder', 'jeep', 'howitzer'], mali: ['net', 'water', 'bladder', 'jeep', 'water'], norway: ['net', 'container', 'container', 'bladder'], flood: ['bags', 'bags', 'container', 'boat'] }[T.id] || ['net', 'jeep'];
+      const kind = rand.pick(kinds);
+      const site = this.pickSite([], kind === 'howitzer' ? 0.95 : 0.45);
       const pad = w.fob.pads.troop;
       if (kind === 'jeep') {
         m.title = 'BERGUNG – AUSSENLAST';
@@ -198,15 +206,24 @@ export class Missions {
         m.to = this.fobPoint(pad);
         m.hot = rand() < hotChance * 0.5;
         m.hotAt = m.hot ? 'from' : null;
+      } else if (kind !== 'howitzer' && kind !== 'boat' && rand() < 0.3) {
+        // Last von einem Außenposten zum nächsten umsetzen
+        const b = this.pickSite([site]);
+        m.title = 'AUSSENLAST – UMSETZEN';
+        m.from = this.sitePoint(site);
+        m.to = this.sitePoint(b);
+        m.hot = rand() < hotChance * 0.4;
+        m.hotAt = m.hot ? 'to' : null;
       } else {
-        m.title = 'AUSSENLAST';
+        m.title = kind === 'howitzer' ? 'AUSSENLAST – GESCHÜTZ' : 'AUSSENLAST';
         m.from = this.fobPoint(pad);
         m.to = this.sitePoint(site);
         m.hot = rand() < hotChance * 0.4;
         m.hotAt = m.hot ? 'to' : null;
       }
       m.count = 1;
-      m.sling = { kind, x: m.from.x + (kind === 'jeep' ? 6 : 0), z: m.from.z + (kind === 'jeep' ? 6 : 0), att: false, hookT: 0, relT: 0, dmg: 0, heli: -1 };
+      const off = m.from.kind === 'fob' ? 0 : 7;
+      m.sling = { kind, x: m.from.x + off, z: m.from.z + off, att: false, hookT: 0, relT: 0, dmg: 0, heli: -1 };
     } else if (type === 'auto') {
       const c = w.findClearing(rand, 700, 2600, this.recentPts);
       const nm = `Übungsfläche ${rand.pick(NATO)}`;
@@ -256,6 +273,8 @@ export class Missions {
       m.count = 3;
       m.hot = rand() < 0.15;
       m.hotAt = m.hot ? 'to' : null;
+    } else if (EXTRA[type]) {
+      EXTRA[type].gen(this, m, plan);
     } else if (type === 'recon') {
       m.title = 'AUFKLÄRUNG';
       const pts = [];
@@ -297,6 +316,7 @@ export class Missions {
       m.approx = { x: site.x + Math.cos(a) * d, z: site.z + Math.sin(a) * d };
     }
     if (T.peaceful) { m.hot = false; m.hotAt = null; if (type === 'recon') m.title = 'LAGEERKUNDUNG'; }
+    genMods(this, m);
     // merken, damit die nächsten Aufträge woanders hinführen
     this.recentTypes.push(type);
     if (this.recentTypes.length > 4) this.recentTypes.shift();
@@ -313,7 +333,7 @@ export class Missions {
 
   describe(m) {
     const g = this.game, h = g.heli, w = g.world;
-    const tgt = m.type === 'csar' && !m.revealed ? m.approx : m.from;
+    const tgt = (m.type === 'csar' || m.type === 'search') && !m.revealed ? m.approx : m.type === 'fastrope' ? m.to : m.from;
     const b = bearing(h.pos.x, h.pos.z, tgt.x, tgt.z);
     const d = dist2(h.pos.x, h.pos.z, tgt.x, tgt.z);
     const rows = [];
@@ -371,7 +391,7 @@ export class Missions {
       rows.push(['Vorgabe', 'Über dem Konvoi bleiben, vorausfliegen, Hinterhalte niederkämpfen – unter Beschuss hält der Konvoi an']);
       radio = `„${g.callsign}, hier ${m.unit}. Unser Konvoi mit ${m.count} Fahrzeugen steht abmarschbereit am ${T.fobName}. Erbitten Begleitschutz bis ${m.to.name}.“`;
     } else if (m.type === 'sling') {
-      const what = { net: 'Netz mit Nachschubkisten', bags: 'Big Bags mit Sandsäcken für den Deich', jeep: 'liegengebliebenes Fahrzeug bergen' }[m.sling.kind];
+      const what = SLING_WHAT[m.sling.kind];
       rows.push(['Auftrag', `Außenlast am Lasthaken: ${what}`]);
       rows.push(['Last aufnehmen', `${m.from.name}${m.from.kind === 'site' ? ` · Planquadrat ${w.gridRef(m.from.x, m.from.z)}` : ''}`]);
       rows.push(['Richtung / Entfernung', `${fmtBearing(b)} (${dirName(b)}) · ${fmtDist(d)}`]);
@@ -380,6 +400,11 @@ export class Missions {
       if (!T.peaceful) rows.push(['LZ-Status', hotTxt, m.hot ? 'hot' : 'cold']);
       radio = m.sling.kind === 'jeep'
         ? `„${g.callsign}, hier ${m.unit}. Ein Fahrzeug ist bei ${m.from.name} liegengeblieben – bitte als Außenlast zur ${T.fobName} bringen.“`
+        : m.sling.kind === 'howitzer' ? `„${g.callsign}, hier ${m.unit}. Wir richten bei ${m.to.name} eine Feuerstellung ein – bringen Sie das Geschütz von Pad ${m.from.pad.name} hoch.“`
+        : m.from.kind === 'site' ? `„${g.callsign}, hier ${m.unit}. Bei ${m.from.name} steht ${what} – bitte nach ${m.to.name} umsetzen.“`
+        : m.sling.kind === 'container' ? `„${g.callsign}, hier ${T.peaceful ? 'Einsatzleitung' : m.unit}. ${m.to.name} braucht ${T.id === 'flood' ? 'ein Notstromaggregat' : 'Material im Container'} – Last steht auf Pad ${m.from.pad.name} bereit.“`
+        : m.sling.kind === 'boat' ? `„${g.callsign}, hier Einsatzleitung. In ${m.to.name} fehlt ein Rettungsboot – bitte als Außenlast hinbringen.“`
+        : m.sling.kind === 'bladder' || m.sling.kind === 'water' ? `„${g.callsign}, hier ${T.peaceful ? 'Einsatzleitung' : m.unit}. ${m.to.name} geht ${m.sling.kind === 'water' ? 'das Trinkwasser' : 'der Treibstoff für die Generatoren'} aus – Last steht auf Pad ${m.from.pad.name} bereit.“`
         : `„${g.callsign}, hier ${T.peaceful ? 'TOC' : m.unit}. ${m.sling.kind === 'bags' ? 'Der Deich' : 'Der Posten'} bei ${m.to.name} braucht dringend ${m.sling.kind === 'bags' ? 'Sandsäcke' : 'Nachschub'} – Last steht auf Pad ${m.from.pad.name} bereit.“`;
     } else if (m.type === 'auto') {
       rows.push(['Auftrag', 'Übung: Notlandung ohne Triebwerk (Autorotation)']);
@@ -427,6 +452,8 @@ export class Missions {
       rows.push(['Vorgabe', 'Jeden Punkt unter 180 m über Grund in max. 180 m Abstand überfliegen']);
       rows.push(['Lage', T.peaceful ? 'Schadenslage unklar' : m.hot ? 'Feindbewegungen gemeldet' : 'unklar', m.hot ? 'hot' : 'cold']);
       radio = T.peaceful ? `„${g.callsign}, hier Krisenstab. Erkunden Sie ${m.points.map((p) => p.name).join(', ')} und melden Sie die Schadenslage.“` : `„${g.callsign}, hier TOC. Klären Sie ${m.points.map((p) => p.name).join(', ')} auf und melden Sie Feindbewegungen.“`;
+    } else if (EXTRA[m.type]) {
+      radio = EXTRA[m.type].describe(this, m, rows, { b, d, hotTxt });
     } else if (m.type === 'cas') {
       rows.push(['Auftrag', 'Luftnahunterstützung – Truppe im Gefecht (TIC)']);
       rows.push(['Einsatzort', `${m.from.name} · Planquadrat ${w.gridRef(m.from.x, m.from.z)}`]);
@@ -453,6 +480,8 @@ export class Missions {
       const txt = { ...txt0, peak: 'Gipfel-LZ – kleine Landefläche, Fallwinde, steile Hänge', valley: 'enges Flusstal – hohe Hänge, wenig Platz', ridge: 'Hang-LZ – schmaler Absatz am Steilhang, Rotor frei halten', wadi: 'Wadi – enges Trockental zwischen Böschungen, starker Staub', mesa: 'Tafelberg – Landung an der Abbruchkante, Fallwinde' };
       if (hs) rows.push(['Schwierige LZ', `${p.name}: ${txt[hs]}`, 'hot']);
     }
+    const extra = describeMods(this, m, rows);
+    if (extra) radio = radio.replace(/“$/, extra + '“');
     const need = this.fuelNeeded(m);
     if (g.heli.fuel < need) rows.push(['Hinweis', `Treibstoff knapp (${Math.round(g.heli.fuel)} %, benötigt ca. ${Math.round(need)} %) – vorher am Tankwagen (POL) tanken!`, 'hot']);
     return { title: `AUFTRAG #${m.num} – ${m.title}`, rows, radio, hot: m.hot };
@@ -478,12 +507,12 @@ export class Missions {
 
     // Passagiere an Punkt A
     const kinds = [];
-    if (m.type === 'medevac' || (m.type === 'ship' && m.variant === 'med')) { for (let i = 0; i < m.litters; i++) kinds.push('litter'); for (let i = 0; i < m.walking; i++) kinds.push('walking'); }
+    if (m.type === 'medevac' || m.type === 'search' || (m.type === 'ship' && m.variant === 'med')) { for (let i = 0; i < m.litters; i++) kinds.push('litter'); for (let i = 0; i < m.walking; i++) kinds.push('walking'); }
     else if (m.type === 'csar') for (let i = 0; i < m.count; i++) kinds.push('pilot');
-    else if (m.type === 'insert' || m.type === 'exfil' || m.type === 'boat') for (let i = 0; i < m.count; i++) kinds.push('sof');
+    else if (m.type === 'insert' || m.type === 'exfil' || m.type === 'boat' || m.type === 'fastrope') for (let i = 0; i < m.count; i++) kinds.push('sof');
     else if (m.type === 'resupply') for (let i = 0; i < m.count; i++) kinds.push('cargo');
     else if (m.type === 'vip') kinds.push('vip', 'troop', 'troop');
-    else if (!['cas', 'recon', 'winch', 'convoy', 'sling', 'auto'].includes(m.type)) for (let i = 0; i < m.count; i++) kinds.push('troop');
+    else if (!['cas', 'recon', 'winch', 'convoy', 'sling', 'auto', 'fire'].includes(m.type)) for (let i = 0; i < m.count; i++) kinds.push('troop');
     kinds.forEach((k, i) => {
       let x, z;
       if (m.from.kind === 'fob') { x = m.from.x + 17 + (i % 3) * 1.6; z = m.from.z - 4 + Math.floor(i / 3) * 1.8; }
@@ -496,6 +525,7 @@ export class Missions {
       const S = m.sling, ref = Math.max(...g.helis.filter((x) => x.spec.capacity > 0).map((x) => x.spec.emptyMass));
       (this.slings || (this.slings = new Map())).set(m.id, new SlingLoad(g.scene, S.kind, S.x, Math.max(w.height(S.x, S.z), 0), S.z, ref));
     }
+    if (EXTRA[m.type] && EXTRA[m.type].accept) EXTRA[m.type].accept(this, m);
     // Verteidiger
     for (const end of ['from', 'to']) {
       const p = m[end];
@@ -542,8 +572,9 @@ export class Missions {
       m.wreckInfo = { x: m.from.x + Math.cos(a) * 30, z: m.from.z + Math.sin(a) * 30, r: rand() * 6 };
       this.buildWreck(m);
     }
+    acceptMods(this, m);
     g.radio(this.describe(m).radio, m.unit);
-    if (m.from.kind === 'fob' && m.type !== 'sling') g.radio(`TOC: Die Truppe wartet neben Pad ${m.from.pad.name}. Landen Sie dort zum Aufnehmen.`, 'TOC');
+    if (m.from.kind === 'fob' && m.type !== 'sling' && m.type !== 'fire') g.radio(`TOC: Die Truppe wartet neben Pad ${m.from.pad.name}. Landen Sie dort zum Aufnehmen.`, 'TOC');
     this.changed();
   }
 
@@ -581,7 +612,7 @@ export class Missions {
     if (m.boarded >= m.count) {
       const to = m.to;
       const b = bearing(h.pos.x, h.pos.z, to.x, to.z);
-      const what = m.type === 'ship' && m.variant === 'med' ? `${m.count} Verwundete gerettet` : m.type === 'convoy' ? `${alive} von ${m.count} Fahrzeugen sicher angekommen` : m.type === 'winch' ? 'Alle Personen' : m.type === 'recon' ? `3 Punkte aufgeklärt, ${m.found || 0} Feinde gemeldet` : m.type === 'resupply' ? `${m.count} Kisten Nachschub geliefert` : m.type === 'vip' ? `${m.vip.who} sicher abgesetzt` : m.type === 'insert' ? `${m.unit} unentdeckt abgesetzt` : m.type === 'exfil' ? `${m.unit} herausgeholt` : m.type === 'cas' ? `${m.killed || m.count} Feinde bekämpft` : m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : 'Alle Soldaten';
+      const what = m.type === 'ship' && m.variant === 'med' ? `${m.count} Verwundete gerettet` : m.type === 'convoy' ? `${alive} von ${m.count} Fahrzeugen sicher angekommen` : m.type === 'winch' ? 'Alle Personen' : m.type === 'recon' ? `3 Punkte aufgeklärt, ${m.found || 0} Feinde gemeldet` : m.type === 'resupply' ? `${m.count} Kisten Nachschub geliefert` : m.type === 'vip' ? `${m.vip.who} sicher abgesetzt` : m.type === 'insert' ? `${m.unit} unentdeckt abgesetzt` : m.type === 'exfil' ? `${m.unit} herausgeholt` : m.type === 'cas' ? `${m.killed || m.count} Feinde bekämpft` : m.type === 'medevac' ? 'Alle Verwundeten' : m.type === 'csar' ? 'Alle Überlebenden' : m.type === 'search' ? (m.count > 1 ? 'Beide Vermissten' : 'Die vermisste Person') : 'Alle Soldaten';
       g.radio(`Crew: ${what} an Bord – los, los, los! Kurs ${fmtBearing(b)} nach ${to.name}.`, 'Crew');
     } else if (g.heliLoad(h) >= h.spec.capacity) g.radio('Crew: Kabine voll! Der Rest muss mit dem zweiten Hubschrauber mit.', 'Crew');
     this.changed();
@@ -592,6 +623,7 @@ export class Missions {
     const m = this.current;
     if (!m || this.phase !== 'active') return null;
     if (m.type === 'sling') return m.sling.att ? 'to' : 'from';
+    if (EXTRA[m.type] && EXTRA[m.type].target) return EXTRA[m.type].target(this, m);
     if (m.type === 'auto') return 'from';
     if (m.boarded < m.count && this.game.heliLoad(h) < h.spec.capacity) {
       if (this.paxOf(h) === 0 || m.from.kind === 'roof') return 'from';
@@ -617,12 +649,13 @@ export class Missions {
       return { x: m.to.x, z: m.to.z, y: m.to.y, label: m.to.short, radius: 25, winch: true, hoverY: gy + ROPE + (L ? L.top : 1.5) + 1.2 };
     }
     if (m.type === 'auto') return { x: m.from.x, z: m.from.z, y: m.from.y, label: m.from.short, radius: 150 };
+    if (EXTRA[m.type] && EXTRA[m.type].waypoint) return EXTRA[m.type].waypoint(this, h, m);
     if (t === 'from') {
-      if (m.type === 'csar' && !m.revealed) return { x: m.approx.x, z: m.approx.z, y: this.game.world.height(m.approx.x, m.approx.z), label: 'Suchgebiet', radius: 400, approx: true };
+      if ((m.type === 'csar' || m.type === 'search') && !m.revealed) return { x: m.approx.x, z: m.approx.z, y: this.game.world.height(m.approx.x, m.approx.z), label: 'Suchgebiet', radius: m.searchR || 400, approx: true };
       if (m.from.kind === 'roof') return { x: m.from.x, z: m.from.z, y: m.from.y, label: m.from.short, radius: 12, winch: true, hoverY: m.from.y + 12 };
       return { x: m.from.x, z: m.from.z, y: m.from.y, label: m.from.short, radius: m.from.kind === 'fob' ? 12 : m.from.kind === 'recon' ? 150 : 45 };
     }
-    return { x: m.to.x, z: m.to.z, y: m.to.y, label: m.to.short, radius: m.to.kind === 'fob' ? 12 : 45, water: m.to.kind === 'water' };
+    return { x: m.to.x, z: m.to.z, y: m.to.y, label: m.to.short, radius: m.to.kind === 'fob' ? 12 : m.to.kind === 'rope' ? 25 : 45, water: m.to.kind === 'water', winch: m.to.kind === 'rope', hoverY: m.to.kind === 'rope' ? m.to.y + 24 : undefined };
   }
 
   update(dt) {
@@ -639,6 +672,9 @@ export class Missions {
       if (this.nextTimer <= 0) this.generate();
     }
     if (!m || this.phase !== 'active') return;
+    updateMods(this, dt);
+    if (this.phase !== 'active') return;
+    if (EXTRA[m.type] && EXTRA[m.type].update && EXTRA[m.type].update(this, dt)) return;
     if (m.type === 'recon') {
       for (const h of helis) {
         const p = m.points[m.idx];
@@ -673,16 +709,17 @@ export class Missions {
       const d = dist2(h.pos.x, h.pos.z, p.x, p.z);
       // Rauch werfen bei Annäherung
       // Nachts markieren alle Truppen (auch Spezialkräfte) mit Blitzlicht
-      if (g.nightSys.night && (p.kind === 'site' || p.kind === 'water' || p.kind === 'roof' || p.kind === 'ship') && d < 1500 && !(m.strobe || {})[end] && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
+      const hidden = (m.type === 'csar' || m.type === 'search') && end === 'from' && !m.revealed;
+      if (g.nightSys.night && (p.kind === 'site' || p.kind === 'water' || p.kind === 'roof' || p.kind === 'ship' || p.kind === 'rope') && d < 1500 && !(m.strobe || {})[end] && !hidden) {
         (m.strobe = m.strobe || {})[end] = true;
         m.emitters.push(g.effects.strobe(p.x + (p.kind === 'roof' || p.kind === 'ship' ? 0 : 3), p.kind === 'roof' || p.kind === 'ship' ? p.y + 0.3 : Math.max(0.3, g.world.height(p.x + 3, p.z)), p.z));
         if (m.noSmoke) g.radio(`${m.unit.split(',')[0]}: Wir hören Sie – IR-Blitzer ist an.`, m.unit.split(',')[0]);
         this.changed();
       }
-      if (p.kind === 'site' && d < 1300 && !m.smokePopped[end] && !m.noSmoke && (m.type !== 'csar' || end !== 'from' || m.revealed)) {
+      if (p.kind === 'site' && d < 1300 && !m.smokePopped[end] && !m.noSmoke && !hidden) {
         m.smokePopped[end] = true;
         m.emitters.push(g.effects.smokeGrenade(p.x + 4, g.world.height(p.x + 4, p.z), p.z, m.smoke));
-        const who = m.type === 'csar' ? m.aircraft.call : m.unit.split(',')[0];
+        const who = m.type === 'csar' ? m.aircraft.call : m.type === 'search' ? 'Vermisste' : m.unit.split(',')[0];
         g.radio(`${who}: ${g.callsign}, wir hören Sie! Rauch ist geworfen – bestätigen Sie ${m.smoke}.`, who);
         setTimeout(() => g.radio(`${g.callsign}: Sehe ${m.smoke}en Rauch, wir kommen rein.`, g.callsign), 2500);
         this.changed();
@@ -690,6 +727,11 @@ export class Missions {
       if (m.hot && m.hotAt === end && !m.hotWarned && d < 1900) {
         m.hotWarned = true;
         g.radio(`${m.type === 'csar' ? m.aircraft.call : m.unit.split(',')[0]}: Achtung, die LZ ist HEISS! Feindfeuer aus Richtung ${m.enemyDir || T.enemyFrom}!`, 'Funk', true);
+      }
+      if (m.type === 'search' && !m.revealed && EXTRA.search.spot(this, h, m)) {
+        m.revealed = true;
+        g.radio(`${g.callsign}: SICHTUNG! ${m.count > 1 ? 'Zwei Personen winken' : 'Eine Person winkt'} – ${dirName(bearing(h.pos.x, h.pos.z, m.from.x, m.from.z))} von uns. Wir gehen runter!`, g.callsign);
+        this.changed();
       }
       if (m.type === 'csar' && !m.revealed && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < 950) {
         m.revealed = true;
@@ -700,20 +742,24 @@ export class Missions {
       if (end === 'to' && this.paxOf(h) > 0) {
         const dd = dist2(h.pos.x, h.pos.z, m.to.x, m.to.z);
         // Bootstrupp: tief und langsam über dem Wasser schweben statt landen
-        const near = m.to.kind === 'water' ? !h.contact && h.agl < 4.5 && h.speed < 2.6 && dd < 40 : h.onGround && dd < (m.to.kind === 'fob' ? 28 : 75);
+        const near = m.to.kind === 'water' ? !h.contact && h.agl < 4.5 && h.speed < 2.6 && dd < 40 : m.to.kind === 'rope' ? EXTRA.fastrope.near(h, m) : h.onGround && dd < (m.to.kind === 'fob' ? 28 : 75);
         if (near && !h.unloading) {
           h.unloading = true;
           h.unloadT = 0.6;
-          g.radio(m.to.kind === 'water' ? 'Crew: Boot raus – Team springt!' : m.to.kind === 'fob' && m.type !== 'transport' ? 'Sanitäter: Wir übernehmen! Bringt sie ins Lazarett!' : 'Crew: Absetzen – alle raus!', m.to.kind === 'fob' ? 'Sanitäter' : 'Crew');
+          g.radio(m.to.kind === 'rope' ? 'Crew: Seil ist draußen – los, los, los!' : m.to.kind === 'water' ? 'Crew: Boot raus – Team springt!' : m.to.kind === 'fob' && m.type !== 'transport' ? 'Sanitäter: Wir übernehmen! Bringt sie ins Lazarett!' : 'Crew: Absetzen – alle raus!', m.to.kind === 'fob' ? 'Sanitäter' : 'Crew');
         }
         if (!near) h.unloading = false;
         if (h.unloading) {
           h.unloadT -= dt;
-          if (h.unloadT <= 0) { h.unloadT = h.spec.door === 'ramp' ? 0.3 : 0.7; this.unloadOne(h); } // über die Heckrampe geht es schneller
+          if (h.unloadT <= 0) { h.unloadT = m.to.kind === 'rope' ? 1.1 : h.spec.door === 'ramp' ? 0.3 : 0.7; this.unloadOne(h); } // über die Heckrampe geht es schneller
         }
-      } else h.unloading = false;
+        if (m.to.kind === 'rope') {
+          const dp = h.doorPoint('right', this._rp || (this._rp = new THREE.Vector3()));
+          this.drawCable(h.unloading ? dp : null, dp.y - Math.max(0, this.game.world.height(dp.x, dp.z)));
+        }
+      } else { if (h.unloading && m.to.kind === 'rope') this.drawCable(null, 0); h.unloading = false; }
     }
-    if (m.delivered >= m.count) this.complete();
+    if (m.delivered >= m.count) { if (m.to.kind === 'rope') this.drawCable(null, 0); this.complete(); }
   }
 
   // ------------------------------------------------------------ Konvoi-Begleitschutz
@@ -943,7 +989,7 @@ export class Missions {
     // Absetzen: Last liegt am Ziel, Seil locker
     if (S.att) {
       const dd = dist2(L.pos.x, L.pos.z, m.to.x, m.to.z);
-      if (L.grounded && dd < 35 && L.groundT > 1.2) {
+      if (m.type === 'sling' && L.grounded && dd < 35 && L.groundT > 1.2) {
         S.att = false; S.done = true;
         if (h) h.extMass = 0;
         L.update(0, null, g.world);
@@ -1150,17 +1196,17 @@ export class Missions {
       this.changed();
       return;
     }
-    const from = h.doorPoint(m.delivered % 2 ? 'left' : 'right');
+    const from = h.doorPoint(m.to.kind === 'rope' ? 'right' : m.delivered % 2 ? 'left' : 'right');
     const f = g.world.fob;
     let target, onArrive = null;
     if (m.to.kind === 'fob') {
       target = LIFT.includes(m.type) ? { x: f.x - 100 + rand() * 20, z: f.z + 40 + rand() * 30 } : { x: f.hospitalDoor.x + rand.range(-1, 1), z: f.hospitalDoor.z };
     } else {
-      const a = rand() * Math.PI * 2, r = m.type === 'insert' ? 70 + rand() * 30 : m.to.kind === 'ship' ? 2 + rand() * 4 : 25 + rand() * 12;
+      const a = rand() * Math.PI * 2, r = m.type === 'insert' || m.type === 'fastrope' ? 70 + rand() * 30 : m.to.kind === 'ship' ? 2 + rand() * 4 : 25 + rand() * 12;
       target = { x: m.to.x + Math.cos(a) * r, z: m.to.z + Math.sin(a) * r };
       const id = m.id, eng = m.hotAt === 'to';
       // Spezialkräfte verschwinden im Gelände, Kistenträger und VIP gehen in den Außenposten
-      if (['insert', 'resupply', 'vip'].includes(m.type)) onArrive = (u) => g.units.removeUnit(u);
+      if (['insert', 'resupply', 'vip', 'fastrope'].includes(m.type)) onArrive = (u) => g.units.removeUnit(u);
       else onArrive = (u) => {
         g.units.setPose(u, 1);
         Object.assign(u, { missionId: id, engage: eng, fireT: rand() * 2, burst: 0, shotT: 0 });
@@ -1169,7 +1215,7 @@ export class Missions {
     }
     g.units.spawnWalker(p.type, from, target, onArrive);
     m.delivered++;
-    if (m.type === 'medevac' || m.type === 'csar' || m.type === 'winch' || (m.type === 'ship' && m.variant === 'med')) g.stats.rescued++; else g.stats.transported++;
+    if (m.type === 'medevac' || m.type === 'csar' || m.type === 'search' || m.type === 'winch' || (m.type === 'ship' && m.variant === 'med')) g.stats.rescued++; else g.stats.transported++;
     this.changed();
   }
 
@@ -1225,21 +1271,24 @@ export class Missions {
     const alive = m.type === 'convoy' ? this.convoyAlive(m) : 0;
     const D = m.drill;
     const drillPts = D ? Math.max(0, 300 - (D.dist || 0) * 1.5) + (D.vy < 2 ? 250 : D.vy < 4.2 ? 120 : 0) : 0;
-    const base = m.type === 'auto' ? Math.round(350 + drillPts) : m.type === 'sling' ? (m.sling.kind === 'jeep' ? 650 : 480) * (1 - (m.sling.dmg || 0) / 200) : m.type === 'convoy' ? alive * 130 + (m.killed || 0) * 15 : m.type === 'winch' ? m.count * 160 : m.type === 'cas' ? (m.killed || m.count) * 45 : m.type === 'recon' ? 450 + (m.found || 0) * 20 : m.type === 'vip' ? 500 : m.type === 'resupply' ? m.count * 60 : m.count * 100;
-    const hardLZ = m.type === 'boat' || m.type === 'winch' || m.type === 'convoy' || [m.from, m.to].some((p) => p && p.site && p.site.hard);
-    const mult = (m.hot ? 1.5 : 1) * (m.type === 'csar' ? 1.3 : 1) * (hardLZ ? 1.3 : 1);
+    const X = EXTRA[m.type] && EXTRA[m.type].score ? EXTRA[m.type].score(this, m) : null;
+    const MD = scoreMods(this, m, elapsed);
+    const base = X ? X.base : m.type === 'auto' ? Math.round(350 + drillPts) : m.type === 'sling' ? (SLING_PTS[m.sling.kind] || 480) * (1 - (m.sling.dmg || 0) / 200) : m.type === 'convoy' ? alive * 130 + (m.killed || 0) * 15 : m.type === 'winch' ? m.count * 160 : m.type === 'cas' ? (m.killed || m.count) * 45 : m.type === 'recon' ? 450 + (m.found || 0) * 20 : m.type === 'vip' ? 500 : m.type === 'resupply' ? m.count * 60 : m.count * 100;
+    const hardLZ = (X && X.hard) || m.type === 'boat' || m.type === 'winch' || m.type === 'convoy' || [m.from, m.to].some((p) => p && p.site && p.site.hard);
+    const mult = (m.hot ? 1.5 : 1) * (m.type === 'csar' ? 1.3 : 1) * (hardLZ ? 1.3 : 1) * MD.mult;
     const timeBonus = Math.max(0, Math.round(300 - elapsed));
     const dmg = this.teamDamage() - m.damage0;
     const dmgBonus = dmg < 1 ? 150 : 0;
     const score = Math.round(base * mult + timeBonus + dmgBonus);
-    const what = m.type === 'auto' ? `Autorotation: ${D.dist ?? '–'} m neben der Mitte, ${D.vy ?? '–'} m/s beim Aufsetzen` : m.type === 'sling' ? (m.sling.kind === 'jeep' ? 'Fahrzeug geborgen' : m.sling.kind === 'bags' ? 'Sandsäcke am Deich abgesetzt' : 'Nachschub als Außenlast geliefert') + (m.sling.dmg ? ` (Last ${Math.round(m.sling.dmg)} % beschädigt)` : '') : m.type === 'winch' ? `${m.count} ${m.count === 1 ? 'Person' : 'Personen'} gerettet` : m.type === 'medevac' ? `${m.count} Verwundete gerettet` : m.type === 'csar' ? `${m.count} ${m.count === 1 ? 'Pilot' : 'Besatzungsmitglieder'} gerettet` : `${m.count} Soldaten verbracht`;
+    const what = X ? X.what : m.type === 'auto' ? `Autorotation: ${D.dist ?? '–'} m neben der Mitte, ${D.vy ?? '–'} m/s beim Aufsetzen` : m.type === 'sling' ? (SLING_DONE[m.sling.kind] || 'Außenlast geliefert') + (m.sling.dmg ? ` (Last ${Math.round(m.sling.dmg)} % beschädigt)` : '') : m.type === 'winch' ? `${m.count} ${m.count === 1 ? 'Person' : 'Personen'} gerettet` : m.type === 'medevac' ? `${m.count} Verwundete gerettet` : m.type === 'csar' ? `${m.count} ${m.count === 1 ? 'Pilot' : 'Besatzungsmitglieder'} gerettet` : `${m.count} Soldaten verbracht`;
     const result = {
       title: 'AUFTRAG ERFÜLLT',
       score,
       lines: [
         [what, `+${Math.round(base * mult)}`],
         m.hot ? ['Heiße LZ', '×1,5'] : null,
-        hardLZ ? [m.type === 'winch' ? 'Windenrettung' : m.type === 'convoy' ? 'Begleitschutz' : 'Schwierige LZ', '×1,3'] : null,
+        hardLZ ? [m.type === 'winch' ? 'Windenrettung' : m.type === 'convoy' ? 'Begleitschutz' : m.type === 'fire' ? 'Löschflug' : m.type === 'fastrope' ? 'Abseilen im Schwebeflug' : m.type === 'search' ? 'Suche' : 'Schwierige LZ', '×1,3'] : null,
+        ...MD.lines,
         ['Zeitbonus', `+${timeBonus}`],
         dmgBonus ? ['Ohne Schaden', `+${dmgBonus}`] : ['Schaden genommen', `${Math.round(dmg)} %`],
         ['Gesamt', `${score} Punkte`],
@@ -1248,6 +1297,7 @@ export class Missions {
     g.onMissionResult(result, m, { dmg });
     if (g.net) g.net.send({ t: 'result', r: result });
     if (m.type === 'cas') g.radio(`${m.unit.split(',')[0]}: Feind zieht sich zurück – danke für die Unterstützung, ${g.callsign}!`, m.unit.split(',')[0]);
+    else if (m.type === 'fire') { /* Funkspruch kommt vom Einsatzleiter */ }
     else g.radio(LIFT.includes(m.type) || m.type === 'recon' || (m.type === 'ship' && m.variant === 'troop') ? `TOC: Gut gemacht, ${g.callsign}. Auftrag erledigt.` : `Lazarett: Danke, ${g.callsign}! Ihr habt Leben gerettet.`, 'TOC');
     this.retire(m);
     this.nextTimer = g.career && g.career.on && g.career.st.shiftN === 0 ? 25 : 7;   // nach einem Einsatztag kurze Ruhezeit
@@ -1277,7 +1327,7 @@ export class Missions {
     h.passengers = [];
     h.updatePassengerDisplay();
     if (this.game.role === 'client') return;
-    if (m && m.type === 'sling' && m.sling.att && m.sling.heli === h.index && this.phase === 'active') { this.slingFail('Hubschrauber mit Außenlast abgestürzt'); return; }
+    if (m && m.sling && m.sling.att && m.sling.heli === h.index && this.phase === 'active') { this.slingFail('Hubschrauber mit Außenlast abgestürzt'); return; }
     if (m && (lost > 0 || this.game.helis.every((x) => x.crashed))) {
       this.phase = 'failed';
       this.game.radio('TOC: Der Auftrag ist gescheitert. Neuer Auftrag folgt.', 'TOC', true);
@@ -1290,7 +1340,7 @@ export class Missions {
   // ------------------------------------------------------------ Netzwerk (Client-Spiegel)
   toNet() {
     const m = this.current;
-    const skip = new Set(['wreck', 'emitters', 'boat']);
+    const skip = new Set(['wreck', 'emitters', 'boat', 'fireEm']);
     return {
       m: m ? JSON.parse(JSON.stringify(m, (k, v) => (skip.has(k) ? undefined : v))) : null,
       phase: this.phase, nextTimer: this.nextTimer,
@@ -1315,7 +1365,7 @@ export class Missions {
       if (this.phase === 'briefing') { g.hud.showBriefing(m, this.describe(m)); g.audio.radio(); }
     } else {
       const m = old;
-      const keep = { emitters: m.emitters, wreck: m.wreck, mirrorSmoke: m.mirrorSmoke, mirrorStrobe: m.mirrorStrobe };
+      const keep = { emitters: m.emitters, wreck: m.wreck, mirrorSmoke: m.mirrorSmoke, mirrorStrobe: m.mirrorStrobe, fireEm: m.fireEm };
       Object.assign(m, d.m, keep);
       if (m.wreckInfo && !m.wreck) this.buildWreck(m);
       if (this.phase !== 'briefing') g.hud.hideBriefing();
@@ -1325,6 +1375,7 @@ export class Missions {
   updateMirror() {
     const m = this.current;
     if (!m) return;
+    if (m.fire) EXTRA.fire.sync(this, m);
     for (const end of ['from', 'to']) {
       if (m.smokePopped[end] && !m.mirrorSmoke[end]) {
         m.mirrorSmoke[end] = true;
@@ -1340,6 +1391,12 @@ export class Missions {
   }
 
   hudInfo(h = this.game.heli) {
+    const r = this.hudInfo0(h);
+    if (r && r.line) r.line += hudMods(this, this.current);
+    return r;
+  }
+
+  hudInfo0(h = this.game.heli) {
     const m = this.current;
     if (!m) return { line: this.nextTimer > 0 || this.phase === 'done' ? 'Warte auf neuen Auftrag…' : '', step: '' };
     const one = m.count === 1;
@@ -1366,10 +1423,11 @@ export class Missions {
       const step = this.phase === 'briefing' ? 'Neuer Auftrag – Briefing bestätigen' : `Punkt ${m.idx + 1}/3: ${p.name} tief überfliegen (unter 180 m über Grund)`;
       return { line: `${m.title} · ${m.idx}/3 Punkte`, step, hot: m.hot };
     }
-    const n = m.type === 'ship' ? (m.variant === 'med' ? (one ? 'Verwundeter' : 'Verwundete') : 'Soldaten') : m.type === 'winch' ? (one ? 'Person' : 'Personen') : m.type === 'resupply' ? (one ? 'Kiste' : 'Kisten') : m.type === 'vip' ? 'Personen' : m.type === 'insert' || m.type === 'exfil' || m.type === 'boat' ? (T.peaceful ? 'Retter' : 'Spezialkräfte') : T.peaceful && m.type === 'transport' ? 'Helfer' : m.type === 'medevac' ? (one ? 'Verwundeter' : 'Verwundete') : m.type === 'csar' ? (one ? 'Überlebender' : 'Überlebende') : one ? 'Soldat' : 'Soldaten';
+    const n = m.type === 'search' ? (one ? 'Vermisste Person' : 'Vermisste') : m.type === 'fastrope' ? (T.peaceful ? 'Helfer' : 'Soldaten') : m.type === 'ship' ? (m.variant === 'med' ? (one ? 'Verwundeter' : 'Verwundete') : 'Soldaten') : m.type === 'winch' ? (one ? 'Person' : 'Personen') : m.type === 'resupply' ? (one ? 'Kiste' : 'Kisten') : m.type === 'vip' ? 'Personen' : m.type === 'insert' || m.type === 'exfil' || m.type === 'boat' ? (T.peaceful ? 'Retter' : 'Spezialkräfte') : T.peaceful && m.type === 'transport' ? 'Helfer' : m.type === 'medevac' ? (one ? 'Verwundeter' : 'Verwundete') : m.type === 'csar' ? (one ? 'Überlebender' : 'Überlebende') : one ? 'Soldat' : 'Soldaten';
     let step = '';
     const t = this.target(h);
     const left = m.count - m.boarded;
+    if (EXTRA[m.type] && EXTRA[m.type].hud) return EXTRA[m.type].hud(this, h, m);
     if (m.type === 'sling' || m.type === 'auto') {
       const st = this.phase === 'briefing' ? 'Neuer Auftrag – Briefing bestätigen' : this.phase !== 'active' ? '' : m.type === 'sling' ? this.slingHint(h, m) : this.drillHint(h, m);
       return { line: m.type === 'sling' ? `${m.title} · ${m.sling.att ? 'Last am Haken' : 'Last aufnehmen'}` : `${m.title} · Übung`, step: st, hot: m.hot };
@@ -1379,11 +1437,13 @@ export class Missions {
       if (m.from.kind === 'roof') step = this.winchHint(h, m);
       else if (h.onGround && dist2(h.pos.x, h.pos.z, m.from.x, m.from.z) < this.boardRadius()) step = `Einsteigen: ${m.boarded}/${m.count} – Position halten!`;
       else if (m.type === 'csar' && !m.revealed) step = 'Suchgebiet anfliegen – nach Rauchsäule des Wracks Ausschau halten';
+      else if (m.type === 'search' && !m.revealed) step = this.game.nightSys.night ? 'Suchgebiet absuchen – nach einem Blitzlicht Ausschau halten' : 'Suchgebiet in Bahnen absuchen – tief (unter 150 m) und langsam';
       else if (m.from.kind === 'fob') step = `Auf Pad ${m.from.pad.name} landen – Soldaten aufnehmen`;
       else if (m.from.kind === 'ship') step = `Auf dem Flugdeck der Fregatte landen – ${left} ${left === 1 ? 'wartet' : 'warten'}`;
       else step = `Bei ${m.from.name} landen (${m.smoke}er Rauch) – ${left} ${left === 1 ? 'wartet' : 'warten'}`;
     } else if (t === 'to') {
-      if (h.unloading) step = m.to.kind === 'water' ? `Absprung: ${m.delivered}/${m.count} – Position halten!` : `Aussteigen: ${m.delivered}/${m.count} – am Boden bleiben`;
+      if (m.to.kind === 'rope' && this.paxOf(h) > 0) step = EXTRA.fastrope.hint(h, m);
+      else if (h.unloading) step = m.to.kind === 'water' ? `Absprung: ${m.delivered}/${m.count} – Position halten!` : `Aussteigen: ${m.delivered}/${m.count} – am Boden bleiben`;
       else if (this.paxOf(h) === 0) step = `Alle aufgenommen – ${m.delivered}/${m.count} abgeliefert`;
       else if (m.to.kind === 'water') {
         const dd = dist2(h.pos.x, h.pos.z, m.to.x, m.to.z);
