@@ -194,3 +194,37 @@ export function drawUkraineFlag(x) {
   x.fillStyle = '#0057b7'; x.fillRect(0, 0, 190, 50);
   x.fillStyle = '#ffd700'; x.fillRect(0, 50, 190, 50);
 }
+
+// Schützengraben-Abschnitt (Länge L entlang z): Grabensohle, beidseitig Erdwälle mit Holzverschalung,
+// vorn Sandsäcke und Schießscharten. Der Graben liegt zwischen den Wällen (Gelände ist zu grob zum Ausheben).
+export function trenchSegment(L, rng) {
+  const p = [];
+  const earth = 0x4e4232, earth2 = 0x5d4f3a, wood = 0x6a5232, bag = 0x8a7d5c;
+  p.push(P(box(1.3, 0.08, L), 0x3a3026, [0, 0.04, 0]));                         // Sohle (matschig)
+  for (let k = 0; k < Math.floor(L / 1.2); k++) p.push(P(box(1.0, 0.05, 0.25), wood, [0, 0.1, -L / 2 + 0.6 + k * 1.2]));   // Laufroste
+  for (const sx of [-1, 1]) {
+    const front = sx > 0;
+    const h = front ? 1.25 : 1.0;
+    p.push(P(box(1.7, h, L + 0.4), front ? earth : earth2, [sx * 1.5, h / 2, 0], [0, 0, sx * -0.18]));   // Erdwall
+    p.push(P(box(0.08, h + 0.1, L), wood, [sx * 0.68, h / 2, 0]));               // Verschalung
+    for (let k = 0; k <= Math.floor(L / 2); k++) p.push(P(box(0.12, h + 0.25, 0.12), 0x4a3a26, [sx * 0.72, (h + 0.25) / 2, -L / 2 + k * 2]));   // Pfosten
+  }
+  // Sandsäcke auf dem vorderen Wall mit Schießscharten
+  const n = Math.floor(L / 0.7);
+  for (let k = 0; k < n; k++) {
+    if (k % 6 === 3) continue;
+    p.push(P(box(0.6, 0.22, 0.38), bag, [1.05 + (rng() - 0.5) * 0.06, 1.35, -L / 2 + 0.35 + k * 0.7], [0, rng() * 0.2, 0]));
+    if (k % 2 === 0) p.push(P(box(0.6, 0.22, 0.38), bag, [1.05, 1.57, -L / 2 + 0.7 + k * 0.7], [0, rng() * 0.2, 0]));
+  }
+  return p;
+}
+
+// Unterstand mit Rundholzdecke, Erde darauf und Eingang zum Graben
+export function dugoutParts(rng) {
+  const p = [P(box(4.2, 1.1, 3.4), 0x4e4232, [0, 0.55, 0])];
+  for (let k = 0; k < 8; k++) p.push(P(new THREE.CylinderGeometry(0.13, 0.13, 4.4, 6), 0x5a4630, [0, 1.2, -1.6 + k * 0.45], [0, 0, HALFPI]));
+  p.push(P(box(4.4, 0.35, 3.8), 0x55473a, [0, 1.45, 0], [rng() * 0.05, 0, 0]));
+  p.push(P(box(1.0, 1.0, 0.1), 0x1a1612, [-1.2, 0.5, -1.72]));                  // Eingang
+  p.push(P(box(0.9, 0.08, 1.6), 0x3a3026, [-1.2, 0.04, -2.6]));
+  return p;
+}

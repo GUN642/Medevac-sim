@@ -179,6 +179,41 @@ export class UkraineWorld extends AfghanWorld {
     return [r, g, b];
   }
 
+  // ------------------------------------------------------------ Basis mit Schützengräben
+  buildFOB() {
+    super.buildFOB();
+    const f = this.fob, rng = makeRng(777), parts = [];
+    // Zickzack-Grabenring vor der HESCO-Mauer, Lücken an den vier Toren
+    const R = 228, gates = [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+    const segL = 9;
+    const n = Math.floor((2 * Math.PI * R) / segL);
+    let prev = null;
+    for (let i = 0; i <= n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const nearGate = gates.some((g) => Math.abs(Math.atan2(Math.sin(a - g), Math.cos(a - g))) < 0.13);
+      const r = R + (i % 2 ? 3.2 : -3.2);
+      const pt = { x: f.x + Math.cos(a) * r, z: f.z + Math.sin(a) * r, gap: nearGate };
+      if (prev && !prev.gap && !pt.gap) {
+        const dx = pt.x - prev.x, dz = pt.z - prev.z, L = Math.hypot(dx, dz);
+        const mx = (pt.x + prev.x) / 2, mz = (pt.z + prev.z) / 2;
+        // Abschnitt entlang z bauen, dann so drehen, dass die Vorderseite (+x) nach außen zeigt
+        const yaw = Math.atan2(dx, dz);
+        const outward = Math.cos(yaw) * Math.cos(a) - Math.sin(yaw) * Math.sin(a) > 0 ? 0 : Math.PI;
+        parts.push(...M.placeParts(U.trenchSegment(L + 0.6, rng), mx, this.height(mx, mz) - 0.05, mz, yaw + outward));
+      }
+      prev = pt;
+    }
+    // Unterstände an den Ecken, dazu Verbindungsgräben zur Mauer
+    for (const a of [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4]) {
+      const x = f.x + Math.cos(a) * (R - 12), z = f.z + Math.sin(a) * (R - 12);
+      parts.push(...M.placeParts(U.dugoutParts(rng), x, this.height(x, z), z, -a + Math.PI / 2));
+    }
+    const mesh = new THREE.Mesh(M.worldUV(M.merge(parts)), M.vcGrainMat);
+    mesh.castShadow = mesh.receiveShadow = true;
+    this.scene.add(mesh);
+    this.trenchMesh = mesh;
+  }
+
   // ------------------------------------------------------------ Dörfer, Stadt, Wracks, Trichter
   buildVillages() {
     const parts = [];

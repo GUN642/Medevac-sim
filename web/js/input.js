@@ -70,7 +70,9 @@ export class Input {
     canvas.addEventListener('wheel', (e) => { this.mouseWheel(e.deltaY); e.preventDefault(); }, { passive: false });
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     window.addEventListener('gamepadconnected', () => { this.gpConnected = true; this.device = 'gamepad'; this.onDevice && this.onDevice(); });
-    window.addEventListener('gamepaddisconnected', () => { this.gpConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((g) => g); });
+    this.gpCal = {};
+    window.addEventListener('gamepaddisconnected', (e) => {
+      if (e && e.gamepad) delete this.gpCal[e.gamepad.index]; this.gpConnected = [...(navigator.getGamepads ? navigator.getGamepads() : [])].some((g) => g); });
     this.setupTouch();
   }
 
@@ -384,7 +386,29 @@ export class Input {
       const b = (i) => (gp.buttons[i] ? gp.buttons[i].value || (gp.buttons[i].pressed ? 1 : 0) : 0);
       const prev = this.gpPrev[gp.index] || [];
       const pressed = (i) => gp.buttons[i] && gp.buttons[i].pressed && !prev[i];
-      const lx = dz(ax[0] || 0), ly = dz(ax[1] || 0), rx = dz(ax[2] || 0), ry = dz(ax[3] || 0);
+      // Achsen kalibrieren: manche Controller (z. B. Switch Pro/Joy-Con an Android, nicht-Standard-Mapping)
+      // melden unbenutzte Achsen oder Schultertasten dauerhaft bei -1/+1 – ohne Kalibrierung schaut der
+      // Spieler dann ständig nach unten. Achsen, die nie in der Mitte waren und sich nicht bewegen, gelten als Ruhelage.
+      const cal = this.gpCal[gp.index] || (this.gpCal[gp.index] = { rest: ax.map(() => 0), nchg: ax.map(() => 0), center: ax.map(() => false), last: ax.slice(), still: ax.map(() => 0), moved: ax.map(() => 0) });
+      for (let i = 2; i < ax.length; i++) {
+        const v = ax[i] || 0;
+        if (v === cal.last[i]) cal.still[i] += dt; else { cal.still[i] = 0; cal.last[i] = v; cal.nchg[i]++; }
+        // analoge Sticks liefern beim Bewegen viele Zwischenwerte; springt eine Achse ohne Zwischenwerte
+        // an den Anschlag und bleibt dort, ist das eine Ruhelage (Schultertaste, unbelegte Achse)
+        if (cal.nchg[i] > 3 && Math.abs(v) < 0.15) { cal.center[i] = true; cal.rest[i] = 0; }
+        if (!cal.center[i] && cal.nchg[i] <= 3 && cal.still[i] > 0.4 && Math.abs(v) > 0.5) cal.rest[i] = v;
+        cal.moved[i] = Math.max(cal.moved[i], Math.abs(v - cal.rest[i]));
+      }
+      const A = (i) => {
+        if (i >= ax.length) return 0;
+        const r = cal.rest[i], v = (ax[i] || 0) - r;
+        return Math.abs(r) > 0.3 ? 0 : dz(v);   // Achse in Ruhe am Anschlag: Schultertaste o. Ä., nicht als Stick werten
+      };
+      // rechter Stick: Standard 2/3; bei nicht-Standard-Mapping (Android) oft Z/RZ = 2/5
+      let ri = 2, rj = 3;
+      if (gp.mapping !== 'standard' && ax.length >= 6 && (Math.abs(cal.rest[3]) > 0.3 || (cal.moved[5] > 0.35 && cal.moved[3] < 0.2))) rj = 5;
+      if (gp.mapping !== 'standard' && ax.length >= 6 && Math.abs(cal.rest[2]) > 0.3 && Math.abs(cal.rest[3]) < 0.3) { ri = 3; rj = 5; }
+      const lx = A(0), ly = A(1), rx = A(ri), ry = A(rj);
       const any = Math.abs(lx) + Math.abs(ly) + Math.abs(rx) + Math.abs(ry) + b(6) + b(7) > 0.2 || gp.buttons.some((x) => x.pressed);
       if (any && this.device !== 'gamepad') { this.device = 'gamepad'; this.onDevice && this.onDevice(); }
       if (this.mode === 'pilot') {
