@@ -360,3 +360,21 @@ body.driving #crosshair { display: none !important; }
 #pause-mp-code a { color: #9fd3ff; word-break: break-all; }
 #pause-mp-code button { padding: 2px 10px; font-size: 0.85em; margin-left: 6px; }
 #mp-ip { text-transform: uppercase; }
+
+/* Zielfernrohr (Scharfschützengewehr): schwarzer Rand, Fadenkreuz mit dicken Außenbalken und Mil-Punkten */
+#scope { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 3;
+  background: radial-gradient(circle at 50% 50%, transparent 0, transparent 40vmin, rgba(0,0,0,0.6) 40.6vmin, #000 41.5vmin); }
+body.fp-scope #scope { display: block; }
+body.fp-scope #crosshair, body.fp-scope #magvignette { display: none !important; }
+#scope .sv, #scope .sh { position: absolute; background: #000; left: 50%; top: 50%; }
+#scope .sv { width: 2px; height: 82vmin; transform: translate(-50%, -50%); background: linear-gradient(#000 0 30%, #000 30%, #000 70%, #000 70%); }
+#scope .sh { height: 2px; width: 82vmin; transform: translate(-50%, -50%); }
+#scope .sv::before, #scope .sv::after { content: ''; position: absolute; left: -3px; width: 8px; height: 26vmin; background: #000; }
+#scope .sv::before { top: 0; } #scope .sv::after { bottom: 0; }
+#scope .sh::before, #scope .sh::after { content: ''; position: absolute; top: -3px; height: 8px; width: 26vmin; background: #000; }
+#scope .sh::before { left: 0; } #scope .sh::after { right: 0; }
+#scope .sd { position: absolute; left: 50%; top: 50%; width: 30vmin; height: 30vmin; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, #000 0 2.5px, transparent 3px) center / 3vmin 3vmin no-repeat,
+    repeating-linear-gradient(90deg, transparent 0 calc(3vmin - 3px), rgba(0,0,0,0.85) calc(3vmin - 3px) 3vmin) center / 100% 4px no-repeat,
+    repeating-linear-gradient(0deg, transparent 0 calc(3vmin - 3px), rgba(0,0,0,0.85) calc(3vmin - 3px) 3vmin) center / 4px 100% no-repeat; }
+body.vr3d #scope { transform: scaleX(0.5); transform-origin: 0 0; }

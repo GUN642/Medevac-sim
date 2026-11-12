@@ -136,6 +136,17 @@ const FIG_TYPES = {
   dlrg:     { uni: 0xc02a20, skin: 0xd8a882, hat: 'helmet', hatCol: 0xe8e8e8, pack: null, gun: null, vest: 0xe8d23a },
   crewF:    { uni: 0x5a5e58, skin: 0xd8a882, hat: 'flight', hatCol: 0x4a4e4a, pack: null, gun: null },
   vipF:     { uni: 0x2a2e38, skin: 0xe0b08a, hat: null, pack: null, gun: null },
+  // Ukraine: eigene Truppen (Pixeltarn, gelbes Erkennungsband), Gegner (weißes Band)
+  ua:       { uni: 0x5c6646, skin: 0xd8a882, hat: 'helmet', hatCol: 0x556040, pack: 0x4d553a, gun: 0x1d1d1d, vest: 0x4f5739, rifle: 'm4', tape: 0xf2d33a },
+  ua2:      { uni: 0x5c6646, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x556040, pack: 0x4d553a, gun: 0x3b2a1b, vest: 0x4f5739, rifle: 'ak', tape: 0xf2d33a },
+  woundedU: { uni: 0x5c6646, skin: 0xd8a882, hat: 'band', hatCol: 0xeeeeee, pack: null, gun: null, blood: true, tape: 0xf2d33a },
+  crewU:    { uni: 0x5a5f4c, skin: 0xd2a07a, hat: 'flight', hatCol: 0x4a4e3e, pack: null, gun: null, tape: 0xf2d33a },
+  pilotU:   { uni: 0x5a5f4c, skin: 0xd8a882, hat: 'flight', hatCol: 0x3f4133, pack: 0x55604a, gun: null, tape: 0xf2d33a },
+  playerU:  { uni: 0x5c6646, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x556040, pack: 0x4d553a, gun: null, vest: 0x4f5739, armsAim: true, tape: 0xf2d33a },
+  sofU:     { uni: 0x6a6650, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x5a5644, pack: 0x4d4a3a, gun: 0x1d1d1d, vest: 0x4a483a, rifle: 'm4', beard: 0x4a3626, tape: 0xf2d33a },
+  vipU:     { uni: 0x4a5236, skin: 0xd8a882, hat: 'cap', hatCol: 0x3e4630, pack: null, gun: null, tape: 0xf2d33a },
+  ru:       { uni: 0x5f6250, skin: 0xd8a882, hat: 'helmet', hatCol: 0x4f5440, pack: 0x4a4c3c, gun: 0x3b2a1b, vest: 0x50523f, tape: 0xe6e6e6 },
+  ru2:      { uni: 0x58604a, skin: 0xd2a07a, hat: 'helmet', hatCol: 0x4a5040, pack: 0x45483a, gun: 0x3b2a1b, vest: 0x4a4c3a, tape: 0xe6e6e6 },
   tal2:     { uni: 0x6e5f4a, skin: 0xb07a55, hat: 'turban', hatCol: 0xd8d2c0, pack: 0x3d3a30, gun: 0x3b2a1b, robe: true, beard: 0x1b1612 },
 };
 
@@ -222,6 +233,8 @@ function figureGeos(type) {
   }
   if (t.robe) parts.push(P(torsoGeo([{ z: 0.55, w: 0.42, top: 0.16, bot: -0.16 }, { z: 0.75, w: 0.4, top: 0.14, bot: -0.14 }, { z: 0.92, w: 0.36, top: 0.12, bot: -0.12 }], seg), t.uni));
   if (t.pack) { parts.push(P(box(0.32, 0.4, 0.16), t.pack, [0, 1.2, 0.2])); parts.push(P(cyl(0.06, 0.06, 0.3, 8), t.pack, [0, 1.43, 0.2], [0, 0, HALFPI])); }
+  // Erkennungsband (Klebeband) am linken Oberarm
+  if (t.tape) parts.push(P(cyl(0.065, 0.065, 0.07, 10), t.tape, [-0.21, 1.3, 0]));
   if (t.blood) { parts.push(P(box(0.25, 0.16, 0.26), 0x7a1612, [0.04, 1.1, -0.01])); parts.push(P(box(0.3, 0.06, 0.27), 0xe8e6de, [0.02, 1.2, 0])); }
   // Arme: mit Waffe im Anschlag, ohne Waffe entspannt nach vorn
   const sh = 0.205, sy = 1.4;
@@ -558,6 +571,29 @@ export function weaponGeo(id) {
       P(box(0.03, 0.025, 0.06), 0x222222, [0, 0.085, -0.15]),           // Abzug (Gummitaste)
       P(box(0.005, 0.03, 0.5), 0xd8c070, [0.035, 0.04, 0.05]),
       P(box(0.012, 0.012, 0.4), 0x3a3a30, [-0.04, 0.04, 0.0]),          // Trageriemen
+    );
+    return merge(parts);
+  }
+  if (id === 'sniper') {
+    // Scharfschützengewehr (AR-10-Bauart): langer schwerer Lauf, Zielfernrohr mit Türmen, Zweibein, Lochschaft
+    const C = 0x3d3f35;
+    arLower(parts, C);
+    add(
+      boxZ(0.048, 0.046, -0.24, 0.14, 0.052, C),                         // Oberschale
+      boxZ(0.022, 0.012, -0.5, 0.14, 0.081, WK),                         // Montageschiene
+      tubeZ(0.034, -0.24, -0.62, 0.045, C, 10),                          // Handschutz
+      tubeZ(0.013, -0.62, -0.98, 0.045, WK, 8),                          // Lauf
+      tubeZ(0.02, -0.98, -1.06, 0.045, WK, 10),                          // Mündungsbremse
+      tubeZ(0.024, -0.14, 0.12, 0.118, WK, 14),                          // Zielfernrohr-Mittelrohr
+      coneZ(0.024, 0.032, -0.14, -0.2, 0.118, WK, 14), tubeZ(0.032, -0.2, -0.3, 0.118, WK, 14),   // Objektiv
+      coneZ(0.024, 0.03, 0.12, 0.17, 0.118, WK, 14),                     // Okular
+      P(cyl(0.016, 0.016, 0.03, 10), WK, [0, 0.152, -0.02]), P(cyl(0.016, 0.016, 0.03, 10), WK, [0.036, 0.118, -0.02], [0, 0, HALFPI]),
+      boxZ(0.02, 0.03, -0.1, -0.08, 0.095, WK), boxZ(0.02, 0.03, 0.06, 0.08, 0.095, WK),   // Ringe
+      boxZ(0.04, 0.06, 0.14, 0.42, 0.0, C),                              // Schaft
+      P(box(0.04, 0.12, 0.05), C, [0, -0.04, 0.4]),                      // Schaftkappe
+      P(box(0.03, 0.1, 0.07), WK, [0, -0.08, -0.12], [0.1, 0, 0]),       // Magazin
+      P(box(0.012, 0.012, 0.03), WK, [0.03, 0.06, 0.06]),                // Spannhebel
+      P(box(0.012, 0.2, 0.012), WK, [0.025, -0.06, -0.58], [0.5, 0, 0.25]), P(box(0.012, 0.2, 0.012), WK, [-0.025, -0.06, -0.58], [0.5, 0, -0.25]),   // Zweibein
     );
     return merge(parts);
   }

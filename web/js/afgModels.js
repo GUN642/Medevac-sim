@@ -1,4 +1,5 @@
 // Bauten und Vegetation für Afghanistan: Lehmgehöfte (Qalats), Moschee, HESCO-Wälle, Container, Pappeln
+import { bmpParts } from './ukraineModels.js';
 import * as THREE from './lib/three.module.min.js';
 import { P, COL } from './models.js';
 
@@ -254,6 +255,7 @@ export function vehicleParts(kind) {
     p.push(P(cyl(r, r, w, 14), 0x151515, [x, r, z], [0, 0, HALFPI]));
     p.push(P(cyl(r * 0.5, r * 0.5, w + 0.02, 10), 0x777777, [x, r, z], [0, 0, HALFPI]));
   };
+  if (kind === 'bmp') return bmpParts();
   if (kind === 'truck') {
     const c = 0x3e4a2c, d = 0x2c3420;
     p.push(P(box(2.3, 0.35, 6.4), 0x222222, [0, 0.9, 0.2]));

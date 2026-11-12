@@ -25,6 +25,7 @@ const CYCLES = {
   mali: [['clear', 900], ['haze', 300], ['clear', 600], ['dryStorm', 160], ['haze', 240]],
   norway: [['clear', 280], ['overcast', 160], ['snow', 170], ['clear', 220], ['mist', 160], ['snow', 140]],
   flood: [['clear', 320], ['mist', 200], ['clear', 260], ['overcast', 220]],
+  ukraine: [['overcast', 300], ['clear', 260], ['mist', 180], ['shower', 160], ['overcast', 220], ['clear', 240], ['storm', 140]],
 };
 
 const REPORT = {

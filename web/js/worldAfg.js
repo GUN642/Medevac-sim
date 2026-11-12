@@ -25,6 +25,7 @@ export class AfghanWorld extends World {
   get villageNames() { return VILLAGE_NAMES; }
   get secondFlag() { return drawISAFFlag; }
   get desertBush() { return 0.035; }
+  get fobFlags() { return [drawGermanFlag, this.secondFlag]; }
   addSpecialSites() {
     this.addHardSites(["OP Eagle's Nest", 'OP Restrepo', 'OP Vegas', 'OP Mustang'], ['HLZ Korengal', 'HLZ Pech River', 'HLZ Watapur'], 260);
     this.addRidgeSites(['HLZ Saddle', 'HLZ Ledge', 'HLZ Shelf', 'HLZ Kowkh'], ['HLZ Wadi Doab', 'HLZ Wadi Khar', 'HLZ Dry Creek'], 160);
@@ -242,8 +243,7 @@ export class AfghanWorld extends World {
     this.fobMesh = new THREE.Mesh(M.worldUV(M.merge(parts)), M.vcGrainMat);
     this.fobMesh.castShadow = this.fobMesh.receiveShadow = true;
     this.scene.add(this.fobMesh);
-    this.buildFlag(f.x + 12, f.z - 5, drawGermanFlag);
-    this.buildFlag(f.x + 18, f.z - 5, this.secondFlag);
+    this.fobFlags.forEach((d, k) => d && this.buildFlag(f.x + 12 + k * 6, f.z - 5, d));
     this.buildParked([[-46, 100, 0.3], [46, 100, -0.2]]);
 
     this.fobFigures = [];

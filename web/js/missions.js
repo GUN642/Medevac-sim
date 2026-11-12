@@ -535,7 +535,7 @@ export class Missions {
       if (m.hotAt === end) for (const d of def) d.engage = true;
     }
     // Feind
-    if (m.hot) {
+    if (m.hot && m.hotAt) {
       const p = m[m.hotAt];
       const n = m.type === 'cas' ? m.count : 12 + Math.floor(rand() * 8) + Math.min(8, Math.floor(this.count / 2)) + (g.helis.length > 1 ? 5 : 0);
       const en = U.spawnEnemies(p.x, p.z, n, { missionId: m.id, heavy: m.type === 'cas' || rand() < 0.3 + this.count * 0.02 });

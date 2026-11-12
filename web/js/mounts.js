@@ -65,7 +65,7 @@ export class Mounts {
     if (T.peaceful) return;
     const f = this.g.world.fob, scene = this.g.scene;
     // Podest direkt hinter der Mauer, hoch genug zum Darüber-Schießen (HESCO 2,3 m, Sandsäcke 1,3 m)
-    const ph = T.id === 'afghanistan' || T.id === 'mali' ? 1.75 : 0.65;
+    const ph = T.id === 'afghanistan' || T.id === 'mali' || T.id === 'ukraine' ? 1.75 : 0.65;
     const podGeo = merge([
       P(box(3.6, ph, 3.4), 0x8a7550, [0, -ph / 2, 0]),
       P(box(3.7, 0.08, 3.5), 0x6b5a3e, [0, -0.04, 0]),

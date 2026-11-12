@@ -18,6 +18,7 @@ const FIRE_TXT = {
   vietnam: { title: 'LÖSCHWASSEREINSATZ', what: (n) => `Das Dorf ${n} brennt nach einem Mörserangriff`, unit: 'Distriktberater' },
   afghanistan: { title: 'LÖSCHWASSEREINSATZ', what: (n) => `Feldbrand bei ${n} – das Feuer bedroht die Gehöfte`, unit: 'PRT Kunduz' },
   mali: { title: 'LÖSCHWASSEREINSATZ', what: (n) => `Buschfeuer bei ${n} – der Wind treibt es auf das Dorf zu`, unit: 'Zivil-militärische Zusammenarbeit' },
+  ukraine: { title: 'LÖSCHWASSEREINSATZ', what: (n) => `Ein Weizenfeld bei ${n} brennt nach Beschuss – das Feuer läuft auf das Dorf zu`, unit: 'Katastrophenschutz DSNS' },
 };
 
 export const fire = {
@@ -262,6 +263,7 @@ export const fastrope = {
 const SEARCH_TXT = {
   vietnam: { unit: 'LRRP-Team „Ranger 2“', who: (n) => (n > 1 ? 'zwei versprengte Fernspäher' : 'ein versprengter Fernspäher'), why: 'Funkkontakt seit der Nacht abgerissen' },
   afghanistan: { unit: 'Fernspähtrupp „Falke“', who: (n) => (n > 1 ? 'zwei Soldaten einer Patrouille' : 'ein Soldat einer Patrouille'), why: 'nach einem Hinterhalt im Gelände versprengt' },
+  ukraine: { unit: 'Sanitätszug Lada', who: (n) => (n > 1 ? 'zwei verwundete Soldaten eines Spähtrupps' : 'ein verwundeter Späher'), why: 'nach einem Drohnenangriff im Waldstreifen versteckt' },
   mali: { unit: 'Patrouille Gao Süd', who: (n) => (n > 1 ? 'zwei Blauhelme' : 'ein Blauhelm'), why: 'Fahrzeug liegengeblieben, zu Fuß unterwegs' },
   norway: { unit: 'Hovedredningssentralen', who: (n) => (n > 1 ? 'zwei Skitourengeher' : 'ein Skitourengeher'), why: 'seit gestern Abend überfällig' },
   flood: { unit: 'Feuerwehr-Einsatzleitung', who: (n) => (n > 1 ? 'zwei Feuerwehrleute' : 'ein Anwohner'), why: 'von der Flutwelle abgeschnitten' },

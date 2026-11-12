@@ -24,11 +24,19 @@ const WEAPONS_AFG = [
   { id: 'm9', sight: [0.06, 0.02, -0.17, 0.45, 0.045, 0.045], name: 'M9', desc: 'Pistole', mag: 15, reserve: 60, rpm: 400, auto: false, vel: 375, spread: 0.016, fov: 45, reload: 1.5, sound: 'pistol', recoil: 0.025 },
   { id: 'at4', sight: [0.13, 0.18, -0.45, 0.3, 0.085, 0.085], name: 'AT4', desc: 'Panzerfaust', rpm: 30, auto: false, vel: 230, spread: 0.004, fov: 40, reload: 2.6, sound: 'thump', recoil: 0.08, launcher: true, mag: 1, reserve: 2, start: 0 },
 ];
+// Ukraine: Sturmgewehr, Scharfschützengewehr mit 8-fach-Zielfernrohr, leichtes MG, Pistole, Panzerfaust
+const WEAPONS_UA = [
+  WEAPONS_AFG[0],
+  { id: 'sniper', scope: 8, sight: [0.118, 0.06, -0.3, 0.28], name: 'UAR-10 (7,62 mm)', desc: 'Scharfschützengewehr', mag: 10, reserve: 60, rpm: 45, auto: false, vel: 900, spread: 0.0008, fov: 30, reload: 3.0, sound: 'm60', tracer: 0, recoil: 0.045, slow: 0.9 },
+  { ...WEAPONS_AFG[1], name: 'FN Minimi' },
+  { ...WEAPONS_AFG[4], name: 'Fort-17' },
+  WEAPONS_AFG[5],
+];
 // Wird beim Start passend zum Einsatzgebiet befüllt (gleiche Array-Instanz für alle Importe)
 export const WEAPONS = WEAPONS_VN.slice();
 export function setWeaponSet(theme) {
   WEAPONS.length = 0;
-  WEAPONS.push(...(theme === 'afghanistan' || theme === 'mali' ? WEAPONS_AFG : WEAPONS_VN));
+  WEAPONS.push(...(theme === 'ukraine' ? WEAPONS_UA : theme === 'afghanistan' || theme === 'mali' ? WEAPONS_AFG : WEAPONS_VN));
 }
 
 const geoCache = {};
@@ -165,7 +173,7 @@ export class Soldier {
   get curRes() { return this.mount ? this.mount.ammo.res : this.res[this.w]; }
   set curRes(v) { if (this.mount) this.mount.ammo.res = v; else this.res[this.w] = v; }
   // 3x-Vergrößerer nur bei Waffen mit Rotpunktvisier
-  magFactor() { return this.weapon.optic && this.magOn ? 3 : 1; }
+  magFactor() { return this.weapon.scope || (this.weapon.optic && this.magOn ? 3 : 1); }
   toggleMagnifier() {
     if (!this.weapon.optic) return false;
     this.magOn = !this.magOn;
@@ -194,15 +202,16 @@ export class Soldier {
       camera.add(this.vm);
       this.adsT = 0; this.kick = 0;
     }
-    this.vm.visible = on;
-    if (!on) return;
     const w = this.weapon;
+    // durch das Zielfernrohr: Waffe ausblenden, nur das Absehen ist zu sehen
+    this.vm.visible = on && !(w.scope && this.adsT > 0.8);
+    if (!on) return;
     if (this.vmId !== w.id) {
       this.vmId = w.id;
       this.vmGun.geometry = wgeo(w.id);
       if (this.vmSights) this.vmGun.remove(this.vmSights);
       this.vmOptic = w.optic ? opticMeshes(w) : null;
-      this.vmSights = this.vmOptic ? this.vmOptic.g : sightMeshes(w);
+      this.vmSights = this.vmOptic ? this.vmOptic.g : w.scope ? new THREE.Group() : sightMeshes(w);
       this.vmGun.add(this.vmSights);
     }
     if (this.vmOptic) {
@@ -279,7 +288,7 @@ export class Soldier {
     if (!this.active) return;
     if (!this.alive) { this.animateDead(dt); return; }
     this.zoom = zoom;
-    const zf = zoom ? (this.magFactor() > 1 ? 0.18 : 0.45) : 1;
+    const zf = zoom ? (this.weapon.scope ? 0.07 : this.magFactor() > 1 ? 0.18 : 0.45) : 1;
     this.yaw -= look.dx * zf;
     this.pitch = clamp(this.pitch - look.dy * zf, -1.25, 1.2);
     // Am Steuer: Bewegungs-Stick fährt, rechter Stick dreht die Kamera um das Fahrzeug

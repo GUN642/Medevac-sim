@@ -1,4 +1,6 @@
 // Dustoff – Medevac-Hubschraubersimulator (Vietnam 1968 / Afghanistan 2010): Hauptprogramm
+import { Strikes } from './strikes.js';
+import { UkraineWorld } from './worldUkraine.js';
 import { buildEnv, applyWaterEnv, GrassField } from './gfx.js';
 import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
@@ -121,7 +123,7 @@ class Game {
     }
 
     await this.step('Erzeuge Gelände …', 10);
-    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : T.id === 'mali' ? new MaliWorld(this.scene, q, 2017) : T.id === 'norway' ? new NorwayWorld(this.scene, q, 1952) : new World(this.scene, q);
+    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : T.id === 'mali' ? new MaliWorld(this.scene, q, 2017) : T.id === 'norway' ? new NorwayWorld(this.scene, q, 1952) : T.id === 'ukraine' ? new UkraineWorld(this.scene, q, 2023) : new World(this.scene, q);
     buildEnv(this.renderer, this.world.sky, T.sky.hemiGround);
     applyWaterEnv(this.world.water);
     // Grasbüschel im Nahbereich (nicht im Schnee, nicht bei niedriger Qualität)
@@ -132,6 +134,7 @@ class Game {
     await this.step('Effekte …', 60);
     this.effects = new Effects(this.scene, q);
     this.combat = new Combat(this);
+    this.strikes = new Strikes(this);
     this.air = new AirSupport(this);
     this.nightSys = new NightSys(this);
     this.nightSys.set(this.settings.night);
@@ -1570,6 +1573,7 @@ class Game {
     // gefallen oder Fahrzeug zerstört: vom MG herunter
     { const S = this.soldier, M = S.mount; if (M && (!S.alive || this.seat !== 'foot' || (M.veh && M.veh.dead))) { if (M.veh && M.veh.dead && S.alive) S.takeDamage(35); this.mounts.dismount(); } }
     this.combat.update(dt);
+    this.strikes.update(dt);
     const prevPhase = this.missions.phase;
     this.missions.update(dt);
     if (this.role !== 'client' && prevPhase !== 'briefing' && this.missions.phase === 'briefing') this.units.refreshPatrols();
@@ -1757,7 +1761,7 @@ class Game {
         const V = S.drive, yaw = V.yaw + (S.camOff || 0), pc = S.camPitch ?? 0.25, dist = 9;
         S.group.visible = false;
         S.updateViewModel(dt, cam, false);
-        document.body.classList.remove('fp-view', 'fp-ads', 'fp-mag');
+        document.body.classList.remove('fp-view', 'fp-ads', 'fp-mag', 'fp-scope');
         const tx = V.pos.x + Math.sin(yaw) * Math.cos(pc) * dist, tz = V.pos.z + Math.cos(yaw) * Math.cos(pc) * dist;
         const ty = Math.max(V.pos.y + 2 + Math.sin(pc) * dist, this.world.groundHeight(tx, tz) + 1.2);
         if (!this.camInit) { cam.position.set(tx, ty, tz); this.camInit = true; }
@@ -1775,12 +1779,14 @@ class Game {
         fov = zoom ? 32 : 72;
         this.camInit = false;
       } else {
-      const first = this.settings.footView === 'first' && S.alive;
+      // Zielfernrohr: beim Zielen immer aus der Ich-Perspektive
+      const first = (this.settings.footView === 'first' || (zoom && S.weapon.scope)) && S.alive;
       S.group.visible = !first;
       S.updateViewModel(dt, cam, first);
       document.body.classList.toggle('fp-view', first);
       document.body.classList.toggle('fp-ads', first && S.adsT > 0.6);
-      document.body.classList.toggle('fp-mag', first && S.adsT > 0.8 && S.magFactor() > 1);
+      document.body.classList.toggle('fp-mag', first && S.adsT > 0.8 && S.magFactor() > 1 && !S.weapon.scope);
+      document.body.classList.toggle('fp-scope', first && S.adsT > 0.8 && !!S.weapon.scope);
       document.body.classList.toggle('optic', !!S.weapon.optic);
       if (first) {
         cam.position.set(S.pos.x, S.pos.y + (S.crouch ? 1.05 : 1.6), S.pos.z);

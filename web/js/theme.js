@@ -69,6 +69,23 @@ export const HELI_TYPES = {
     gun: { name: '–', rpm: 1, ammo: 0, muzzleVel: 800, range: 10 }, noGuns: true, hoist: true,
     seats: ['pilot'], rotorAudio: 1.8, rotorCut: 1.3, camDist: 17, shadow: 7, door: 'side', numbers: ['77+05', '77+12'],
   },
+  mi8: {
+    id: 'mi8', model: 'mi8', name: 'Mil Mi-8MTW-2 „Hip“', short: 'Mi-8', callsign: 'Rubin 2-1',
+    emptyMass: 7100, fuelMassFull: 1900, paxMass: 100, capacity: 24, maxThrust: 15800 * G,
+    skidH: 1.75, rotorRadius: 10.65, rotorTop: 3.3, maxPitch: 0.55, maxRoll: 0.62, climbRate: 10, sinkRate: 14, yawRate: 1.2,
+    vmax: 135, agility: 1.0, burn: 1.05, drag: 0.9, armor: 0.75,
+    gun: { name: 'PKM', rpm: 700, ammo: 500, mags: 2, muzzleVel: 825, range: 900, tracerEvery: 4 },
+    seats: ['pilot', 'left', 'right'], rotorAudio: 1.25, rotorCut: 0.85, camDist: 34, shadow: 15, door: 'side', numbers: ['15', '27'],
+  },
+  mi24: {
+    id: 'mi24', model: 'mi24', name: 'Mil Mi-24W „Hind“', short: 'Mi-24', callsign: 'Sokil 3-1',
+    emptyMass: 8500, fuelMassFull: 1700, paxMass: 100, capacity: 8, maxThrust: 17600 * G,
+    skidH: 1.6, rotorRadius: 8.65, rotorTop: 2.9, maxPitch: 0.58, maxRoll: 0.7, climbRate: 12, sinkRate: 14, yawRate: 1.35,
+    vmax: 165, agility: 1.2, burn: 1.15, drag: 0.75, armor: 0.4,
+    gun: { name: 'JakB 12,7 mm', rpm: 3600, ammo: 1470, muzzleVel: 860, range: 1400, turret: true, minigun: true, big: true, tracerEvery: 4, soundEvery: 3, arc: { yaw: 1.2, pmin: -1.0, pmax: 0.25 } },
+    rockets: 40, seats: ['pilot', 'left'], seatNames: { left: 'Bordschütze (Bugkanzel)' },
+    rotorAudio: 1.35, rotorCut: 1.0, camDist: 27, shadow: 11, door: 'side', numbers: ['36', '51'],
+  },
 };
 // NH90 der Marine (Übung in Norwegen): ohne Bordwaffen, mit Winde
 HELI_TYPES.nh90s = {
@@ -178,6 +195,28 @@ export const THEMES = {
     sky: { top: 0x7d9ab8, horizon: 0xc9d0d4, fog: 0xc4cbcf, fogDensity: 0.0007, hemiSky: 0xdde3e8, hemiGround: 0x4a5640, hemi: 1.45, sun: 0xfff3e0, sunI: 2.0, clouds: 55 },
     dust: 0, gusts: 0.7,
   },
+  ukraine: {
+    id: 'ukraine', name: 'Ukraine 2023', country: 'der Ukraine', sub: 'UKRAINE 2023 · DONBAS', fobName: 'Stabilisierungspunkt Sokil',
+    helis: ['mi8', 'mi24'], lzStrikes: true,
+    missionWeights: [['medevac', 30], ['transport', 9], ['csar', 7], ['insert', 7], ['exfil', 8], ['resupply', 8], ['recon', 6], ['vip', 3], ['boat', 5], ['sling', 9], ['auto', 2], ['fire', 5], ['fastrope', 5], ['search', 8]],
+    enemyName: 'russische Truppen', enemyFrom: 'Waldstreifen', enemyCover: 'Ruinen', trees: 'Bäume', crashTrees: 'In den Waldstreifen gestürzt!',
+    friend: () => (rand() < 0.5 ? 'ua' : 'ua2'), enemy: (heavy) => (heavy || rand() < 0.4 ? 'ru2' : 'ru'),
+    wounded: 'woundedU', crew: 'crewU', player: 'playerU', pilot: 'pilotU', sof: 'sofU', vip: 'vipU',
+    sofUnits: ['SSO-Trupp 3', 'Aufklärungstrupp Sowa', 'Scharfschützentrupp Hrim', 'Pionierzug Dnipro'],
+    vips: [{ who: 'der Brigadekommandeur', why: 'Lagebesprechung' }, { who: 'ein Kriegsberichterstatter', why: 'Frontreportage' }, { who: 'eine Delegation des Roten Kreuzes', why: 'Evakuierung der Zivilbevölkerung' }],
+    units: [
+      'Zug Wowk, 1. Bataillon', 'Kompanie Jastrub', 'Aufklärungszug Sowa', 'Mörsertrupp Hrim',
+      'Panzergrenadiere Taras', 'Territorialverteidigung Berezivka', 'Sanitätszug Lada', 'Pionierzug Dnipro',
+    ],
+    aircraft: [
+      { kind: 'ah64', name: 'Mi-24', crew: 2, call: 'Sokil 2-2' },
+      { kind: 'f15', name: 'Su-25', crew: 1, call: 'Grach 0-7' },
+      { kind: 'f15', name: 'F-16AM', crew: 1, call: 'Viper 2-1' },
+      { kind: 'uh60w', name: 'Mi-8', crew: 3, call: 'Rubin 1-2' },
+    ],
+    sky: { top: 0x7f97b2, horizon: 0xcfd2c8, fog: 0xc8cbc1, fogDensity: 0.00052, hemiSky: 0xe0e4e2, hemiGround: 0x585a3a, hemi: 1.3, sun: 0xfff0d8, sunI: 2.3, clouds: 45 },
+    dust: 1, gusts: 0.5,
+  },
 };
 
 export const T = Object.assign({}, THEMES.vietnam);
@@ -199,6 +238,6 @@ export function figFor(kind) {
   if (kind === 'vip') return T.vip;
   if (kind === 'cargo') return 'cargo';
   if (kind === 'civ') return rand.pick(['civ', 'civ2', 'civ3']);
-  if (T.peaceful || T.id === 'mali') return T.friend();
+  if (T.peaceful || T.id === 'mali' || T.id === 'ukraine') return T.friend();
   return T.id === 'afghanistan' ? (rand() < 0.5 ? 'isaf' : 'bw') : kind === 'us2' ? 'us2' : 'us';
 }

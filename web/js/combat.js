@@ -76,6 +76,8 @@ export class Combat {
       // Treffer auf Gegner (Segment gegen Kugel)
       const sx = b.p.x - ox, sy = b.p.y - oy, sz = b.p.z - oz;
       const sl2 = sx * sx + sy * sy + sz * sz;
+      // FPV-Drohnen lassen sich abschießen
+      if (!b.visual && g.strikes && g.strikes.drones.length && g.strikes.hitTest(ox, oy, oz, sx, sy, sz)) dead = true;
       for (const e of enemies) {
         if (!e.alive || b.visual) continue;
         const cx = e.x - ox, cy = e.y + 0.9 - oy, cz = e.z - oz;

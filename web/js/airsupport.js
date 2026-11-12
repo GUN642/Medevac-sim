@@ -11,9 +11,10 @@ export const SUPPORT = {
   f16: { name: 'F-16C Fighting Falcon', call: 'Viper 1-1', cooldown: 120, desc: 'lasergelenkte 250-kg-Bombe (GBU-12)' },
   a10: { name: 'A-10C Thunderbolt II', call: 'Hog 2-1', cooldown: 120, desc: 'zwei Tiefflug-Angriffe mit der 30-mm-Kanone' },
   f4: { name: 'F-4 Phantom', call: 'Gunfighter 4', cooldown: 120, desc: 'Napalm-Abwurf entlang der Feindstellung' },
+  su25: { name: 'Su-25 „Grach“', call: 'Grach 0-7', cooldown: 120, desc: 'zwei Tiefflug-Angriffe mit S-8-Raketen' },
 };
-const KINDS = ['ah64', 'f16', 'a10', 'f4'];
-export function supportKinds() { return T.peaceful ? [] : T.id === 'afghanistan' ? ['ah64', 'f16', 'a10'] : T.id === 'mali' ? ['f16', 'a10'] : ['f4']; }
+const KINDS = ['ah64', 'f16', 'a10', 'f4', 'su25'];
+export function supportKinds() { return T.peaceful ? [] : T.id === 'afghanistan' ? ['ah64', 'f16', 'a10'] : T.id === 'mali' ? ['f16', 'a10'] : T.id === 'ukraine' ? ['f16', 'su25'] : ['f4']; }
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 
@@ -49,7 +50,7 @@ export class AirSupport {
     const dir = dirName(bearing(pos.x, pos.z, tgt.x, tgt.z));
     const close = d < 80 ? ' DANGER CLOSE – in Deckung gehen!' : '';
     const who = pid === g.myId ? g.callsign : g.playerName(pid);
-    const what = kind === 'ah64' ? 'übernehme Ihren Sektor' : kind === 'a10' ? 'Kanonenangriff' : kind === 'f4' ? 'Napalm' : 'eine GBU-12';
+    const what = kind === 'ah64' ? 'übernehme Ihren Sektor' : kind === 'a10' ? 'Kanonenangriff' : kind === 'su25' ? 'Raketenangriff im Tiefflug' : kind === 'f4' ? 'Napalm' : 'eine GBU-12';
     g.radio(`${S.call}: ${who}, verstanden – ${what}. Ziel ${d} m ${dir} von Ihnen, Eintreffen in ca. 15 Sekunden.${close}`, S.call, !!close);
     this.spawn(kind, pos, tgt);
   }
@@ -83,9 +84,10 @@ export class AirSupport {
       o.station = 75;
       o.fireT = 2;
     } else {
-      const L = kind === 'a10' ? 3600 : 4500;
-      o.alt = kind === 'f16' ? 520 : kind === 'a10' ? 320 : 220;
-      o.speed = kind === 'a10' ? 165 : kind === 'f16' ? 230 : 200;
+      const low = kind === 'a10' || kind === 'su25';
+      const L = low ? 3600 : 4500;
+      o.alt = kind === 'f16' ? 520 : low ? 320 : 220;
+      o.speed = kind === 'a10' ? 165 : kind === 'su25' ? 190 : kind === 'f16' ? 230 : 200;
       o.pos = new THREE.Vector3(tgt.x + dx * L, gy + o.alt, tgt.z + dz * L);
     }
     o.vel = new THREE.Vector3();
@@ -149,7 +151,7 @@ export class AirSupport {
     const along = toX * o.dir.x + toZ * o.dir.z;      // > 0: Ziel liegt noch voraus
     // Höhe: A-10 stürzt im Anflug auf 150 m, sonst Marschhöhe über dem Gelände
     let alt = o.alt;
-    if (o.kind === 'a10' && along < 2400 && along > -400) alt = clamp(130 + (along - 500) * 0.12, 120, o.alt);
+    if ((o.kind === 'a10' || o.kind === 'su25') && along < 2400 && along > -400) alt = clamp(130 + (along - 500) * 0.12, 120, o.alt);
     if (o.kind === 'f4' && along < 1500 && along > -300) alt = 140;
     const gy = Math.max(w.groundHeight(o.pos.x, o.pos.z), t.y);
     const ty = gy + alt;
@@ -169,6 +171,31 @@ export class AirSupport {
       g.radio(`${S.call}: Napalm ausgeklinkt!`, S.call);
       const end = { x: t.x + o.dir.x * 20, y: t.y, z: t.z + o.dir.z * 20 };
       this.dropBomb(o.pos, end, 2.6, () => this.napalm(t, o.dir));
+    }
+    if (o.kind === 'su25') {
+      // Raketensalven im flachen Sturzflug
+      if (along < 1600 && along > 700) {
+        if (!o.firing) { o.firing = true; o.burst = 0; }
+        o.burst -= dt;
+        if (o.burst <= 0) {
+          o.burst = 0.13;
+          const s = clamp((1600 - along) / 900, 0, 1) * 70 - 35;
+          const ix = t.x + o.dir.x * s + rand.range(-6, 6), iz = t.z + o.dir.z * s + rand.range(-6, 6);
+          const from = o.pos.clone().add(_w.set(o.dir.x * 6, -1.2, o.dir.z * 6));
+          const v = new THREE.Vector3(ix - from.x, w.groundHeight(ix, iz) - from.y, iz - from.z).normalize().multiplyScalar(320);
+          g.combat.rocket(from, v, false);
+          if (g.net) g.net.rocketFire(from, v);
+        }
+      } else if (o.firing) {
+        o.firing = false;
+        o.pass++;
+        g.radio(o.pass < 2 ? `${S.call}: Raketen raus, drehe ab – zweiter Anflug folgt.` : `${S.call}: Alle Raketen verschossen. Grach dreht nach Hause ab.`, S.call);
+      }
+      if (along < -3200 && o.pass < 2) {
+        o.dir = { x: -o.dir.x, z: -o.dir.z };
+        o.pos.set(t.x - o.dir.x * 3600, t.y + o.alt, t.z - o.dir.z * 3600);
+      }
+      return o.pass >= 2 && along < -3000;
     }
     if (o.kind === 'a10') {
       if (along < 1500 && along > 650) {
