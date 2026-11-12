@@ -123,7 +123,7 @@ export class Effects {
   constructor(scene, quality) {
     const mul = quality === 'low' ? 0.5 : quality === 'high' ? 1.4 : 1;
     this.mul = mul;
-    this.smoke = new ParticlePool(scene, Math.floor(2600 * mul), false);
+    this.smoke = new ParticlePool(scene, Math.floor(2600 * mul * (T.heavyDust ? 1.7 : 1)), false);
     this.glow = new ParticlePool(scene, Math.floor(900 * mul), true);
     this.wind = new THREE.Vector3(2.2, 0, 1.2);
     this.emitters = [];

@@ -412,12 +412,14 @@ export class Helicopter {
   fx(dt, world) {
     if (this.crashed) return;
     // Rotorabwind-Staub
-    const dustH = 22 * Math.sqrt(this.spec.rotorRadius / 7.3) * (T.dust > 1 ? 1.4 : 1);
+    // Wüste (Afghanistan, Mali): Brownout setzt früher ein, ist dichter und hält sich am Boden, solange der Rotor dreht
+    const K = T.heavyDust || 0;
+    const dustH = 22 * Math.sqrt(this.spec.rotorRadius / 7.3) * (T.dust > 1 ? 1.4 : 1) * (1 + 0.45 * K);
     const inFob0 = Math.hypot(this.pos.x - world.fob.x, this.pos.z - world.fob.z) < 220;
-    const bo = T.dust > 1 && !inFob0 && this.rpm > 0.5 ? clamp(1 - this.agl / (dustH * 0.55), 0, 1) * Math.min(1, this.thrustFrac * 1.4) * world.dustAt(this.pos.x, this.pos.z) : 0;
-    this.brownout = (this.brownout || 0) + (bo - (this.brownout || 0)) * Math.min(1, dt * (bo > (this.brownout || 0) ? 0.8 : 2));
+    const bo = T.dust > 1 && !inFob0 && this.rpm > 0.5 ? clamp(1 - this.agl / (dustH * (0.55 + 0.2 * K)), 0, 1) * Math.min(1, Math.max(this.thrustFrac * (1.4 + 0.3 * K), K * this.rpm)) * Math.min(1, world.dustAt(this.pos.x, this.pos.z) * (1 + 0.5 * K)) : 0;
+    this.brownout = (this.brownout || 0) + (bo - (this.brownout || 0)) * Math.min(1, dt * (bo > (this.brownout || 0) ? 0.8 + 0.8 * K : 2 - 1.3 * K));
     if (this.rpm > 0.5 && this.agl < dustH) {
-      const rate = (1 - this.agl / dustH) * 70 * Math.max(0.3, this.thrustFrac) * this.effects.mul * T.dust * (this.spec.rotorRadius / 7.3);
+      const rate = (1 - this.agl / dustH) * 70 * Math.max(0.3, this.thrustFrac) * this.effects.mul * T.dust * (this.spec.rotorRadius / 7.3) * (1 + 1.3 * K);
       const rr = this.spec.rotorRadius / 7.3;
       this.dustAcc = (this.dustAcc || 0) + rate * dt;
       const inFob = Math.hypot(this.pos.x - world.fob.x, this.pos.z - world.fob.z) < 220;
@@ -428,7 +430,7 @@ export class Helicopter {
         const ph = world.height(px, pz);
         const sp = 8 + rand() * 6;
         if (ph < 0) this.effects.dust(px, 0.3, pz, Math.cos(ang) * sp, Math.sin(ang) * sp, 0.82, 0.85, 0.82, 1.2);
-        else if (T.dust > 1 && !inFob && world.dustAt(px, pz) > 0.5) { const c = T.dustCol || [0.86, 0.77, 0.6]; this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp * rr, Math.sin(ang) * sp * rr, c[0], c[1], c[2], 3.2 * Math.sqrt(rr), 2.2, 0.7, 2.4); } // Brownout / Whiteout
+        else if (T.dust > 1 && !inFob && world.dustAt(px, pz) > 0.5) { const c = T.dustCol || [0.86, 0.77, 0.6]; this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp * rr * (1 + 0.3 * K), Math.sin(ang) * sp * rr * (1 + 0.3 * K), c[0], c[1], c[2], 3.2 * Math.sqrt(rr) * (1 + 0.6 * K), 2.2 * (1 + 0.7 * K), 0.7 + 0.15 * K, 2.4 * (1 + 0.4 * K)); } // Brownout / Whiteout
         else if (T.dust > 1) { const c = T.dustCol || [0.82, 0.73, 0.59]; this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp * rr, Math.sin(ang) * sp * rr, c[0] * 0.85, c[1] * 0.85, c[2] * 0.85, 1.8, 1.2, 0.45); }
         else if (inFob) this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp, Math.sin(ang) * sp, 0.62, 0.45, 0.32, 1.5);
         else this.effects.dust(px, ph + 0.4, pz, Math.cos(ang) * sp, Math.sin(ang) * sp, 0.52, 0.5, 0.36, 1.3);

@@ -200,6 +200,9 @@ class Game {
     if (this.baseGusts === undefined) this.baseGusts = T.gusts || 0;
     T.gusts = this.baseGusts + s * 1.8 + W.gust;
     this.scene.fog.density = this.fogDensity * (1 + s * 14) * W.fog;
+    // Brownout in der Wüste: die Staubwolke um den eigenen Hubschrauber schluckt die Sicht
+    const K = T.heavyDust || 0, hb = K && this.heli && this.seat !== 'foot' && !this.heli.crashed ? this.heli.brownout || 0 : 0;
+    if (hb > 0.01) this.scene.fog.density *= 1 + hb * hb * 45 * K;
     // Licht: Tageslicht (Norwegen) × Wetter, Blitze hellen kurz auf
     const ns = this.nightSys, amp = ns.nvg ? 4 : 1, fl = this.weatherSys ? this.weatherSys.flash : 0;
     const dk = !ns.night && this.dayK != null ? this.dayK : 1;
@@ -212,6 +215,7 @@ class Game {
       sky.horizon.value.lerp(grey, W.grey * 0.7);
       sky.top.value.lerp(grey, W.grey * 0.8);
       this.scene.fog.color.lerp(grey, W.grey * 0.6);
+      if (hb > 0.01) this.scene.fog.color.lerp(this._boC || (this._boC = new THREE.Color(T.id === 'mali' ? 0xb98a62 : 0xbfa57e)), Math.min(0.9, hb * K));
       if (s > 0) {
         const dc = this._dustC || (this._dustC = new THREE.Color(0xb9895c));
         this.scene.fog.color.lerp(dc, s); sky.horizon.value.lerp(dc, s); sky.top.value.lerp(dc, s * 0.8);
@@ -1672,7 +1676,7 @@ class Game {
     this.nightSys.update(onFoot ? null : h);
     // Brownout: Sicht trübt sich beim Schweben über Sand (nur im/am eigenen Hubschrauber)
     const bo = Math.max(!onFoot && !h.crashed ? h.brownout || 0 : 0, (this.storm || 0) * 0.55);
-    if (Math.abs(bo - (this.boShown || 0)) > 0.02) { this.boShown = bo; $('brownout').style.opacity = (bo * 0.75).toFixed(2); }
+    if (Math.abs(bo - (this.boShown || 0)) > 0.02) { this.boShown = bo; $('brownout').style.opacity = (bo * (T.heavyDust ? 0.93 : 0.75)).toFixed(2); }
     let ah = h, ad = 0;
     if (onFoot) {
       ad = 1e9;

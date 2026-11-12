@@ -123,7 +123,7 @@ export const THEMES = {
       { kind: 'uh60w', name: 'UH-60 Black Hawk', crew: 4, call: 'Knighthawk 2-2' },
     ],
     sky: { top: 0x6d93c0, horizon: 0xd9ccb0, fog: 0xd6c8a8, fogDensity: 0.00058, hemiSky: 0xeae4d6, hemiGround: 0x8a6e4a, hemi: 1.15, sun: 0xfff2dc, sunI: 2.8, clouds: 8 },
-    dust: 2.4, gusts: 1,
+    dust: 2.4, heavyDust: 1, gusts: 1,
   },
   mali: {
     id: 'mali', name: 'Mali 2017', country: 'Mali', sub: 'MALI 2017 · MINUSMA', fobName: 'Camp Castor', helis: ['nh90', 'tiger', 'ch47', 'ch53'],
@@ -142,7 +142,7 @@ export const THEMES = {
       { kind: 'f15', name: 'Mirage 2000D', crew: 2, call: 'Rapace 1-2' },
     ],
     sky: { top: 0x7aa2cc, horizon: 0xe3cfa8, fog: 0xdcc39c, fogDensity: 0.00055, hemiSky: 0xf2e6d2, hemiGround: 0x9a5a38, hemi: 1.15, sun: 0xfff0d8, sunI: 2.9, clouds: 6 },
-    dust: 2.6, gusts: 0.8, storms: true,
+    dust: 2.6, heavyDust: 1.1, gusts: 0.8, storms: true,
   },
   norway: {
     id: 'norway', name: 'Norwegen – Arktis-Übung', country: 'Nordnorwegen', sub: 'NORWEGEN · ARKTIS-ÜBUNG', fobName: 'Flugplatz Bardufoss',
