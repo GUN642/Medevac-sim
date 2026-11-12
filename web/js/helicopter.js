@@ -416,7 +416,8 @@ export class Helicopter {
     const K = T.heavyDust || 0;
     const dustH = 22 * Math.sqrt(this.spec.rotorRadius / 7.3) * (T.dust > 1 ? 1.4 : 1) * (1 + 0.45 * K);
     const inFob0 = Math.hypot(this.pos.x - world.fob.x, this.pos.z - world.fob.z) < 220;
-    const bo = T.dust > 1 && !inFob0 && this.rpm > 0.5 ? clamp(1 - this.agl / (dustH * (0.55 + 0.2 * K)), 0, 1) * Math.min(1, Math.max(this.thrustFrac * (1.4 + 0.3 * K), K * this.rpm)) * Math.min(1, world.dustAt(this.pos.x, this.pos.z) * (1 + 0.5 * K)) : 0;
+    const bo = T.dust > 1 && !inFob0 && this.rpm > 0.5 ? clamp(1 - this.agl / (dustH * (0.55 + 0.2 * K)), 0, 1) * Math.min(1, Math.max(this.thrustFrac * (1.4 + 0.3 * K), K * this.rpm)) * Math.min(1, world.dustAt(this.pos.x, this.pos.z) * (1 + 0.5 * K))
+      * clamp(1 - (this.speed - 7) / 15, 0, 1) : 0;   // nur im Schwebe-/Landeanflug – im schnellen Tiefflug bleibt der Staub hinter dem Hubschrauber
     this.brownout = (this.brownout || 0) + (bo - (this.brownout || 0)) * Math.min(1, dt * (bo > (this.brownout || 0) ? 0.8 + 0.8 * K : 2 - 1.3 * K));
     if (this.rpm > 0.5 && this.agl < dustH) {
       const rate = (1 - this.agl / dustH) * 70 * Math.max(0.3, this.thrustFrac) * this.effects.mul * T.dust * (this.spec.rotorRadius / 7.3) * (1 + 1.3 * K);
