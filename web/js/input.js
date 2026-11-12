@@ -181,6 +181,9 @@ export class Input {
       const cb = this.capture; this.capture = null; cb(k);
       return;
     }
+    // Loslassen immer verarbeiten: sonst „klemmt“ eine Taste, die außerhalb eines Eingabefelds gedrückt und
+    // erst im Feld losgelassen wurde (z. B. Steuerkreuz des Controllers = Pfeiltasten in der Mehrspieler-Lobby)
+    if (!down) { this.keys.delete(k); return; }
     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT')) return;
     if (down) {
       if (this.device !== 'keyboard') { this.device = 'keyboard'; this.onDevice && this.onDevice(); }
@@ -197,6 +200,8 @@ export class Input {
   }
 
   key(...codes) { return codes.some((c) => this.keys.has(c)) ? 1 : 0; }
+  // alle gehaltenen Tasten vergessen (Spielstart, Fenster schließen) – verhindert hängende Tasten
+  releaseAll() { for (const k of [...this.keys]) if (!k.startsWith('Mouse')) this.keys.delete(k); this.aim.dx = this.aim.dy = 0; }
 
   setMode(mode) {
     this.mode = mode;

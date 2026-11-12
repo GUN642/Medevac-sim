@@ -1038,6 +1038,7 @@ class Game {
   }
 
   startGame() {
+    if (this.input) this.input.releaseAll();
     if (this.settings.gyro && this.input) this.input.calibrateGyro();   // beim Start: aktuelle Haltung = neutral
     PF.enterFullscreen();
     this.audio.init();
@@ -1113,6 +1114,7 @@ class Game {
   }
 
   closeLobby(keepScan) {
+    this.input.releaseAll();
     $('lobby').classList.add('hidden');
     clearInterval(this.scanTimer);
     if (this.tr && !keepScan) this.tr.scan(false);
@@ -1209,6 +1211,7 @@ class Game {
 
   // Willkommensnachricht des Hosts: als Client starten
   startClient(w) {
+    this.input.releaseAll();
     this.role = 'client';
     this.myId = w.id;
     this.units.clearAll();
