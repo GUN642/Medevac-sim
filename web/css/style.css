@@ -390,6 +390,6 @@ body:not(.mp) .mp-only { display: none !important; }
 #chat-quick button { font-size: 12px; padding: 5px 9px; background: rgba(20, 30, 40, 0.85); color: #cfe6ff; border: 1px solid #456; border-radius: 3px; }
 #talk-ind { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: none; z-index: 20; }
 #talk-ind span { background: rgba(10, 14, 8, 0.8); color: #ffd36a; border: 1px solid #ffd36a; padding: 3px 10px; border-radius: 12px; font: bold 13px system-ui, sans-serif; }
-#btn-ptt { position: absolute; right: max(14px, env(safe-area-inset-right)); top: 42%; width: 74px; height: 50px; border-radius: 10px; background: rgba(20, 30, 20, 0.55); color: #e8f0d0; border: 1px solid rgba(255, 255, 255, 0.35); font: bold 12px system-ui, sans-serif; pointer-events: auto; }
+#btn-ptt { position: absolute; left: max(14px, env(safe-area-inset-left)); top: 44%; width: 74px; height: 50px; border-radius: 10px; background: rgba(20, 30, 20, 0.55); color: #e8f0d0; border: 1px solid rgba(255, 255, 255, 0.35); font: bold 12px system-ui, sans-serif; pointer-events: auto; }
 #btn-ptt.on { background: rgba(200, 150, 30, 0.75); border-color: #ffd36a; }
 body.touch #chat-box { bottom: auto; top: 12px; left: 50%; transform: translateX(-50%); }
