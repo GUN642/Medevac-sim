@@ -99,7 +99,7 @@ export class Comms {
         else this.g.net.send({ t: 'vid', v: id });
       });
       p.on('call', (call) => {
-        if (![...this.vids.values()].includes(call.peer)) { call.close(); return; }
+        // die ID-Liste vom Host kann später ankommen als der Anruf; Peer-IDs sind zufällig und nur Mitspielern bekannt
         call.answer(this.outStream());
         this.wire(call);
       });
@@ -199,7 +199,7 @@ export class Comms {
     const n = 256, curve = new Float32Array(n);
     for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; curve[i] = Math.tanh(x * 2.2) / Math.tanh(2.2); }
     sh.curve = curve;
-    const out = ctx.createGain(); out.gain.value = 1.5;
+    const out = ctx.createGain(); out.gain.value = 1.1;
     src.connect(hp); hp.connect(lp); lp.connect(sh); sh.connect(out); out.connect(this.g.audio.master);
     c.nodes = [src, hp, lp, sh, out];
   }

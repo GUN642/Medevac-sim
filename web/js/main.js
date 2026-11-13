@@ -1042,6 +1042,8 @@ class Game {
 
   startGame() {
     if (this.input) this.input.releaseAll();
+    // Eingabefeld der Lobby behält sonst den Fokus und schluckt Tasten (z. B. K für den Chat)
+    if (document.activeElement && document.activeElement.tagName === 'INPUT') document.activeElement.blur();
     if (this.settings.gyro && this.input) this.input.calibrateGyro();   // beim Start: aktuelle Haltung = neutral
     PF.enterFullscreen();
     this.audio.init();
@@ -1335,6 +1337,7 @@ class Game {
 
   handleActions(actions) {
     for (const a of actions) {
+      if (a === 'chat' && this.state !== 'menu') { this.comms.openChat(); continue; }
       const blocking = !$('confirm').classList.contains('hidden') || this.state === 'menu' || this.state === 'paused' || this.hud.briefOpen || this.crashShown || this.hud.crewOpen || !$('lobby').classList.contains('hidden');
       if (blocking) {
         if (a === 'confirm') {

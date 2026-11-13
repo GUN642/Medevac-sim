@@ -1363,7 +1363,6 @@ function buildCobra({ static: isStatic = false, number = '68-15083' } = {}) {
     parts.push(P(box(0.48, 0.72, 0.1), 0x2f302b, [0, y + 0.4, z + 0.3]));
     parts.push(P(box(0.75, 0.38, 0.1), 0x24272a, [0, y + 0.55, z - 0.72], [-0.4, 0, 0]));
   }
-  for (const z of [-4.2, -2.9]) parts.push(P(box(0.95, 0.05, 0.05), 0x2a2c27, [0, z < -4 ? 0.9 : 1.15, z]));
   // Kufen
   for (const sx of [-1, 1]) {
     parts.push(tube([[sx * 1.05, -1.5, 1.4], [sx * 1.05, -1.5, -3.2], [sx * 1.05, -1.4, -3.6], [sx * 1.05, -1.15, -3.8]], 0.05, COL.metal));
