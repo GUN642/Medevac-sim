@@ -16,7 +16,10 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -38,6 +41,16 @@ public class MainActivity extends Activity {
     private UpdateManager updater;
     private boolean lastKeyFromGamepad;
     private final LanNet net = new LanNet();
+    private static final int REQ_MIC = 7;
+    private PermissionRequest pendingMic;
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        if (code != REQ_MIC || pendingMic == null) return;
+        if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) pendingMic.grant(new String[] { PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+        else pendingMic.deny();
+        pendingMic = null;
+    }
     private WifiManager.MulticastLock mcLock;
     private GlassDisplay glass;
     private TextToSpeech tts;
@@ -87,7 +100,23 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        web.setWebChromeClient(new WebChromeClient());
+        web.setWebChromeClient(new WebChromeClient() {
+            // Sprechfunk: Mikrofon nur für die eigene Spielseite freigeben, dafür ggf. die Android-Berechtigung erfragen
+            @Override
+            public void onPermissionRequest(final PermissionRequest request) {
+                runOnUiThread(() -> {
+                    boolean audio = false;
+                    for (String r : request.getResources()) if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) audio = true;
+                    if (!audio || request.getOrigin() == null || !HOST.equals(request.getOrigin().getHost())) { request.deny(); return; }
+                    if (Build.VERSION.SDK_INT < 23 || checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(new String[] { PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+                    } else {
+                        pendingMic = request;
+                        requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, REQ_MIC);
+                    }
+                });
+            }
+        });
 
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);

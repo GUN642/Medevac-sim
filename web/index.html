@@ -41,6 +41,11 @@
   </div>
   <div id="warnings"></div>
   <div id="radio"></div>
+  <div id="talk-ind" class="hidden"></div>
+  <div id="chat-box" class="hidden">
+    <input id="chat-input" type="text" maxlength="140" autocomplete="off" placeholder="Nachricht an alle – Enter senden, Esc abbrechen">
+    <div id="chat-quick"><button>Verstanden</button><button>Brauche Hilfe!</button><button>Feindkontakt!</button><button>Bin bereit</button><button>Warte auf euch</button><button>Abflug</button></div>
+  </div>
   <div id="crosshair"><div></div></div>
   <div id="mg-dot"></div>
   <div id="rkt-reticle"><div></div></div>
@@ -73,6 +78,7 @@
     <button data-action="nvg" class="night-only">NVG</button>
     <button data-action="crew">CREW</button>
     <button data-action="use" class="use-btn">EIN/AUS</button>
+    <button data-action="chat" class="mp-only">CHAT</button>
     <button data-action="pause">❚❚</button>
   </div>
   <div id="foot-buttons" class="foot-only">
@@ -84,6 +90,7 @@
     <button data-action="magnifier" class="optic-only">3x</button>
   </div>
   <button id="btn-fire" class="aim-only">FEUER</button>
+  <button id="btn-ptt" class="mp-only">🎙 FUNK</button>
 </div>
 
 <!-- ============ Overlays ============ -->
@@ -326,6 +333,7 @@
     <label class="check"><input id="set-realism" type="checkbox"> Realistische Flugphysik: Wirbelringstadium und Triebwerksausfall bei Treffern</label>
     <label class="check"><input id="set-weather" type="checkbox"> Wetterwechsel (Nebel, Schauer, Gewitter, Schnee)</label>
     <label class="check"><input id="set-tts" type="checkbox"> Funksprüche vorlesen (Sprachausgabe)</label>
+    <label class="check"><input id="set-openmic" type="checkbox"> Mehrspieler-Sprechfunk: Mikrofon dauerhaft offen (statt Sprechtaste)</label>
     <label>Feindstärke
       <select id="set-diff"><option value="0.6">Leicht</option><option value="1">Normal</option><option value="1.5">Schwer</option></select>
     </label>

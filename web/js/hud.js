@@ -41,6 +41,17 @@ export class HUD {
     if (this.game.voice) this.game.voice.say(text, from, urgent);
   }
 
+  // Chatzeile (wird nicht vorgelesen)
+  chat(name, text, mine) {
+    const div = document.createElement('div');
+    div.className = 'radio-line chat' + (mine ? ' mine' : '');
+    div.innerHTML = `<b>${name}:</b> ${text}`;
+    this.el.radio.appendChild(div);
+    this.radioLines.push({ div, t: -6 });
+    const max = document.body.classList.contains('touch') ? 3 : 6;
+    while (this.radioLines.length > max) this.radioLines.shift().div.remove();
+  }
+
   // ------------------------------------------------------------ Briefing / Ergebnis
   showBriefing(m, d) {
     this.el['brief-title'].textContent = d.title;

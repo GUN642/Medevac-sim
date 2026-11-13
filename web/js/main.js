@@ -10,6 +10,7 @@ import { MaliWorld } from './worldMali.js';
 import { NorwayWorld } from './worldNorway.js';
 import { VrView } from './vr.js';
 import { Voice } from './voice.js';
+import { Comms } from './comms.js';
 import { WeatherSys } from './weather.js';
 import { Career } from './career.js';
 import { Mounts } from './mounts.js';
@@ -146,6 +147,7 @@ class Game {
     this.vr = new VrView(this);
     this.audio = new AudioSys();
     this.voice = new Voice(this);
+    this.comms = new Comms(this);
     this.weatherSys = new WeatherSys(this);
     this.audio.setVolume(this.settings.volume);
     this.tr = netTransport();
@@ -842,6 +844,7 @@ class Game {
     bind('set-realism', 'realism', Boolean);
     bind('set-weather', 'weather', Boolean);
     bind('set-tts', 'tts', Boolean, (on) => { if (!on) this.voice.stop(); });
+    bind('set-openmic', 'openMic', Boolean);
     bind('set-sens', 'sensitivity', Number);
     bind('set-invert', 'invertY', Boolean);
     bind('set-invertx', 'invertX', Boolean);
@@ -1389,6 +1392,7 @@ class Game {
         case 'help': this.pause(true); this.openPanel('help'); break;
         case 'crew': this.hud.toggleCrew(); break;
         case 'airsupport': this.hud.toggleCrew(true); break;
+        case 'chat': this.comms.openChat(); break;
         case 'nvg': this.toggleNvg(); break;
         case 'camera': case 'view':
           if (this.seat === 'pilot') this.camMode = this.camMode === 'chase' ? 'cockpit' : 'chase';
@@ -1466,6 +1470,7 @@ class Game {
     this.input.update(dt);
     this.handleActions(this.input.popActions());
     if (this.net) this.net.update(dt);
+    this.comms.update();
     // Im Mehrspieler läuft die Simulation auch im Pausenmenü weiter
     const run = this.state === 'playing' || (this.state === 'paused' && this.role !== 'solo') || (this.state === 'menu' && this.role !== 'solo' && this.started);
     if (run) for (let i = 0; i < (this.timeScale || 1); i++) this.tick(dt, this.state !== 'playing');
@@ -1655,7 +1660,8 @@ class Game {
       if (h.boundaryWarn) warnings.push({ text: 'EINSATZGEBIET VERLASSEN – UMKEHREN', level: 'warn' });
       if (!hint && h.fuel < 35 && dF < 600) hint = 'Zum Tanken auf Pad POL (gelber Rand, neben dem Tankwagen) landen';
       if (!hint && h.spec.capacity > 0 && this.missions.target(h) === 'from' && this.heliLoad(h) >= h.spec.capacity) hint = 'Kabine voll!';
-      if (!hint && this.seat === 'pilot' && h.spec.rockets && this.time < 90) hint = this.input.device === 'gamepad' ? 'Raketen: R · Kanone: KI-Waffensystemoffizier' : this.input.device === 'touch' ? 'Raketen: linken Stick kurz antippen (oder RAKETE)' : 'Raketen: G · Kanone schießt der Waffensystemoffizier';
+      if (!hint && this.seat === 'pilot' && h.spec.rockets && this.time < 90) hint = h.spec.gunship ? (this.input.device === 'gamepad' ? 'Raketen: R · MGs: KI-Bordschützen' : this.input.device === 'touch' ? 'Raketen: linken Stick kurz antippen (oder RAKETE)' : 'Raketen: G · MGs schießen die Bordschützen')
+        : this.input.device === 'gamepad' ? 'Raketen: R · Kanone: KI-Waffensystemoffizier' : this.input.device === 'touch' ? 'Raketen: linken Stick kurz antippen (oder RAKETE)' : 'Raketen: G · Kanone schießt der Waffensystemoffizier';
       if (!hint && this.seat === 'pilot' && this.input.device === 'keyboard' && this.settings.mouseFly && !this.input.mouseFlying) hint = 'Linksklick ins Bild: Maussteuerung (Maus = Steuerknüppel: ←→ rollen, ↑↓ vor/zurück)';
     }
     if (this.fobAttack) warnings.push({ text: 'FOB WIRD ANGEGRIFFEN', level: 'warn' });

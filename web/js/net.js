@@ -91,7 +91,7 @@ export const isGameCode = (s) => /^[A-Z0-9]{4,6}$/i.test(String(s).trim()) && !/
 const newCode = () => Array.from({ length: 5 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
 
 let peerLib = null;
-function loadPeerJs() {
+export function loadPeerJs() {
   if (window.peerjs && window.peerjs.Peer) return Promise.resolve(window.peerjs.Peer);
   if (!peerLib) {
     peerLib = new Promise((res, rej) => {
@@ -106,7 +106,7 @@ function loadPeerJs() {
 }
 
 // eigener Vermittlungsserver nur für Tests: ?peer=localhost:9000
-function peerOptions() {
+export function peerOptions() {
   const m = /[?&]peer=([^&]+)/.exec(location.search);
   if (!m) return { debug: 0 };
   const [host, port] = decodeURIComponent(m[1]).split(':');
@@ -421,7 +421,11 @@ export class Net {
         g.radio(`${name} ist dem Einsatz beigetreten.`, 'TOC');
         break;
       }
+      case 'chat': g.comms.onHostChat(p, m); break;
+      case 'vid': if (typeof m.v === 'string' && m.v.length < 80) g.comms.setVid(p, m.v); break;
+      case 'ptt': g.comms.onHostPtt(p, !!m.on); break;
       case '_leave': {
+        g.comms.dropPlayer(p);
         const pl = this.players.get(p);
         this.players.delete(p);
         g.freeSeats(p);
@@ -505,6 +509,9 @@ export class Net {
       case 'dmg': if (g.owns(m.i)) g.damageHeli(g.helis[m.i], m.a); break;
       case 'reset': if (g.owns(m.i)) g.respawnHeli(m.i); break;
       case 'radio': g.hud.radio(m.x, m.f, m.u); g.audio.radio(); break;
+      case 'chat': g.comms.onClientChat(m); break;
+      case 'vids': g.comms.onVids(m.l); break;
+      case 'ptt': g.comms.onPtt(m.p, !!m.on, String(m.n || '').slice(0, 16)); break;
       case 'result': g.onMissionResult(m.r); break;
     }
   }

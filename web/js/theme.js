@@ -69,6 +69,29 @@ export const HELI_TYPES = {
     gun: { name: '–', rpm: 1, ammo: 0, muzzleVel: 800, range: 10 }, noGuns: true, hoist: true,
     seats: ['pilot'], rotorAudio: 1.8, rotorCut: 1.3, camDist: 17, shadow: 7, door: 'side', numbers: ['77+05', '77+12'],
   },
+  uh1c: {
+    id: 'uh1c', model: 'huey', gunship: true, name: 'Bell UH-1C „Huey Hog“ (Gunship)', short: 'UH-1C', callsign: 'Gambler 3-6',
+    emptyMass: 2500, fuelMassFull: 600, paxMass: 95, capacity: 0, maxThrust: 4900 * G,
+    skidH: 1.6, rotorRadius: 7.3, rotorTop: 2.6, maxPitch: 0.5, maxRoll: 0.62, climbRate: 8.5, sinkRate: 12, yawRate: 1.15,
+    vmax: 110, agility: 1.0, burn: 1.05, drag: 1.1, armor: 0.85, gun: { name: 'M60', rpm: 550, ammo: 800, muzzleVel: 853, range: 800 },
+    rockets: 14, rotorAudio: 1, rotorCut: 1, camDist: 24, shadow: 9, door: 'side', numbers: ['66-15012', '66-15134'],
+  },
+  ah1: {
+    id: 'ah1', model: 'ah1', name: 'Bell AH-1G „Cobra“', short: 'AH-1G', callsign: 'Panther 3-6',
+    emptyMass: 2750, fuelMassFull: 750, paxMass: 95, capacity: 0, maxThrust: 6100 * G,
+    skidH: 1.5, rotorRadius: 6.7, rotorTop: 2.3, maxPitch: 0.55, maxRoll: 0.72, climbRate: 11, sinkRate: 14, yawRate: 1.45,
+    vmax: 150, agility: 1.35, burn: 1.0, drag: 0.8, armor: 0.55,
+    gun: { name: 'M134 (Turm)', rpm: 2400, ammo: 4000, muzzleVel: 850, range: 1100, minigun: true, turret: true, tracerEvery: 5, soundEvery: 3, arc: { yaw: 1.9, pmin: -1.0, pmax: 0.25 } },
+    rockets: 52, seats: ['pilot', 'left'], seatNames: { left: 'Bordschütze (Minigun-Turm)' },
+    rotorAudio: 1.1, rotorCut: 1.05, camDist: 21, shadow: 8, door: 'side', numbers: ['68-15083', '67-15751'],
+  },
+  h34: {
+    id: 'h34', model: 'h34', name: 'Sikorsky UH-34D „Seahorse“ (USMC)', short: 'UH-34D', callsign: 'Ugly Angel 1-2',
+    emptyMass: 3600, fuelMassFull: 800, paxMass: 95, capacity: 12, maxThrust: 7700 * G,
+    skidH: 1.7, rotorRadius: 8.5, rotorTop: 2.8, maxPitch: 0.48, maxRoll: 0.58, climbRate: 8, sinkRate: 12, yawRate: 1.05,
+    vmax: 105, agility: 0.9, burn: 1.15, drag: 1.05, armor: 0.9, gun: { name: 'M60', rpm: 550, ammo: 800, muzzleVel: 853, range: 800 },
+    rotorAudio: 0.9, rotorCut: 0.8, camDist: 27, shadow: 11, door: 'side', numbers: ['YL-37', 'YP-12'],
+  },
   mi8: {
     id: 'mi8', model: 'mi8', name: 'Mil Mi-8MTW-2 „Hip“', short: 'Mi-8', callsign: 'Rubin 2-1',
     emptyMass: 7100, fuelMassFull: 1900, paxMass: 100, capacity: 24, maxThrust: 15800 * G,
@@ -102,7 +125,7 @@ HELI_TYPES.ch53f = {
 export const THEMES = {
   vietnam: {
     id: 'vietnam', name: 'Vietnam 1968', country: 'Vietnam', sub: 'VIETNAM 1968',
-    fobName: 'FOB Eagle', helis: ['uh1d'],
+    fobName: 'FOB Eagle', helis: ['uh1d', 'h34', 'uh1c', 'ah1'],
     enemyName: 'Vietcong', enemyFrom: 'Baumlinie', enemyCover: 'Dschungel', trees: 'Bäume', crashTrees: 'In den Dschungel gestürzt!',
     friend: () => (rand() < 0.25 ? 'us2' : 'us'), enemy: (heavy) => (heavy || rand() < 0.4 ? 'nva' : 'vc'),
     wounded: 'wounded', crew: 'crew', player: 'player', pilot: 'pilot', sof: 'lrrp', vip: 'vipV',
