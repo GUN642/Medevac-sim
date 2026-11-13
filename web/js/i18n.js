@@ -421,6 +421,10 @@ const EN = {
   'ein verwundeter Späher': 'a wounded scout',
   'zwei verwundete Soldaten eines Spähtrupps': 'two wounded soldiers from a recon team',
   'nach einem Drohnenangriff im Waldstreifen versteckt': 'hiding in a tree line after a drone attack',
+  'TOC: Sie sind über 150 Fuß – der Gegner hat Flugabwehrraketen! Sofort tiefer fliegen!': 'TOC: You are above 150 feet – the enemy has surface-to-air missiles! Get down now!',
+  'Crew: Keine Flares mehr!': 'Crew: Out of flares!',
+  'Crew: RAKETENTREFFER! Wir sind getroffen!': 'Crew: MISSILE HIT! We are hit!',
+  'Crew: Rakete hat die Flares erwischt – das war knapp!': 'Crew: The missile went for the flares – that was close!',
 };
 
 // Vorlagen mit Platzhaltern
@@ -689,6 +693,8 @@ const EN_T = {
   '{0}: Raketen raus, drehe ab – zweiter Anflug folgt.': '{0}: Rockets away, breaking off – second pass coming.',
   '{0}: Alle Raketen verschossen. Grach dreht nach Hause ab.': '{0}: All rockets expended. Grach heading home.',
   'Ein Weizenfeld bei {0} brennt nach Beschuss – das Feuer läuft auf das Dorf zu': 'A wheat field near {0} is burning after shelling – the fire is heading for the village',
+  'Crew: RAKETENSTART auf {0} Uhr! Flares!': "Crew: MISSILE LAUNCH, {0} o'clock! Flares!",
+  'Crew: Noch {0} Flares.': 'Crew: {0} flares left.',
 };
 
 const exact = new Map(Object.entries(EN));

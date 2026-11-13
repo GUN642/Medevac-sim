@@ -218,8 +218,8 @@ export class AudioSys {
     return b;
   }
 
-  play(name, { gain = 1, rate = 1, delay = 0, lowpass = 0 } = {}) {
-    if (!this.ctx || this.voices > 28) return;
+  play(name, { gain = 1, rate = 1, delay = 0, lowpass = 0, cap = 40 } = {}) {
+    if (!this.ctx || this.voices > cap) return;
     const s = this.ctx.createBufferSource();
     s.buffer = this.buffers[name];
     s.playbackRate.value = rate;
@@ -240,11 +240,25 @@ export class AudioSys {
   }
 
   // Schuss mit Entfernungsdämpfung
-  shot(type, dist) {
+  // extra: zusätzliche Verzögerung (z. B. für über das Netz gebündelte Feuerstöße)
+  shot(type, dist, extra = 0) {
     const g = Math.min(1, 40 / Math.max(10, dist));
     if (g < 0.02) return;
-    const delay = Math.min(1.5, dist / 343);
-    this.play(type, { gain: g * (type === 'm60' ? 0.55 : type === 'click' ? 0.3 : 0.9), rate: 0.92 + Math.random() * 0.16, delay, lowpass: dist > 150 ? 1800 : 0 });
+    const delay = Math.min(1.5, dist / 343) + extra;
+    // Feindfeuer ('ak') darf die eigenen Waffen nicht verdrängen: niedrigere Obergrenze gleichzeitiger Töne
+    this.play(type, { gain: g * (type === 'm60' ? 0.55 : type === 'click' ? 0.3 : 0.9), rate: 0.92 + Math.random() * 0.16, delay, lowpass: dist > 150 ? 1800 : 0, cap: type === 'ak' ? 24 : 44 });
+  }
+
+  // Raketenwarnung: schnelles Piepen für einige Sekunden
+  alarm(sec = 3) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = 'square'; o.frequency.value = 1250;
+    g.gain.value = 0;
+    for (let k = 0; k < sec * 7; k++) { g.gain.setValueAtTime(0.06, t + k / 7); g.gain.setValueAtTime(0, t + k / 7 + 0.07); }
+    o.connect(g).connect(this.sfx);
+    o.start(t); o.stop(t + sec);
   }
   // Dauerton für schnell feuernde Waffen: jeder Schuss hält den Ton kurz am Leben, danach klingt er aus
   loopShot(key, dist, hold = 0.07) {

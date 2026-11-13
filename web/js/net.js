@@ -564,7 +564,11 @@ export class Net {
     g.effects.muzzle(this._a.x + this._b.x * 0.3, this._a.y + this._b.y * 0.3, this._a.z + this._b.z * 0.3, true);
     const d = g.camera.position.distanceTo(this._a);
     if (gun.minigun) g.audio.loopShot('net' + m.i + ':' + m.s, d, 0.16);   // nur jeder 5. Schuss kommt an
-    else g.audio.shot(gun.he ? 'dshk' : gun.heavy ? 'dshk' : 'm60', d);
+    else {
+      // Übers Netz kommt nur jeder Leuchtspurschuss: die Schüsse dazwischen im Feuertakt nachspielen
+      const n = gun.tracerEvery || 2, iv = 60 / gun.rpm;
+      for (let k = 0; k < n; k++) g.audio.shot(gun.he ? 'dshk' : gun.heavy ? 'dshk' : 'm60', d, k * iv);
+    }
   }
 }
 

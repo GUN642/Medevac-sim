@@ -32,6 +32,9 @@ export class Strikes {
     this.state = new Map();
     this.drones = [];
     this.shells = [];
+    this.missiles = [];
+    this.flares = [];
+    this.alt = new Map();
   }
 
   get on() { return !!T.lzStrikes; }
@@ -39,9 +42,142 @@ export class Strikes {
   update(dt) {
     if (!this.on) return;
     const g = this.g;
-    for (const h of g.helis) if (g.owns(h.index)) this.watch(h, dt);
+    for (const h of g.helis) if (g.owns(h.index)) { this.watch(h, dt); this.watchAltitude(h, dt); }
     this.updateDrones(dt);
     this.updateShells(dt);
+    this.updateMissiles(dt);
+    this.updateFlares(dt);
+  }
+
+  // ------------------------------------------------------------ Flugabwehr über 150 ft
+  // Wer über 150 ft (46 m) über Grund fliegt, wird von Schultern aus mit Flugabwehrraketen (MANPADS) beschossen.
+  // Der Hubschrauber stößt bei einem Raketenstart automatisch Flares aus – die lenken die Rakete meist ab.
+  watchAltitude(h, dt) {
+    const g = this.g, w = g.world;
+    const c = g.crews[h.index];
+    if (!c || c.pilot == null) return;          // nur von Spielern geflogene Hubschrauber
+    let st = this.alt.get(h.index);
+    if (!st) { st = { t: 0, warned: false, next: 5 + rand() * 2, flares: 60 }; this.alt.set(h.index, st); }
+    const nearBase = dist2(h.pos.x, h.pos.z, w.fob.x, w.fob.z) < w.fob.r + 700;
+    if (nearBase && h.contact && st.flares < 60) st.flares = 60;   // an der Basis aufmunitioniert
+    const high = !h.crashed && !h.contact && h.agl > 45.7 && !nearBase;
+    if (!high) { st.t = Math.max(0, st.t - dt * 2); if (st.t === 0) { st.warned = false; st.next = 5 + rand() * 2; } return; }
+    st.t += dt;
+    if (!st.warned && st.t > 0.6) {
+      st.warned = true;
+      if (g.heli === h) g.radio('TOC: Sie sind über 150 Fuß – der Gegner hat Flugabwehrraketen! Sofort tiefer fliegen!', 'TOC', true);
+    }
+    if (st.t >= st.next) {
+      st.next = st.t + 8 + rand() * 6;
+      this.launchMissile(h, st);
+    }
+  }
+
+  launchMissile(h, st) {
+    const g = this.g, w = g.world;
+    // Schütze am Boden in 1,2–2,5 km Entfernung, bevorzugt vor oder seitlich des Hubschraubers
+    let x = 0, z = 0;
+    for (let k = 0; k < 20; k++) {
+      const a = h.yaw + (rand() - 0.5) * 3.6, d = 1200 + rand() * 1300;
+      x = h.pos.x - Math.sin(a) * d; z = h.pos.z - Math.cos(a) * d;
+      if (w.height(x, z) > 0.5) break;
+    }
+    const y = Math.max(0, w.height(x, z)) + 1.6;
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.6, 6).rotateX(Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xc8c8b0 }));
+    mesh.position.set(x, y, z);
+    g.scene.add(mesh);
+    const dir = new THREE.Vector3(h.pos.x - x, h.pos.y - y + 30, h.pos.z - z).normalize();
+    this.missiles.push({ mesh, pos: mesh.position, vel: dir.multiplyScalar(40), target: h, life: 0, decoy: null, rolled: false, st });
+    g.effects.puff(x, y, z, 0.8, 0.8, 0.78, 8, 2.5, 3, 2.5);
+    g.audio.shot('thump', g.camera.position.distanceTo(mesh.position));
+    if (g.heli === h) {
+      const rel = Math.atan2(x - h.pos.x, z - h.pos.z) - (h.yaw + Math.PI);
+      const clock = ((Math.round(-rel / (Math.PI / 6)) % 12) + 12) % 12 || 12;
+      g.radio(`Crew: RAKETENSTART auf ${clock} Uhr! Flares!`, 'Crew', true);
+      g.audio.alarm(3);
+    }
+    this.dispenseFlares(h, st);
+  }
+
+  // Flares: helle, fallende Leuchtkörper hinter dem Hubschrauber
+  dispenseFlares(h, st) {
+    const g = this.g;
+    if (st.flares <= 0) { if (g.heli === h) g.radio('Crew: Keine Flares mehr!', 'Crew', true); return; }
+    const n = Math.min(8, st.flares);
+    st.flares -= n;
+    for (let k = 0; k < n; k++) {
+      setTimeout(() => {
+        if (h.crashed) return;
+        for (const sx of [-1, 1]) {
+          const p = new THREE.Vector3(sx * 1.4, -0.6, 2.5).applyQuaternion(h.quat).add(h.pos);
+          const v = new THREE.Vector3(sx * (8 + rand() * 6), -2 - rand() * 4, 6 + rand() * 4).applyQuaternion(h.quat).add(h.vel.clone().multiplyScalar(0.6));
+          this.flares.push({ p, v, life: 0 });
+        }
+      }, k * 220);
+    }
+    if (g.heli === h && st.flares < 16 && st.flares > 0) g.radio(`Crew: Noch ${st.flares} Flares.`, 'Crew');
+  }
+
+  updateFlares(dt) {
+    const fx = this.g.effects;
+    for (let i = this.flares.length - 1; i >= 0; i--) {
+      const f = this.flares[i];
+      f.life += dt;
+      f.v.y -= 6 * dt;
+      f.v.multiplyScalar(1 - Math.min(0.5, dt * 1.2));
+      f.p.addScaledVector(f.v, dt);
+      fx.glow.spawn(f.p.x, f.p.y, f.p.z, 0, 0, 0, 0.12, 1.4, 0.6, 1.0, 0.85, 0.5, 0.95, 0, 0);
+      if (Math.random() < dt * 20) fx.puff(f.p.x, f.p.y, f.p.z, 0.85, 0.85, 0.85, 1, 1.2, 0.3, 2.2);
+      if (f.life > 4 || f.p.y < this.g.world.groundHeight(f.p.x, f.p.z)) this.flares.splice(i, 1);
+    }
+  }
+
+  updateMissiles(dt) {
+    const g = this.g, w = g.world, fx = g.effects;
+    for (let i = this.missiles.length - 1; i >= 0; i--) {
+      const M = this.missiles[i];
+      M.life += dt;
+      const h = M.target;
+      // Ziel: Hubschrauber, oder nach erfolgreicher Täuschung die Flares
+      let tgt = h && !h.crashed ? h.pos : null;
+      const dH = tgt ? M.pos.distanceTo(tgt) : 1e9;
+      if (!M.rolled && dH < 450) {
+        M.rolled = true;
+        // Täuschung gelingt meist, wenn Flares in der Luft sind (in großer Höhe schlechter)
+        const near = this.flares.filter((f) => f.p.distanceTo(h.pos) < 250);
+        const p = near.length ? (h.agl > 120 ? 0.55 : 0.78) : 0;
+        if (rand() < p) M.decoy = near[Math.floor(rand() * near.length)].p.clone();
+      }
+      if (M.decoy) tgt = M.decoy;
+      const speed = Math.min(420, 40 + M.life * 260);
+      if (tgt) {
+        // Proportionalnavigation light: Richtung zum (vorausberechneten) Ziel, begrenzte Wendigkeit
+        const lead = tgt === h?.pos ? h.vel.clone().multiplyScalar(Math.min(1.5, dH / 420)) : new THREE.Vector3();
+        const want = tgt.clone().add(lead).sub(M.pos).normalize().multiplyScalar(speed);
+        M.vel.lerp(want, Math.min(1, dt * 3.2));
+        M.vel.setLength(speed);
+      }
+      M.pos.addScaledVector(M.vel, dt);
+      M.mesh.lookAt(M.pos.clone().add(M.vel));
+      if (Math.random() < dt * 40) fx.puff(M.pos.x, M.pos.y, M.pos.z, 0.82, 0.82, 0.8, 1, 0.9, 0.3, 2.6);
+      fx.glow.spawn(M.pos.x, M.pos.y, M.pos.z, 0, 0, 0, 0.06, 0.9, 0.4, 1.0, 0.7, 0.35, 0.9, 0, 0);
+      const gy = w.groundHeight(M.pos.x, M.pos.z);
+      let boom = M.life > 14 || M.pos.y < gy + 0.5;
+      if (M.decoy && M.pos.distanceTo(M.decoy) < 8) boom = true;
+      if (!M.decoy && h && !h.crashed && dH < 6) {
+        boom = true;
+        g.damageHeli(h, 50 + rand() * 15, M.pos);
+        if (g.heli === h) g.radio('Crew: RAKETENTREFFER! Wir sind getroffen!', 'Crew', true);
+      }
+      if (boom) {
+        fx.explosion(M.pos.x, M.pos.y, M.pos.z, 0.7);
+        g.audio.boom(g.camera.position.distanceTo(M.pos));
+        if (M.decoy && g.heli === h) g.radio('Crew: Rakete hat die Flares erwischt – das war knapp!', 'Crew');
+        g.scene.remove(M.mesh);
+        M.mesh.geometry.dispose();
+        this.missiles.splice(i, 1);
+      }
+    }
   }
 
   // Bodenzeit außerhalb der Basis beobachten und Beschuss auslösen
@@ -225,6 +361,8 @@ export class Strikes {
 
   clear() {
     for (const D of this.drones) this.g.scene.remove(D.mesh);
+    for (const M of this.missiles) this.g.scene.remove(M.mesh);
     this.drones.length = 0; this.shells.length = 0; this.state.clear();
+    this.missiles.length = 0; this.flares.length = 0; this.alt.clear();
   }
 }
