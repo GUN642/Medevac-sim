@@ -1,7 +1,7 @@
 // Fahrbare Fahrzeuge an der FOB (Dingo/MRAP bzw. M151-Jeep in Vietnam) mit Dach-MG und Rotpunktvisier.
 // Zu Fuß einsteigen (E/Ⓐ), mit WAFFE/Tab zwischen Fahrersitz und MG wechseln, E/Ⓐ zum Aussteigen.
 import * as THREE from './lib/three.module.min.js';
-import { P, merge, vcMat } from './models.js';
+import { P, merge, vcMat, D } from './models.js';
 import { dingoParts, mrapParts } from './afgModels.js';
 import { T } from './theme.js';
 import { HALF } from './config.js';
@@ -24,7 +24,20 @@ function jeepParts() {
     P(cyl(0.05, 1.1, 8), 0x2a2b28, [0, 1.6, 0.9]),                    // MG-Pfosten
     P(box(0.25, 0.2, 0.15), 0x2a2b28, [0, 0.95, -1.7]),               // Stoßstange
   ];
-  for (const sx of [-1, 1]) for (const sz of [-1.05, 1.05]) p.push(P(cyl(0.38, 0.28, 12), 0x161616, [sx * 0.78, 0.4, sz], [0, 0, Math.PI / 2]));
+  for (const sx of [-1, 1]) for (const sz of [-1.05, 1.05]) D.wheel(p, sx * 0.78, 0.4, sz, 0.38, 0.28, 0x4b5330);
+  // Kotflügel, Kühlergrill, Scheinwerfer, Rücklichter, Reserverad, Kanister, Funkgerät mit Antenne
+  for (const sx of [-1, 1]) {
+    p.push(P(box(0.26, 0.06, 0.95), c, [sx * 0.74, 1.14, -1.1]));
+    p.push(P(box(0.26, 0.06, 0.8), c, [sx * 0.74, 1.14, 1.1]));
+    D.light(p, sx * 0.5, 1.05, -1.66, 0.085);
+    D.tail(p, sx * 0.62, 0.95, 1.66);
+  }
+  D.grille(p, 0, 1.02, -1.66, 0.85, 0.32, 0x2a2d22, 9);
+  p.push(P(cyl(0.34, 0.22, 14), 0x151515, [0.35, 1.05, 1.76], [Math.PI / 2, 0, 0]));
+  p.push(P(box(0.18, 0.42, 0.32), 0x3d4a2a, [-0.4, 1.05, 1.75]));
+  p.push(P(box(0.45, 0.35, 0.3), 0x2f3524, [0.35, 1.3, 1.25]));
+  D.antenna(p, 0.6, 1.45, 1.3, 2.6);
+  p.push(P(box(1.45, 0.06, 0.06), 0x2a2d22, [0, 1.85, -0.38]));
   return p;
 }
 

@@ -1,7 +1,8 @@
 // Dustoff – Medevac-Hubschraubersimulator (Vietnam 1968 / Afghanistan 2010): Hauptprogramm
 import { Strikes } from './strikes.js';
 import { UkraineWorld } from './worldUkraine.js';
-import { buildEnv, applyWaterEnv, GrassField, setupLook } from './gfx.js';
+import { buildEnv, applyWaterEnv, GrassField, setupLook, GroundCover, weatherMaterial } from './gfx.js';
+import { vcMat, vcMatDouble, vcGrainMat } from './models.js';
 import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
 import { AfghanWorld } from './worldAfg.js';
@@ -92,6 +93,7 @@ class Game {
     this.renderer.shadowMap.enabled = this.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     setupLook(this.renderer, new THREE.Vector3(-0.5, 1, 0.35).normalize());
+    weatherMaterial(vcMat, 'weatherA'); weatherMaterial(vcMatDouble, 'weatherB'); weatherMaterial(vcGrainMat, 'weatherC');
 
     // Einsatzgebiet (Karte) festlegen, bevor die Welt entsteht
     const theme = themeOf(this.settings.map);
@@ -132,6 +134,16 @@ class Game {
     if (q !== 'low' && !T.snow) {
       const dry = T.id === 'afghanistan' || T.id === 'mali';
       this.grass = new GrassField(this.scene, this.world, { radius: q === 'high' ? 75 : 55, step: q === 'high' ? 1.7 : 2.1, density: dry ? 0.4 : 0.95, tint: dry ? [1.4, 1.3, 0.95] : [1.2, 1.4, 1.0] });
+    }
+    // Felsen und Büsche im Umkreis der Kamera
+    {
+      const COVER = { vietnam: [0.03, 0.32, [0.8, 1.0, 0.7]], afghanistan: [0.16, 0.07, [0.72, 0.78, 0.52]], mali: [0.1, 0.16, [0.8, 0.75, 0.45]], ukraine: [0.02, 0.1, [0.9, 1.0, 0.75]], flood: [0.02, 0.12, [0.85, 1.0, 0.75]], norway: [0.1, 0, [1, 1, 1]] }[T.id] || [0.05, 0.15, [1, 1, 1]];
+      const rc = new THREE.Color(this.world.rockColor || 0x6e665a);
+      this.cover = new GroundCover(this.scene, this.world, {
+        radius: q === 'high' ? 240 : q === 'medium' ? 170 : 110, step: q === 'low' ? 8 : 6.5,
+        rock: COVER[0], bush: COVER[1], bushCol: COVER[2], rockCol: [rc.r * 1.1, rc.g * 1.1, rc.b * 1.1], shadows: q === 'high',
+        rockMax: T.id === 'afghanistan' || T.id === 'norway' ? 2.2 : 1.3, bushSize: T.id === 'vietnam' ? 1.5 : 1,
+      });
     }
     await this.step('Effekte …', 60);
     this.effects = new Effects(this.scene, q);
@@ -212,7 +224,7 @@ class Game {
     // Licht: Tageslicht (Norwegen) × Wetter, Blitze hellen kurz auf
     const ns = this.nightSys, amp = ns.nvg ? 4 : 1, fl = this.weatherSys ? this.weatherSys.flash : 0;
     const dk = !ns.night && this.dayK != null ? this.dayK : 1;
-    this.hemi.intensity = (ns.baseHemi ?? T.sky.hemi) * amp * dk * (ns.night ? 1 : W.light) + fl * (ns.night ? 1.6 : 1.2);
+    this.hemi.intensity = (ns.baseHemi ?? T.sky.hemi) * amp * dk * (ns.night ? 1 : W.light * 1.35) + fl * (ns.night ? 1.6 : 1.2);
     this.sun.intensity = (ns.baseSun ?? T.sky.sunI) * (ns.nvg ? 3 : 1) * dk * (ns.night ? 1 : W.light * W.light);
     if (!ns.night) {
       const sky = this.world.sky.material.uniforms;
@@ -1493,6 +1505,7 @@ class Game {
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time + this.attractT, this.camera);
     if (this.grass) this.grass.update(this.time + this.attractT, this.camera);
+    if (this.cover) this.cover.update(this.camera);
   }
 
   tick(dt, background) {
@@ -1680,6 +1693,7 @@ class Game {
     this.effects.update(dt, this.camera.position);
     this.world.update(dt, this.time, this.camera);
     if (this.grass) this.grass.update(this.time, this.camera);
+    if (this.cover) this.cover.update(this.camera);
     this.updateWeather(dt);
     this.updateCamera(dt);
     this.vr.updateCamera(this.camera, this.seat);

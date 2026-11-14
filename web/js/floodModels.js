@@ -1,6 +1,6 @@
 // Modelle für die Hochwasser-Karte: deutsche Häuser, Kirche, Brücken, Wald, Hochspannungsmasten, Fahrzeuge
 import * as THREE from './lib/three.module.min.js';
-import { P } from './models.js';
+import { P, D } from './models.js';
 
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const cyl = (rt, rb, h, s = 10) => new THREE.CylinderGeometry(rt, rb, h, s);
@@ -37,11 +37,23 @@ export function germanHouse(rng, big = false, walls = WALLS, roofs = ROOFS) {
   p.push(P(gable(w + 0.7, rh, d + 0.7), roof, [0, h, 0]));
   // Fenster (2 Reihen) an Längsseiten
   const rows = h > 5 ? [1.6, 4.2] : [1.6];
+  const fr = rng() < 0.75 ? 0xeeeeea : 0x5a3f2a;
   for (const y of rows) for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) {
-    p.push(P(box(0.06, 1.1, 0.9), 0x2e3438, [sx * (w / 2 + 0.03), y, -d / 2 + 1.6 + i * ((d - 3.2) / 2)]));
+    const z = -d / 2 + 1.6 + i * ((d - 3.2) / 2), x = sx * (w / 2 + 0.03);
+    D.win(p, 'x', x, y, z, 0.85, 1.05, fr, 0x2e3438, 0.05);
+    p.push(P(box(0.05, 1.05, 0.04), fr, [x + sx * 0.03, y, z]));
+    p.push(P(box(0.18, 0.06, 1.05), 0x9a9890, [x + sx * 0.06, y - 0.6, z]));
   }
-  for (const y of rows) p.push(P(box(0.9, 1.1, 0.06), 0x2e3438, [w * 0.2, y, -d / 2 - 0.03]));
+  for (const y of rows) { D.win(p, 'z', w * 0.2, y, -d / 2 - 0.03, 0.85, 1.05, fr, 0x2e3438, 0.05); p.push(P(box(1.05, 0.06, 0.18), 0x9a9890, [w * 0.2, y - 0.6, -d / 2 - 0.08])); }
   p.push(P(box(1.0, 2.1, 0.06), 0x5a3f2a, [-w * 0.2, 1.05, -d / 2 - 0.03]));
+  p.push(P(box(1.3, 2.25, 0.04), fr, [-w * 0.2, 1.1, -d / 2 - 0.01]));
+  p.push(P(box(1.6, 0.08, 0.9), 0x4a4a4e, [-w * 0.2, 2.45, -d / 2 - 0.45], [-0.15, 0, 0]));
+  // Dachrinnen, Fallrohre, Sockel
+  for (const sx of [-1, 1]) {
+    p.push(P(cyl(0.07, 0.07, d + 0.7, 6), 0x7a7a76, [sx * (w / 2 + 0.38), h - 0.02, 0], [HALFPI, 0, 0]));
+    p.push(P(cyl(0.05, 0.05, h, 6), 0x7a7a76, [sx * (w / 2 + 0.08), h / 2, d / 2 + 0.05]));
+  }
+  p.push(P(box(w + 0.05, 0.45, d + 0.05), 0x8a8780, [0, 0.22, 0]));
   p.push(P(box(0.6, 1.6, 0.6), 0x7a3f30, [w * 0.18, h + rh * 0.75, d * 0.2]));
   return { parts: p, w, d, ridge: h + rh, eave: h };
 }

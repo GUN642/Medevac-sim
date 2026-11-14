@@ -1,7 +1,7 @@
 // Modelle für die Ukraine-Karte: Dorfhäuser (heil oder zerstört), Plattenbauten mit Treffern, Schutt,
 // ausgebrannte Panzer und Schützenpanzer, Panzersperren, Birken und Pappeln, Granattrichter
 import * as THREE from './lib/three.module.min.js';
-import { P } from './models.js';
+import { P, D } from './models.js';
 
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const cyl = (rt, rb, h, s = 10) => new THREE.CylinderGeometry(rt, rb, h, s);
@@ -47,8 +47,19 @@ export function uaHouse(rng, damage = 0) {
   if (damage < 0.35) {
     p.push(P(box(w, h, d), wall, [0, h / 2, 0]));
     p.push(P(gable(w + 0.6, rh, d + 0.6), roof, [0, h, 0]));
-    for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) p.push(P(box(0.06, 1.1, 1.0), 0x2e3438, [sx * (w / 2 + 0.03), 1.6, -d / 2 + 1.6 + i * ((d - 3.2) / 2)]));
+    const fr = [0x3d6a9a, 0xeeeeea, 0x4f7a4a, 0x8a5a3a][Math.floor(rng() * 4)];
+    for (let i = 0; i < 3; i++) for (const sx of [-1, 1]) {
+      const z = -d / 2 + 1.6 + i * ((d - 3.2) / 2), x = sx * (w / 2 + 0.03);
+      D.win(p, 'x', x, 1.6, z, 0.95, 1.05, fr, 0x2e3438, 0.05);
+      p.push(P(box(0.05, 1.05, 0.04), fr, [x + sx * 0.03, 1.6, z]));
+      p.push(P(box(0.05, 0.04, 0.95), fr, [x + sx * 0.03, 1.85, z]));
+      p.push(P(box(0.15, 0.06, 1.1), 0x8a8a84, [x + sx * 0.05, 1.03, z]));
+      if (damage > 0.15 && rng() < 0.4) p.push(P(box(0.07, 0.9, 0.85), SOOT, [x + sx * 0.035, 1.6, z]));
+    }
     p.push(P(box(1.0, 2.0, 0.06), 0x5a3f2a, [-w * 0.2, 1.0, -d / 2 - 0.03]));
+    p.push(P(box(1.2, 0.2, 0.6), 0x8a8a84, [-w * 0.2, 0.1, -d / 2 - 0.35]));
+    p.push(P(box(w + 0.05, 0.5, d + 0.05), 0x6e6a62, [0, 0.25, 0]));
+    for (const sx of [-1, 1]) p.push(P(cyl(0.06, 0.06, d + 0.6, 6), 0x7a7a76, [sx * (w / 2 + 0.3), h - 0.02, 0], [HALFPI, 0, 0]));
     p.push(P(box(0.5, 1.2, 0.5), 0x8a5a48, [w * 0.2, h + rh * 0.7, d * 0.2]));
     // Treffer: verrußte Fenster, Loch im Dach
     if (damage > 0.15) { p.push(P(box(w * 0.4, 0.06, d * 0.3), BURNT, [w * 0.15, h + rh * 0.55, -d * 0.1], [0, 0, 0.42])); p.push(P(box(0.08, 1.4, 1.4), SOOT, [w / 2 + 0.05, 1.7, 0])); }
@@ -72,7 +83,12 @@ export function uaHouse(rng, damage = 0) {
     p.push(...rubbleParts(rng, Math.min(w, d) * 0.45, 0xb0a490));
   }
   // Gartenzaun
-  if (rng() < 0.6) for (const sx of [-1, 1]) p.push(P(box(0.05, 1.1, d + 6), 0x6a5a40, [sx * (w / 2 + 3), 0.55, 1.5]));
+  if (rng() < 0.6) for (const sx of [-1, 1]) {
+    const L = d + 6, n = Math.round(L / 2.2);
+    for (const y of [0.35, 0.95]) p.push(P(box(0.05, 0.08, L), 0x6a5a40, [sx * (w / 2 + 3), y, 1.5]));
+    for (let k = 0; k <= n; k++) p.push(P(box(0.1, 1.25, 0.1), 0x5a4a34, [sx * (w / 2 + 3), 0.62, 1.5 - L / 2 + (k * L) / n], [0, 0, (((k * 7) % 5) - 2) * 0.03]));
+    for (let k = 0; k < n * 4; k++) if ((k * 13) % 7 > 0) p.push(P(box(0.03, 1.0, 0.12), 0x7a6a4c, [sx * (w / 2 + 3.04), 0.6, 1.5 - L / 2 + (k + 0.5) * (L / (n * 4))]));
+  }
   return { parts: p, w, d };
 }
 
@@ -143,7 +159,18 @@ export function bmpParts() {
   p.push(P(box(3.0, 1.1, 6.6), c, [0, 1.15, 0]));
   p.push(P(box(3.0, 0.5, 1.6), c, [0, 1.35, -3.5], [-0.55, 0, 0]));
   p.push(P(box(3.2, 0.7, 6.2), 0x1a1a18, [0, 0.5, 0.1]));
-  for (let i = 0; i < 6; i++) for (const sx of [-1, 1]) p.push(P(cyl(0.38, 0.38, 0.25, 10), 0x2a2a28, [sx * 1.45, 0.42, -2.4 + i * 0.95], [0, 0, HALFPI]));
+  for (let i = 0; i < 6; i++) for (const sx of [-1, 1]) D.wheel(p, sx * 1.45, 0.42, -2.4 + i * 0.95, 0.38, 0.25, 0x3a3e2c, true);
+  // Kette, Luken, Winkelspiegel, Schwimmkästen, Scheinwerfer
+  for (const sx of [-1, 1]) {
+    p.push(P(box(0.36, 0.08, 6.4), 0x1e1e1c, [sx * 1.45, 0.86, 0.1]));
+    p.push(P(box(0.36, 0.08, 6.0), 0x1e1e1c, [sx * 1.45, 0.04, 0.1]));
+    for (let k = 0; k < 24; k++) p.push(P(box(0.4, 0.05, 0.08), 0x262624, [sx * 1.45, 0.9, -3.0 + k * 0.27]));
+    p.push(P(box(0.4, 0.3, 4.6), c, [sx * 1.35, 1.25, 0.5]));
+    D.light(p, sx * 1.1, 1.55, -3.95, 0.09);
+  }
+  for (const [x, z] of [[-0.8, 1.6], [0.8, 1.6], [-0.8, 2.6], [0.8, 2.6]]) p.push(P(box(0.9, 0.06, 0.8), d, [x, 1.73, z]));
+  for (let k = 0; k < 4; k++) p.push(P(box(0.12, 0.1, 0.06), 0x3a4a52, [-0.9 + k * 0.6, 1.75, -2.75]));
+  D.antenna(p, 0.6, 2.3, 0.1, 2.4);
   p.push(P(cyl(0.8, 0.95, 0.65, 10), c, [0, 2.0, -0.4]));
   p.push(P(cyl(0.05, 0.06, 2.9, 6), d, [0, 2.15, -2.1], [HALFPI - 0.05, 0, 0]));
   p.push(P(box(0.9, 0.15, 0.6), 0xe8e8e8, [0, 2.36, -0.1]));                 // weiße Erkennungsmarkierung

@@ -375,3 +375,168 @@ export class GrassField {
     this.mesh.instanceColor.needsUpdate = true;
   }
 }
+
+// ------------------------------------------------------------ Bodenbedeckung: Felsen und Büsche
+// Zufällig, aber fest pro Rasterzelle verteilt in einem Ring um die Kamera (wie das Gras).
+// Landezonen, Pads, FOB, Dörfer und Wasser bleiben frei; rein optisch (keine Kollision).
+function rockGeo() {
+  const g = new THREE.IcosahedronGeometry(1, 1);
+  const pos = g.attributes.position, n = pos.count, col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const b = 1 + 0.22 * Math.sin(x * 3.1 + z * 1.7) * Math.cos(y * 2.3 - x) + 0.12 * Math.sin(z * 5.3 + y * 4.1);
+    const yy = y < 0 ? y * 0.35 : y * 0.62;
+    pos.setXYZ(i, x * b, yy * b, z * b * 0.85);
+    const k = 0.72 + 0.28 * (y * 0.5 + 0.5) + 0.06 * Math.sin(x * 9 + z * 7);
+    col[i * 3] = k; col[i * 3 + 1] = k; col[i * 3 + 2] = k;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  return g;
+}
+function bushGeo() {
+  const parts = [];
+  const blobs = [[0, 0.55, 0, 0.75, 0.6], [0.5, 0.45, 0.25, 0.55, 0.45], [-0.45, 0.42, -0.2, 0.55, 0.45], [0.1, 0.75, -0.35, 0.45, 0.4], [-0.15, 0.4, 0.45, 0.5, 0.4]];
+  for (const [x, y, z, r, ry] of blobs) {
+    const g = new THREE.IcosahedronGeometry(1, 1);
+    g.scale(r, ry, r); g.translate(x, y, z);
+    parts.push(g);
+  }
+  let n = 0;
+  for (const g of parts) n += g.attributes.position.count;
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  let o = 0;
+  for (const g of parts) {
+    pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3);
+    for (let i = 0; i < g.attributes.position.count; i++) { col[(o + i) * 3] = 0.42; col[(o + i) * 3 + 1] = 0.55; col[(o + i) * 3 + 2] = 0.3; }
+    o += g.attributes.position.count;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  out.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  softenTree(out);
+  return out;
+}
+
+export class GroundCover {
+  // opts: radius, step, rock (Dichte 0..1), bush (0..1), rockCol [r,g,b], bushCol [r,g,b], steepRocks
+  constructor(scene, world, opts = {}) {
+    this.w = world;
+    this.R = opts.radius || 200;
+    this.step = opts.step || 7;
+    this.o = Object.assign({ rock: 0.1, bush: 0.2, rockCol: [0.5, 0.48, 0.45], bushCol: [0.85, 1, 0.75] }, opts);
+    const per = Math.ceil((2 * this.R / this.step) ** 2 * 0.8);
+    const mk = (geo, mat, cap) => {
+      const m = new THREE.InstancedMesh(geo, mat, cap);
+      m.count = 0; m.frustumCulled = false;
+      m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3);
+      m.castShadow = !!opts.shadows; m.receiveShadow = false;
+      scene.add(m);
+      return m;
+    };
+    this.rocks = mk(rockGeo(), new THREE.MeshLambertMaterial({ vertexColors: true }), Math.max(1, Math.ceil(per * Math.min(1, this.o.rock * 1.6 + 0.05))));
+    this.bushes = mk(bushGeo(), treeMaterial(), Math.max(1, Math.ceil(per * Math.min(1, this.o.bush + 0.05))));
+    this.last = null;
+    this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._v = new THREE.Vector3(); this._s = new THREE.Vector3(); this._c = new THREE.Color(); this._e = new THREE.Euler();
+  }
+
+  blocked(x, z, y) {
+    const w = this.w;
+    if (y < 0.7) return true;
+    if (w.nearFlat && w.nearFlat(x, z, 12)) return true;
+    if (w.fob && dist2(x, z, w.fob.x, w.fob.z) < (w.fob.r || 250) + 30) return true;
+    for (const s of w.sites || []) if (dist2(x, z, s.x, s.z) < 45) return true;
+    const vc = Math.max(40, w.villageClear || 0);
+    for (const v of w.villages || []) if (dist2(x, z, v.x, v.z) < vc + (v.big ? 60 : 20)) return true;
+    return false;
+  }
+
+  update(cam) {
+    const cx = cam.position.x, cz = cam.position.z, w = this.w;
+    const agl = cam.position.y - Math.max(0, w.height(cx, cz));
+    const vis = agl < 260;
+    this.rocks.visible = this.bushes.visible = vis;
+    if (!vis) return;
+    if (this.last && Math.hypot(cx - this.last.x, cz - this.last.z) < 14) return;
+    this.last = { x: cx, z: cz };
+    const st = this.step, R = this.R, R2 = R * R, o = this.o;
+    const i0 = Math.floor((cx - R) / st), i1 = Math.ceil((cx + R) / st), j0 = Math.floor((cz - R) / st), j1 = Math.ceil((cz + R) / st);
+    let nr = 0, nb = 0;
+    const m = this._m, q = this._q, v = this._v, s = this._s, c = this._c, e = this._e;
+    const capR = this.rocks.instanceMatrix.count, capB = this.bushes.instanceMatrix.count;
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const h1 = hash(i, j, 41), steepBoost = 0;
+      const x = (i + hash(i, j, 42)) * st, z = (j + hash(i, j, 43)) * st;
+      const dx = x - cx, dz = z - cz;
+      if (dx * dx + dz * dz > R2) continue;
+      const y = w.height(x, z);
+      if (this.blocked(x, z, y)) continue;
+      const nrm = w.normal(x, z);
+      const steep = 1 - nrm.y;
+      // Felsen: häufiger an Hängen, in Gruppen (Rauschen über die Zellen)
+      const grp = 0.5 + 0.5 * Math.sin(i * 0.37 + j * 0.21) * Math.cos(i * 0.13 - j * 0.29);
+      const pr = o.rock * (0.4 + grp * 1.2) * (1 + steep * (o.steepRocks ?? 3)) + steepBoost;
+      if (h1 < pr && nr < capR) {
+        const big = hash(i, j, 44);
+        const k = 0.25 + big * big * (o.rockMax || 1.4);
+        e.set(hash(i, j, 45) * 0.5, hash(i, j, 46) * 6.28, hash(i, j, 47) * 0.4);
+        q.setFromEuler(e);
+        m.compose(v.set(x, y - k * 0.12, z), q, s.set(k * (0.8 + hash(i, j, 48) * 0.6), k * (0.7 + hash(i, j, 49) * 0.6), k));
+        this.rocks.setMatrixAt(nr, m);
+        const t = 0.8 + hash(i, j, 50) * 0.35;
+        c.setRGB(o.rockCol[0] * t, o.rockCol[1] * t, o.rockCol[2] * t);
+        this.rocks.setColorAt(nr++, c);
+        continue;
+      }
+      const h2 = hash(i, j, 51);
+      if (nrm.y > 0.8 && h2 < o.bush * (0.3 + grp * 1.4) && nb < capB) {
+        const k = (0.55 + hash(i, j, 52) * 0.9) * (o.bushSize || 1);
+        e.set(0, hash(i, j, 53) * 6.28, 0);
+        q.setFromEuler(e);
+        m.compose(v.set(x, y - 0.1, z), q, s.set(k * (0.9 + hash(i, j, 54) * 0.4), k * (0.7 + hash(i, j, 55) * 0.6), k));
+        this.bushes.setMatrixAt(nb, m);
+        const t = 0.8 + hash(i, j, 56) * 0.4;
+        c.setRGB(o.bushCol[0] * t, o.bushCol[1] * t * (0.95 + hash(i, j, 57) * 0.1), o.bushCol[2] * t);
+        this.bushes.setColorAt(nb++, c);
+      }
+    }
+    this.rocks.count = nr; this.bushes.count = nb;
+    for (const im of [this.rocks, this.bushes]) { im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; }
+  }
+}
+const dist2 = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
+
+// ------------------------------------------------------------ Verwitterung für Bauten und Fahrzeuge
+// Fleckiger Putz/Lack, senkrechte Schmutzschlieren an Wänden, Staub auf Oberseiten.
+// Objektkoordinaten: das Muster bleibt bei fahrenden Fahrzeugen fest auf der Oberfläche.
+export function weatherMaterial(mat, key = 'weather') {
+  const tex = noiseTexture();
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.uniforms.uNoiseW = { value: tex };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vOP;\nvarying vec3 vON;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOP = position;\nvON = normal;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uNoiseW;\nvarying vec3 vOP;\nvarying vec3 vON;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          vec3 an = abs(normalize(vON));
+          vec2 pw = an.x > an.z ? vOP.zy : vOP.xy;
+          if (an.y > 0.7) pw = vOP.xz;
+          float m1 = texture2D(uNoiseW, pw / 6.5).g;
+          float m2 = texture2D(uNoiseW, pw / 1.6 + 0.4).a;
+          float streak = texture2D(uNoiseW, vec2(pw.x / 2.2, pw.y / 14.0) + 0.13).b;
+          float vert = 1.0 - an.y;
+          float top = smoothstep(0.75, 0.95, normalize(vON).y);
+          diffuseColor.rgb *= mix(0.9, 1.07, m1) * mix(0.96, 1.03, m2);
+          diffuseColor.rgb *= 1.0 - vert * smoothstep(0.5, 0.85, streak) * 0.15;
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.8 + vec3(0.07, 0.06, 0.042), top * (0.25 + 0.3 * m1));
+        }`);
+  };
+  mat.customProgramCacheKey = () => key;
+  mat.needsUpdate = true;
+  return mat;
+}

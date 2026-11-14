@@ -93,6 +93,78 @@ export const COL = {
   wood: 0x6e5134, thatch: 0xa88f55, bamboo: 0x8c7a4a,
 };
 
+
+// ---------------------------------------------------------------- Detail-Bausteine (Fahrzeuge, Gebäude)
+const _dq = new THREE.Quaternion(), _dm = new THREE.Matrix4(), _dv = new THREE.Vector3(), _du = new THREE.Vector3(0, 1, 0), _ds = new THREE.Vector3(1, 1, 1);
+export const D = {
+  // Rad: Reifen mit Profilstollen, Felge, Nabe, Radmuttern (Achse entlang x, Außenseite = Vorzeichen von x)
+  wheel(p, x, y, z, r, w, rim = 0x55574f, lite = false) {
+    const s = Math.sign(x) || 1;
+    p.push(P(cyl(r, r, w, 18), 0x151515, [x, y, z], [0, 0, HALFPI]));
+    p.push(P(cyl(r * 0.88, r * 0.88, w + 0.03, 18), 0x1c1c1b, [x, y, z], [0, 0, HALFPI]));
+    p.push(P(cyl(r * 0.6, r * 0.6, 0.05, 14), rim, [x + s * (w / 2 + 0.01), y, z], [0, 0, HALFPI]));
+    p.push(P(cyl(r * 0.2, r * 0.25, 0.1, 8), 0x2c2c2a, [x + s * (w / 2 + 0.04), y, z], [0, 0, HALFPI]));
+    if (lite) return;
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; p.push(P(box(0.05, 0.04, 0.04), 0x2c2c2a, [x + s * (w / 2 + 0.04), y + Math.cos(a) * r * 0.38, z + Math.sin(a) * r * 0.38])); }
+    const n = 16;
+    for (let k = 0; k < n; k++) { const a = (k / n) * Math.PI * 2; p.push(P(box(w * 0.92, 0.05, r * 0.2), 0x0f0f0f, [x, y + Math.cos(a) * r, z + Math.sin(a) * r], [a, 0, 0])); }
+  },
+  // Scheinwerfer nach vorn (-z) bzw. hinten (+z, dir = 1)
+  light(p, x, y, z, r = 0.11, dir = -1, lens = 0xe9e4c8) {
+    p.push(P(cyl(r * 1.25, r * 1.25, 0.08, 12), 0x232323, [x, y, z], [HALFPI, 0, 0]));
+    p.push(P(cyl(r, r, 0.04, 12), lens, [x, y, z + dir * 0.04], [HALFPI, 0, 0]));
+  },
+  tail(p, x, y, z, dir = 1) { p.push(P(box(0.18, 0.12, 0.05), 0x8a1a12, [x, y, z + dir * 0.02])); p.push(P(box(0.08, 0.12, 0.05), 0xc07a20, [x - Math.sign(x) * 0.15, y, z + dir * 0.02])); },
+  mirror(p, x, y, z) {
+    const s = Math.sign(x) || 1;
+    p.push(P(box(0.32, 0.03, 0.03), 0x222222, [x + s * 0.14, y, z]));
+    p.push(P(box(0.04, 0.26, 0.17), 0x1e1e1e, [x + s * 0.3, y, z]));
+    p.push(P(box(0.01, 0.22, 0.13), 0x6f7f88, [x + s * 0.3, y, z - 0.09]));
+  },
+  // Fenster mit Rahmen; face 'x' (Seitenwand bei x) oder 'z' (Stirnseite bei z)
+  win(p, face, x, y, z, w, h, frame = 0x2a2a28, glass = 0x27323a, depth = 0.04) {
+    if (face === 'x') {
+      const s = Math.sign(x) || 1;
+      p.push(P(box(depth, h + 0.12, w + 0.12), frame, [x, y, z]));
+      p.push(P(box(depth, h, w), glass, [x + s * 0.012, y, z]));
+    } else {
+      const s = Math.sign(z) || 1;
+      p.push(P(box(w + 0.12, h + 0.12, depth), frame, [x, y, z]));
+      p.push(P(box(w, h, depth), glass, [x, y, z + s * 0.012]));
+    }
+  },
+  antenna(p, x, y, z, len = 2.2) {
+    p.push(P(cyl(0.05, 0.06, 0.12, 6), 0x222222, [x, y + 0.06, z]));
+    p.push(P(cyl(0.008, 0.014, len, 4), 0x1a1a1a, [x, y + 0.12 + len / 2, z + len * 0.05], [0.1, 0, 0]));
+  },
+  grille(p, x, y, z, w, h, col = 0x1c1c1b, n = 7) {
+    p.push(P(box(w, h, 0.05), col, [x, y, z]));
+    for (let k = 0; k < n; k++) p.push(P(box(0.035, h * 0.9, 0.07), 0x3a3a38, [x - w / 2 + (k + 0.5) * (w / n), y, z - 0.01]));
+  },
+  // Seil/Stange zwischen zwei Punkten
+  rod(p, a, b, r, col, seg = 4) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], L = Math.hypot(dx, dy, dz);
+    const g = new THREE.CylinderGeometry(r, r, L, seg);
+    _dq.setFromUnitVectors(_du, _dv.set(dx / L, dy / L, dz / L));
+    _dm.compose(_dv.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), _dq, _ds);
+    g.applyMatrix4(_dm);
+    p.push(P(g, col));
+  },
+  // Sandsackreihen (versetzt), entlang x, Länge len, Höhe h, Tiefe d
+  bags(p, len, h, d, x = 0, y = 0, z = 0, col = 0xa38a5c) {
+    const rows = Math.max(2, Math.round(h / 0.28)), rh = h / rows;
+    for (let r = 0; r < rows; r++) {
+      const off = r % 2 ? 0.3 : 0, n = Math.max(1, Math.floor((len - off) / 0.6));
+      for (let i = 0; i < n; i++) {
+        const t = ((i * 7 + r * 3) % 5) / 5;
+        p.push(P(box(0.56, rh * 0.92, d), [col, 0x9a8255, 0xab9466, 0x958052, 0xa48d60][Math.floor(t * 5)], [x - len / 2 + off + (i + 0.5) * 0.6, y + rh * (r + 0.5), z], [0, 0, (t - 0.5) * 0.06], [1, 1, 0.94 + t * 0.1]));
+      }
+    }
+  },
+  // Plinthe: dunkler Spritzwasser-/Schmutzsockel um einen Quader
+  plinth(p, w, d, h = 0.45, col = 0x6a5a44) { p.push(P(box(w + 0.04, h, d + 0.04), col, [0, h / 2, 0])); },
+};
+
 // ---------------------------------------------------------------- Figuren
 const FIG_TYPES = {
   us:      { uni: 0x4f5c37, skin: 0xd2a07a, hat: 'm1', hatCol: 0x58623b, pack: 0x3f4a2b, gun: 0x1d1d1d },
@@ -334,10 +406,29 @@ export function m60Geo() {
 
 // ---------------------------------------------------------------- FOB-Objekte (Teilelisten)
 export function tentParts(w, l, h, color = COL.canvas) {
-  return [
-    P(box(w, h * 0.55, l), color, [0, h * 0.275, 0]),
-    P(cyl(w * 0.62, w * 0.62, l, 3), color, [0, h * 0.55 + w * 0.17, 0], [-HALFPI, 0, 0], [1, 1, 0.55]),
+  const wallH = h * 0.55, roofY = wallH + w * 0.17;
+  const dark = new THREE.Color(color).multiplyScalar(0.72).getHex();
+  const p = [
+    P(box(w, wallH, l), color, [0, wallH / 2, 0]),
+    P(cyl(w * 0.62, w * 0.62, l, 3), color, [0, roofY, 0], [-HALFPI, 0, 0], [1, 1, 0.55]),
   ];
+  // Dachnähte/Spriegel, Türplane, Fensterklappen, Spannseile mit Heringen
+  const n = Math.max(2, Math.round(l / 2.2));
+  for (let i = 0; i <= n; i++) {
+    const z = -l / 2 + (i * l) / n;
+    p.push(P(cyl(w * 0.625, w * 0.625, 0.08, 3), dark, [0, roofY, z], [-HALFPI, 0, 0], [1, 1, 0.55]));
+    if (i > 0 && i < n) for (const sx of [-1, 1]) {
+      D.rod(p, [sx * (w / 2), wallH, z], [sx * (w / 2 + 1.6), 0.02, z], 0.012, 0x8a8470);
+      p.push(P(box(0.05, 0.25, 0.05), 0x5a4a32, [sx * (w / 2 + 1.6), 0.1, z]));
+    }
+    if (i < n) for (const sx of [-1, 1]) p.push(P(box(0.03, 0.55, 0.9), dark, [sx * (w / 2 + 0.01), wallH * 0.62, z + l / n / 2]));
+  }
+  for (const sz of [-1, 1]) {
+    p.push(P(box(1.5, Math.min(2.0, wallH + 0.6), 0.05), dark, [0, Math.min(2.0, wallH + 0.6) / 2, sz * (l / 2 + 0.02)]));
+    p.push(P(box(0.08, 0.08, 0.08), 0x2a2a28, [0.5, 1.0, sz * (l / 2 + 0.05)]));
+  }
+  p.push(P(box(w + 0.1, 0.12, l + 0.1), dark, [0, 0.06, 0]));
+  return p;
 }
 
 // Ablage mit Panzerfäusten (Kiste, darauf mehrere Rohre)
@@ -361,16 +452,22 @@ export function hospitalParts() {
 export function fuelTruckParts() {
   const c = 0x4a5232;
   const p = [
-    P(box(2.3, 0.4, 7.5), 0x2a2a24, [0, 0.95, 0]),
+    P(box(2.2, 0.35, 7.5), 0x2a2a24, [0, 0.95, 0]),
     P(box(2.3, 1.6, 1.7), c, [0, 1.95, -2.75]),
     P(box(2.0, 0.9, 1.3), c, [0, 1.5, -4.0]),
-    P(box(2.2, 0.6, 0.05), 0x2b3a40, [0, 2.4, -3.62]),
-    P(cyl(1.05, 1.05, 4.6, 14), 0x535b3a, [0, 2.25, 0.8], [HALFPI, 0, 0]),
+    P(cyl(1.05, 1.05, 4.6, 16), 0x535b3a, [0, 2.25, 0.8], [HALFPI, 0, 0]),
     P(box(0.8, 0.3, 0.8), c, [0, 3.35, 0.2]),
-    P(cyl(0.12, 0.12, 2.0, 6), 0x111111, [1.3, 1.2, 2.6], [0, 0, HALFPI]),
+    P(cyl(0.12, 0.12, 2.0, 8), 0x111111, [1.3, 1.2, 2.6], [0, 0, HALFPI]),
+    P(box(2.4, 0.22, 0.2), 0x2a2a28, [0, 0.95, -4.75]),
   ];
-  for (const z of [-3.9, 1.4, 2.7]) for (const sx of [-1, 1])
-    p.push(P(cyl(0.55, 0.55, 0.4, 12), 0x161616, [sx * 1.05, 0.55, z], [0, 0, HALFPI]));
+  for (const z of [-0.8, 0.8, 2.4]) p.push(P(cyl(1.08, 1.08, 0.12, 16), 0x3a4128, [0, 2.25, z], [HALFPI, 0, 0]));
+  for (let k = 0; k < 5; k++) p.push(P(box(0.05, 0.05, 0.05), 0x2a2a28, [0.9 - k * 0.04, 1.2 + k * 0.45, 3.2]));
+  D.rod(p, [0.95, 1.1, 3.15], [0.75, 3.2, 3.15], 0.025, 0x2a2a28); D.rod(p, [0.55, 1.1, 3.15], [0.35, 3.2, 3.15], 0.025, 0x2a2a28);
+  D.win(p, 'z', 0, 2.25, -3.62, 2.0, 0.6);
+  for (const sx of [-1, 1]) { D.win(p, 'x', sx * 1.16, 2.25, -2.6, 0.9, 0.55); D.mirror(p, sx * 1.15, 2.35, -3.4); D.light(p, sx * 0.75, 1.4, -4.66); D.tail(p, sx * 0.95, 1.0, 3.76); }
+  D.grille(p, 0, 1.45, -4.67, 1.0, 0.55);
+  for (const z of [-3.9, 1.4, 2.7]) for (const sx of [-1, 1]) D.wheel(p, sx * 1.05, 0.55, z, 0.55, 0.4);
+  D.antenna(p, -0.9, 2.75, -2.4, 1.8);
   return p;
 }
 
@@ -381,26 +478,36 @@ export function bladderParts() {
 export function towerParts() {
   const p = [];
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) p.push(P(box(0.25, 8, 0.25), COL.wood, [sx * 1.6, 4, sz * 1.6]));
+  // Kreuzverstrebungen
+  for (const [a, b] of [[[-1.6, 0.5, -1.6], [1.6, 6.5, -1.6]], [[1.6, 0.5, -1.6], [-1.6, 6.5, -1.6]], [[-1.6, 0.5, 1.6], [1.6, 6.5, 1.6]], [[1.6, 0.5, 1.6], [-1.6, 6.5, 1.6]],
+    [[-1.6, 0.5, -1.6], [-1.6, 6.5, 1.6]], [[1.6, 0.5, 1.6], [1.6, 6.5, -1.6]]]) D.rod(p, a, b, 0.07, 0x5a4128);
   p.push(P(box(4, 0.25, 4), COL.wood, [0, 7.0, 0]));
-  p.push(P(box(4, 1.1, 0.15), COL.sand, [0, 7.6, 2]));
-  p.push(P(box(4, 1.1, 0.15), COL.sand, [0, 7.6, -2]));
-  p.push(P(box(0.15, 1.1, 4), COL.sand, [2, 7.6, 0]));
-  p.push(P(box(0.15, 1.1, 4), COL.sand, [-2, 7.6, 0]));
+  for (const [x, z, len, rot] of [[0, 1.75, 4, 0], [0, -1.75, 4, 0], [1.75, 0, 3.0, HALFPI], [-1.75, 0, 3.0, HALFPI]]) {
+    const q = []; D.bags(q, len, 1.1, 0.45, 0, 0, 0); for (const g of q) { g.rotateY(rot); g.translate(x, 7.12, z); } p.push(...q);
+  }
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) p.push(P(box(0.12, 1.8, 0.12), COL.wood, [sx * 1.9, 9.0, sz * 1.9]));
   p.push(P(cyl(0.1, 3.4, 1.0, 4), 0x3d3f2c, [0, 10.2, 0], [0, Math.PI / 4, 0]));
+  // Leiter
+  D.rod(p, [-0.35, 0, 2.6], [-0.35, 7.1, 1.85], 0.04, 0x5a4128); D.rod(p, [0.35, 0, 2.6], [0.35, 7.1, 1.85], 0.04, 0x5a4128);
+  for (let k = 1; k < 18; k++) { const t = k / 18; p.push(P(box(0.7, 0.05, 0.05), 0x5a4128, [0, 7.1 * t, 2.6 - 0.75 * t])); }
   return p;
 }
 
 export function sandbagWall(len, h = 1.2) {
-  return [P(box(len, h, 1.0), COL.sand, [0, h / 2, 0])];
+  const p = [P(box(len, h * 0.96, 0.9), 0x8c7550, [0, h * 0.48, 0])];
+  if (len <= 16) { D.bags(p, len, h, 0.5, 0, 0, -0.22); D.bags(p, len, h, 0.5, 0, 0, 0.22); }
+  return p;
 }
 
 export function bunkerParts() {
-  return [
-    P(box(6, 1.8, 5), COL.sand, [0, 0.9, 0]),
-    P(box(6.6, 0.5, 5.6), 0x7a6a48, [0, 2.05, 0]),
+  const p = [
+    P(box(6, 1.8, 5), 0x8c7550, [0, 0.9, 0]),
     P(box(3, 0.4, 0.1), 0x111111, [0, 1.3, -2.52]),
   ];
+  D.bags(p, 6, 1.8, 0.45, 0, 0, -2.55); D.bags(p, 6, 1.8, 0.45, 0, 0, 2.55);
+  for (let i = 0; i < 9; i++) p.push(P(cyl(0.16, 0.16, 5.8, 7), [0x5a4128, 0x4e3a24, 0x624a30][i % 3], [-2.9 + i * 0.72, 1.98, 0], [HALFPI, 0, 0]));
+  p.push(P(box(6.4, 0.3, 5.6), 0x7a6a48, [0, 2.3, 0]));
+  return p;
 }
 
 export function padParts(kind) {
@@ -437,12 +544,20 @@ export function howitzerParts() {
 }
 
 export function jeepParts() {
-  return [
-    P(box(1.6, 0.7, 3.4), 0x4a5232, [0, 0.85, 0]),
-    P(box(1.5, 0.05, 0.8), 0x2b3a40, [0, 1.5, -0.6], [-0.3, 0, 0]),
-    ...[[-0.8, -1.1], [0.8, -1.1], [-0.8, 1.1], [0.8, 1.1]].map(([x, z]) =>
-      P(cyl(0.38, 0.38, 0.25, 10), 0x161616, [x, 0.38, z], [0, 0, HALFPI])),
+  const c = 0x4a5232, p = [
+    P(box(1.6, 0.55, 3.3), c, [0, 0.85, 0]),
+    P(box(1.5, 0.3, 1.2), c, [0, 1.25, -1.05]),
+    P(box(1.5, 0.45, 0.05), 0x2a2d22, [0, 1.6, -0.4], [-0.15, 0, 0]),
+    P(box(1.3, 0.35, 0.03), 0x6f8a98, [0, 1.6, -0.42], [-0.15, 0, 0]),
   ];
+  for (const sx of [-1, 1]) { p.push(P(box(0.25, 0.08, 0.9), c, [sx * 0.72, 1.12, -1.15])); p.push(P(box(0.25, 0.08, 0.8), c, [sx * 0.72, 1.12, 1.1])); }
+  D.grille(p, 0, 1.0, -1.67, 1.0, 0.35, 0x2a2d22, 9);
+  for (const sx of [-1, 1]) { D.light(p, sx * 0.55, 1.08, -1.69, 0.09); D.tail(p, sx * 0.62, 0.95, 1.66); }
+  p.push(P(cyl(0.34, 0.34, 0.22, 14), 0x151515, [0, 1.15, 1.75], [HALFPI, 0, 0]));
+  p.push(P(box(0.5, 0.3, 0.45), 0x3a3f28, [-0.4, 1.25, 0.25]), P(box(0.5, 0.3, 0.45), 0x3a3f28, [0.4, 1.25, 0.25]));
+  for (const sx of [-1, 1]) for (const sz of [-1.05, 1.05]) D.wheel(p, sx * 0.78, 0.38, sz, 0.38, 0.25);
+  D.antenna(p, 0.65, 1.15, 1.4, 2.4);
+  return p;
 }
 
 export function crateParts() {
@@ -450,12 +565,25 @@ export function crateParts() {
 }
 
 export function hutParts(rng) {
-  const w = 4 + rng() * 2.5, l = 5 + rng() * 3;
-  return [
-    P(box(w, 2.2, l), COL.bamboo, [0, 1.1, 0]),
-    P(cone(Math.max(w, l) * 0.78, 2.4, 4), COL.thatch, [0, 3.4, 0], [0, Math.PI / 4, 0], [w / Math.max(w, l), 1, l / Math.max(w, l)]),
-    P(box(1.0, 1.6, 0.05), 0x2a2015, [0, 0.8, -l / 2 - 0.02]),
-  ];
+  const w = 4 + rng() * 2.5, l = 5 + rng() * 3, stilt = rng() < 0.5 ? 0.7 : 0;
+  const m = Math.max(w, l);
+  const p = [P(box(w, 2.2, l), COL.bamboo, [0, 1.1 + stilt, 0])];
+  if (stilt) for (const sx of [-1, 1]) for (const sz of [-1, 0, 1]) p.push(P(cyl(0.09, 0.11, stilt + 0.2, 6), 0x5e4a2c, [sx * (w / 2 - 0.2), (stilt + 0.2) / 2, sz * (l / 2 - 0.2)]));
+  // Bambus-Eckpfosten und Wandriegel
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) p.push(P(cyl(0.08, 0.08, 2.3, 6), 0x6e5a32, [sx * (w / 2 + 0.03), 1.15 + stilt, sz * (l / 2 + 0.03)]));
+  for (const y of [0.15, 1.1, 2.1]) for (const sx of [-1, 1]) p.push(P(box(0.07, 0.07, l + 0.1), 0x6e5a32, [sx * (w / 2 + 0.04), y + stilt, 0]));
+  // Strohdach mit Überstand, First
+  p.push(P(cone(m * 0.86, 2.6, 4), COL.thatch, [0, 3.45 + stilt, 0], [0, Math.PI / 4, 0], [w / m, 1, l / m]));
+  p.push(P(cone(m * 0.9, 0.35, 4), 0x8f7845, [0, 2.3 + stilt, 0], [0, Math.PI / 4, 0], [w / m, 1, l / m]));
+  p.push(P(box(0.14, 0.14, 0.7), 0x5e4a2c, [0, 4.72 + stilt, 0]));
+  // Tür mit Rahmen, Fensteröffnung
+  p.push(P(box(1.0, 1.6, 0.05), 0x2a2015, [0, 0.8 + stilt, -l / 2 - 0.03]));
+  p.push(P(box(1.2, 0.08, 0.08), 0x5e4a2c, [0, 1.65 + stilt, -l / 2 - 0.05]));
+  p.push(P(box(0.05, 0.6, 0.8), 0x2a2015, [w / 2 + 0.03, 1.4 + stilt, 0]));
+  if (stilt) for (let k = 0; k < 3; k++) p.push(P(box(0.9, 0.05, 0.25), 0x6e5a32, [0, stilt * (k + 0.5) / 3, -l / 2 - 0.3 - (2 - k) * 0.25]));
+  // Vorratskorb / Wasserkrug
+  if (rng() < 0.6) p.push(P(cyl(0.3, 0.22, 0.55, 8), 0x6a4a30, [w / 2 + 0.5, 0.28, l / 2 - 0.6]));
+  return p;
 }
 
 export function palmParts() {
