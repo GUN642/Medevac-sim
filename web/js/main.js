@@ -81,10 +81,14 @@ class Game {
   owns(i) { return this.owner(i) === this.myId; }
 
   async init() {
-    const q = this.settings.quality;
+    // „minimal“: wie „low“, dazu reduzierte Auflösung, weniger Bäume, keine Bodenbedeckung, einfache Shader
+    const minimal = this.settings.quality === 'minimal';
+    this.minimal = minimal;
+    const q = minimal ? 'low' : this.settings.quality;
+    const wq = minimal ? 'minimal' : q;
     const canvas = $('game');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: q !== 'low', powerPreference: 'high-performance' });
-    this.pixelCap = q === 'low' ? 1 : q === 'medium' ? 1.5 : 2;
+    this.pixelCap = minimal ? Math.min(0.75, 1100 / Math.max(window.innerWidth, 1)) : q === 'low' ? 1 : q === 'medium' ? 1.5 : 2;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.pixelCap));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -93,7 +97,7 @@ class Game {
     this.renderer.shadowMap.enabled = this.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     setupLook(this.renderer, new THREE.Vector3(-0.5, 1, 0.35).normalize());
-    weatherMaterial(vcMat, 'weatherA'); weatherMaterial(vcMatDouble, 'weatherB'); weatherMaterial(vcGrainMat, 'weatherC');
+    if (!minimal) { weatherMaterial(vcMat, 'weatherA'); weatherMaterial(vcMatDouble, 'weatherB'); weatherMaterial(vcGrainMat, 'weatherC'); }
 
     // Einsatzgebiet (Karte) festlegen, bevor die Welt entsteht
     const theme = themeOf(this.settings.map);
@@ -103,7 +107,7 @@ class Game {
     document.body.classList.toggle('snow', !!T.snow);
     const sky = T.sky;
     this.scene = new THREE.Scene();
-    this.fogDensity = sky.fogDensity;
+    this.fogDensity = sky.fogDensity * (minimal ? 1.6 : 1);
     this.scene.fog = new THREE.FogExp2(sky.fog, this.fogDensity);
     this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.05, 7000);
     this.scene.add(this.camera); // für die Waffe in der Ego-Perspektive
@@ -127,7 +131,7 @@ class Game {
     }
 
     await this.step('Erzeuge Gelände …', 10);
-    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, q, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, q, 2021) : T.id === 'mali' ? new MaliWorld(this.scene, q, 2017) : T.id === 'norway' ? new NorwayWorld(this.scene, q, 1952) : T.id === 'ukraine' ? new UkraineWorld(this.scene, q, 2023) : new World(this.scene, q);
+    this.world = T.id === 'afghanistan' ? new AfghanWorld(this.scene, wq, 2010) : T.id === 'flood' ? new FloodWorld(this.scene, wq, 2021) : T.id === 'mali' ? new MaliWorld(this.scene, wq, 2017) : T.id === 'norway' ? new NorwayWorld(this.scene, wq, 1952) : T.id === 'ukraine' ? new UkraineWorld(this.scene, wq, 2023) : new World(this.scene, wq);
     buildEnv(this.renderer, this.world.sky, T.sky.hemiGround);
     applyWaterEnv(this.world.water);
     // Grasbüschel im Nahbereich (nicht im Schnee, nicht bei niedriger Qualität)
@@ -136,7 +140,7 @@ class Game {
       this.grass = new GrassField(this.scene, this.world, { radius: q === 'high' ? 75 : 55, step: q === 'high' ? 1.7 : 2.1, density: dry ? 0.4 : 0.95, tint: dry ? [1.4, 1.3, 0.95] : [1.2, 1.4, 1.0] });
     }
     // Felsen und Büsche im Umkreis der Kamera
-    {
+    if (!minimal) {
       const COVER = { vietnam: [0.03, 0.32, [0.8, 1.0, 0.7]], afghanistan: [0.16, 0.07, [0.72, 0.78, 0.52]], mali: [0.1, 0.16, [0.8, 0.75, 0.45]], ukraine: [0.02, 0.1, [0.9, 1.0, 0.75]], flood: [0.02, 0.12, [0.85, 1.0, 0.75]], norway: [0.1, 0, [1, 1, 1]] }[T.id] || [0.05, 0.15, [1, 1, 1]];
       const rc = new THREE.Color(this.world.rockColor || 0x6e665a);
       this.cover = new GroundCover(this.scene, this.world, {

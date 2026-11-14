@@ -495,7 +495,8 @@ export function towerParts() {
 
 export function sandbagWall(len, h = 1.2) {
   const p = [P(box(len, h * 0.96, 0.9), 0x8c7550, [0, h * 0.48, 0])];
-  if (len <= 16) { D.bags(p, len, h, 0.5, 0, 0, -0.22); D.bags(p, len, h, 0.5, 0, 0, 0.22); }
+  if (len <= 6) { D.bags(p, len, h, 0.5, 0, 0, -0.22); D.bags(p, len, h, 0.5, 0, 0, 0.22); }
+  else for (let r = 1; r < Math.round(h / 0.28); r++) for (const sz of [-0.46, 0.46]) p.push(P(box(len, 0.03, 0.03), 0x6e5c3e, [0, r * 0.28, sz]));
   return p;
 }
 

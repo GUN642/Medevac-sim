@@ -370,7 +370,7 @@ export class World {
       col[i * 3] = s2l(c[0]); col[i * 3 + 1] = s2l(c[1]); col[i * 3 + 2] = s2l(c[2]);
     }
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const mat = terrainMaterial({ rock: this.rockColor, detail: this.quality === 'low' ? 0.7 : 1 });
+    const mat = terrainMaterial({ rock: this.rockColor, detail: this.quality === 'minimal' ? 0 : this.quality === 'low' ? 0.7 : 1 });
     this.terrain = new THREE.Mesh(geo, mat);
     this.terrain.receiveShadow = true;
     this.scene.add(this.terrain);
@@ -624,13 +624,13 @@ export class World {
     const q = this.quality;
     this.TC = 100;
     this.TN = Math.ceil(WORLD_SIZE / this.TC);
-    this.perCell = { low: 22, medium: 30, high: 36 }[q] || 30;
-    this.farK = { low: 2, medium: 3, high: 3 }[q] || 3;
-    this.nearR = { low: 380, medium: 560, high: 780 }[q] || 560;
+    this.perCell = { minimal: 13, low: 22, medium: 30, high: 36 }[q] || 30;
+    this.farK = { minimal: 1, low: 2, medium: 3, high: 3 }[q] || 3;
+    this.nearR = { minimal: 240, low: 380, medium: 560, high: 780 }[q] || 560;
     this.cellCache = new Map();
     this.treeTypes = this.treeDefs;
     for (const t of this.treeTypes) { softenTree(t.geo); if (t.near) softenTree(t.near); }
-    const mat = treeMaterial();
+    const mat = q === 'minimal' ? new THREE.MeshLambertMaterial({ vertexColors: true }) : treeMaterial();
     this._m4 = new THREE.Matrix4(); this._q4 = new THREE.Quaternion(); this._e4 = new THREE.Euler(); this._p4 = new THREE.Vector3(); this._s4 = new THREE.Vector3();
     this._c4 = new THREE.Color();
 

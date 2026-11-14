@@ -17,6 +17,14 @@ export function loadSettings() {
   const s = Object.assign(d, read(SKEY) || {});
   // Standard ist jetzt hohe Grafik (auch auf dem Handy): alte, automatisch gespeicherte Voreinstellung einmalig anheben
   if (!s.qHigh) { s.qHigh = true; s.quality = 'high'; write(SKEY, s); }
+  // Fernseher (Android TV): einmalig die einfache Grafik wählen – lässt sich in den Einstellungen wieder ändern
+  if (!s.tvQ) {
+    s.tvQ = true;
+    let tv = /Android TV|AFT[A-Z]|BRAVIA|SMART-TV|SmartTV|GoogleTV|\bTV\b/i.test(navigator.userAgent);
+    try { if (window.AndroidApp && window.AndroidApp.isTv) tv = tv || !!window.AndroidApp.isTv(); } catch (_) { /* ältere App */ }
+    if (tv) s.quality = 'minimal';
+    write(SKEY, s);
+  }
   return s;
 }
 export const saveSettings = (s) => write(SKEY, s);

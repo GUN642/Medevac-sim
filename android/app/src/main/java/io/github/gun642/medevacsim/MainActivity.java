@@ -250,6 +250,18 @@ public class MainActivity extends Activity {
 
     /** Schnittstelle für JavaScript (window.AndroidApp). */
     private class Bridge {
+        /** Läuft die App auf einem Fernseher (Android TV)? Dann wählt das Spiel die einfache Grafik. */
+        @JavascriptInterface
+        public boolean isTv() {
+            try {
+                android.app.UiModeManager ui = (android.app.UiModeManager) getSystemService(Context.UI_MODE_SERVICE);
+                if (ui != null && ui.getCurrentModeType() == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION) return true;
+                return getPackageManager().hasSystemFeature("android.software.leanback");
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
         @JavascriptInterface
         public String getVersionName() {
             return BuildConfig.VERSION_NAME;

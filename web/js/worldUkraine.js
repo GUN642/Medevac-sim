@@ -286,7 +286,7 @@ export class UkraineWorld extends AfghanWorld {
 
   // Granattrichter als flache Scheiben auf dem Gelände (dichter Richtung Front)
   buildCraters(rng) {
-    const count = { low: 900, medium: 1600, high: 2400 }[this.quality] || 1600;
+    const count = { minimal: 450, low: 900, medium: 1600, high: 2400 }[this.quality] || 1600;
     const geo = M.merge(U.craterGeo());
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     const im = new THREE.InstancedMesh(geo, mat, count);
