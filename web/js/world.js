@@ -6,7 +6,7 @@ import { makeRng, smoothstep, clamp, lerp, dist2 } from './util.js';
 import * as M from './models.js';
 import { T, HELI_TYPES } from './theme.js';
 import { buildHeliModel } from './heliModels.js';
-import { terrainMaterial, softenTree, upgradeWater, animateWater } from './gfx.js';
+import { terrainMaterial, softenTree, treeMaterial, upgradeWater, animateWater } from './gfx.js';
 
 const SITE_NAMES = [
   'LZ X-Ray', 'LZ Albany', 'LZ Bravo', 'LZ Dog', 'LZ Tango', 'LZ Sierra', 'LZ Hotel', 'LZ Juliet',
@@ -630,7 +630,7 @@ export class World {
     this.cellCache = new Map();
     this.treeTypes = this.treeDefs;
     for (const t of this.treeTypes) { softenTree(t.geo); if (t.near) softenTree(t.near); }
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    const mat = treeMaterial();
     this._m4 = new THREE.Matrix4(); this._q4 = new THREE.Quaternion(); this._e4 = new THREE.Euler(); this._p4 = new THREE.Vector3(); this._s4 = new THREE.Vector3();
     this._c4 = new THREE.Color();
 

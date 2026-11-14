@@ -121,6 +121,10 @@ export function softenTree(geo) {
     if (v.lengthSq() < 1e-6) v.set(0, 1, 0);
     v.normalize();
     f.set(nor.getX(i), nor.getY(i), nor.getZ(i));
+    // unregelmäßige Kronenform: Ecken nach außen/innen verschieben (nur von der Lage abhängig, damit keine Risse entstehen)
+    const bump = Math.sin(x * 1.31 + y * 0.77) * Math.sin(z * 1.17 - y * 0.93) + 0.5 * Math.sin(x * 2.9 - z * 2.3 + y * 1.7);
+    const amp = span * 0.075 * bump;
+    pos.setXYZ(i, x + v.x * amp, y + v.y * amp * 0.7, z + v.z * amp);
     v.multiplyScalar(0.7).addScaledVector(f, 0.3).normalize();
     nor.setXYZ(i, v.x, v.y, v.z);
     const t = (y - y0) / span;
@@ -129,8 +133,66 @@ export function softenTree(geo) {
     const k = (0.62 + 0.46 * t) * (0.86 + 0.2 * rad) * (0.92 + 0.16 * h);
     col.setXYZ(i, col.getX(i) * k, col.getY(i) * k * (0.98 + 0.06 * h), col.getZ(i) * k);
   }
-  nor.needsUpdate = true; col.needsUpdate = true;
+  pos.needsUpdate = true; nor.needsUpdate = true; col.needsUpdate = true;
+  geo.computeBoundingSphere();
   return geo;
+}
+
+// Material für alle Bäume: Laub in Blattbüschel aufgelöst (helle, sonnige Büschel, dunkle Lücken),
+// leichte Farbstreuung ins Gelbgrüne; Stämme bleiben unverändert
+export function treeMaterial() {
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const tex = noiseTexture();
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uNoise = { value: tex };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vLP;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLP = position;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uNoise;\nvarying vec3 vLP;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        {
+          float leaf = step(vColor.r * 0.97, vColor.g) * step(vColor.b * 0.85, vColor.g);
+          float n1 = texture2D(uNoise, vLP.xz * 0.11 + vLP.y * 0.07).b;
+          float n2 = texture2D(uNoise, vLP.zy * 0.37 + vLP.x * 0.05 + 0.31).a;
+          float clump = smoothstep(0.28, 0.72, n1);
+          float k = (0.8 + 0.75 * clump) * (0.86 + 0.32 * n2) * 1.55;
+          diffuseColor.rgb *= mix(1.0, k, leaf);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.22, 1.12, 0.7), leaf * clump * 0.5);
+          diffuseColor.rgb = min(diffuseColor.rgb, vec3(0.92));
+        }`);
+  };
+  mat.customProgramCacheKey = () => 'treeGfx';
+  return mat;
+}
+
+// ------------------------------------------------------------ Bildlook
+// Filmische Tonwertkurve und Luftperspektive: Dunst wird zur Sonnenseite hin heller und wärmer,
+// auf der Gegenseite kühler. Gilt für alle Materialien mit Nebel.
+let lookDone = false;
+export function setupLook(renderer, sunDir) {
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.82;
+  if (lookDone) return;
+  lookDone = true;
+  const C = THREE.ShaderChunk;
+  // Farbabstimmung nach der Tonwertkurve: etwas weniger Sättigung (kein Neon-Grün), Schatten leicht kühl, Lichter warm
+  C.tonemapping_fragment = C.tonemapping_fragment.replace('gl_FragColor.rgb = toneMapping( gl_FragColor.rgb );', `gl_FragColor.rgb = toneMapping( gl_FragColor.rgb );
+    {
+      float lumG = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+      gl_FragColor.rgb = mix(vec3(lumG), gl_FragColor.rgb, 0.8);
+      gl_FragColor.rgb *= mix(vec3(0.96, 0.99, 1.05), vec3(1.04, 1.0, 0.94), smoothstep(0.05, 0.6, lumG));
+    }`);
+  const sx = sunDir.x, sz = sunDir.z, sl = Math.hypot(sx, sz) || 1;
+  C.fog_pars_vertex = C.fog_pars_vertex.replace('varying float vFogDepth;', 'varying float vFogDepth;\nvarying vec3 vFogView;');
+  C.fog_vertex = C.fog_vertex.replace('vFogDepth = - mvPosition.z;', 'vFogDepth = - mvPosition.z;\nvFogView = mvPosition.xyz;');
+  C.fog_pars_fragment = C.fog_pars_fragment.replace('varying float vFogDepth;', 'varying float vFogDepth;\nvarying vec3 vFogView;');
+  C.fog_fragment = C.fog_fragment.replace('gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );', `
+    vec3 fogW = normalize((vec4(vFogView, 0.0) * viewMatrix).xyz);
+    float fogAz = dot(normalize(fogW.xz + vec2(1e-5)), vec2(${(sx / sl).toFixed(4)}, ${(sz / sl).toFixed(4)})) * 0.5 + 0.5;
+    float fogHz = 1.0 - clamp(abs(fogW.y) * 2.5, 0.0, 1.0);
+    vec3 fogC = fogColor * mix(vec3(0.9, 0.95, 1.04), vec3(1.16, 1.08, 0.94), fogAz * fogAz) * (0.96 + 0.08 * fogHz);
+    gl_FragColor.rgb = mix( gl_FragColor.rgb, fogC, fogFactor );`);
 }
 
 // ------------------------------------------------------------ Wasser

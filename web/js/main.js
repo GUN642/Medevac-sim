@@ -1,7 +1,7 @@
 // Dustoff – Medevac-Hubschraubersimulator (Vietnam 1968 / Afghanistan 2010): Hauptprogramm
 import { Strikes } from './strikes.js';
 import { UkraineWorld } from './worldUkraine.js';
-import { buildEnv, applyWaterEnv, GrassField } from './gfx.js';
+import { buildEnv, applyWaterEnv, GrassField, setupLook } from './gfx.js';
 import * as THREE from './lib/three.module.min.js';
 import { World } from './world.js';
 import { AfghanWorld } from './worldAfg.js';
@@ -91,6 +91,7 @@ class Game {
     this.shadows = q !== 'low';
     this.renderer.shadowMap.enabled = this.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    setupLook(this.renderer, new THREE.Vector3(-0.5, 1, 0.35).normalize());
 
     // Einsatzgebiet (Karte) festlegen, bevor die Welt entsteht
     const theme = themeOf(this.settings.map);

@@ -14,12 +14,8 @@ const NATO = ['Alpha', 'Bravo', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'India', 'Ju
 const fmtClock = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
 // ===================================================================== Löschwassereinsatz
-const FIRE_TXT = {
-  vietnam: { title: 'LÖSCHWASSEREINSATZ', what: (n) => `Das Dorf ${n} brennt nach einem Mörserangriff`, unit: 'Distriktberater' },
-  afghanistan: { title: 'LÖSCHWASSEREINSATZ', what: (n) => `Feldbrand bei ${n} – das Feuer bedroht die Gehöfte`, unit: 'PRT Kunduz' },
-  mali: { title: 'LÖSCHWASSEREINSATZ', what: (n) => `Buschfeuer bei ${n} – der Wind treibt es auf das Dorf zu`, unit: 'Zivil-militärische Zusammenarbeit' },
-  ukraine: { title: 'LÖSCHWASSEREINSATZ', what: (n) => `Ein Weizenfeld bei ${n} brennt nach Beschuss – das Feuer läuft auf das Dorf zu`, unit: 'Katastrophenschutz DSNS' },
-};
+// Kriegsschauplätze: kein Löschen (dort fliegt man keine Löscheinsätze). Eintrag je Karte schaltet den Auftrag frei.
+const FIRE_TXT = {};
 
 export const fire = {
   can(M) {

@@ -10,7 +10,7 @@ import { EXTRA, genMods, describeMods, acceptMods, updateMods, scoreMods, hudMod
 const NATO = ['Kilo', 'Lima', 'Oscar', 'Papa', 'Quebec', 'Romeo', 'Tango', 'Victor', 'Whiskey', 'Yankee', 'Zulu', 'Hotel'];
 // Aufträge, bei denen Soldaten/Personen/Ladung transportiert werden (nicht Verwundete)
 const LIFT = ['transport', 'insert', 'exfil', 'resupply', 'vip', 'boat', 'convoy', 'sling', 'auto', 'fastrope', 'fire'];
-const TYPE_WEIGHTS = [['medevac', 24], ['transport', 10], ['csar', 9], ['insert', 8], ['exfil', 8], ['resupply', 7], ['recon', 6], ['vip', 5], ['boat', 7], ['sling', 12], ['auto', 4], ['fire', 8], ['fastrope', 9], ['search', 8]];
+const TYPE_WEIGHTS = [['medevac', 24], ['transport', 10], ['csar', 9], ['insert', 8], ['exfil', 8], ['resupply', 7], ['recon', 6], ['vip', 5], ['boat', 7], ['sling', 12], ['auto', 4], ['fastrope', 9], ['search', 8]];
 const SMOKES = ['gelb', 'rot', 'grün', 'violett'];
 const SLING_WHAT = { net: 'Netz mit Nachschubkisten', bags: 'Big Bags mit Sandsäcken für den Deich', jeep: 'liegengebliebenes Fahrzeug bergen', howitzer: 'leichte Feldhaubitze (105 mm)', bladder: 'Treibstoffblase (1900 l)', water: 'Trinkwassertanks', container: 'Container mit Notstromaggregat', boat: 'Rettungsboot mit Außenborder' };
 const SLING_PTS = { jeep: 650, howitzer: 620, bladder: 560, container: 540, water: 520, boat: 470, net: 480, bags: 480 };

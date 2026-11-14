@@ -167,7 +167,7 @@ export const THEMES = {
   },
   mali: {
     id: 'mali', name: 'Mali 2017', country: 'Mali', sub: 'MALI 2017 · MINUSMA', fobName: 'Camp Castor', helis: ['nh90', 'tiger', 'ch47', 'ch53'],
-    missionWeights: [['medevac', 20], ['convoy', 15], ['transport', 8], ['csar', 7], ['insert', 6], ['exfil', 6], ['resupply', 7], ['boat', 8], ['recon', 6], ['sling', 12], ['auto', 4], ['fire', 9], ['fastrope', 8], ['search', 7]],
+    missionWeights: [['medevac', 20], ['convoy', 15], ['transport', 8], ['csar', 7], ['insert', 6], ['exfil', 6], ['resupply', 7], ['boat', 8], ['recon', 6], ['sling', 12], ['auto', 4], ['fastrope', 8], ['search', 7]],
     enemyName: 'Dschihadisten', enemyFrom: 'Dornbuschsavanne', enemyCover: 'Ortschaft', trees: 'Akazien', crashTrees: 'In die Akazien gestürzt!',
     friend: () => (rand() < 0.6 ? 'bw' : rand() < 0.5 ? 'un' : 'un2'), enemy: (heavy) => (heavy || rand() < 0.4 ? 'jih2' : 'jih'),
     wounded: 'woundedA', crew: 'crewA', player: 'playerA', pilot: 'pilotA', sof: 'sof', vip: 'vipF',
@@ -221,7 +221,7 @@ export const THEMES = {
   ukraine: {
     id: 'ukraine', name: 'Ukraine 2023', country: 'der Ukraine', sub: 'UKRAINE 2023 · DONBAS', fobName: 'Stabilisierungspunkt Sokil',
     helis: ['mi8', 'mi24'], lzStrikes: true,
-    missionWeights: [['medevac', 30], ['transport', 9], ['csar', 7], ['insert', 7], ['exfil', 8], ['resupply', 8], ['recon', 6], ['vip', 3], ['boat', 5], ['sling', 9], ['auto', 2], ['fire', 5], ['fastrope', 5], ['search', 8]],
+    missionWeights: [['medevac', 30], ['transport', 9], ['csar', 7], ['insert', 7], ['exfil', 8], ['resupply', 8], ['recon', 6], ['vip', 3], ['boat', 5], ['sling', 9], ['auto', 2], ['fastrope', 5], ['search', 8]],
     enemyName: 'russische Truppen', enemyFrom: 'Waldstreifen', enemyCover: 'Ruinen', trees: 'Bäume', crashTrees: 'In den Waldstreifen gestürzt!',
     friend: () => (rand() < 0.5 ? 'ua' : 'ua2'), enemy: (heavy) => (heavy || rand() < 0.4 ? 'ru2' : 'ru'),
     wounded: 'woundedU', crew: 'crewU', player: 'playerU', pilot: 'pilotU', sof: 'sofU', vip: 'vipU',
