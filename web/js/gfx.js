@@ -408,7 +408,7 @@ function bushGeo() {
   let o = 0;
   for (const g of parts) {
     pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3);
-    for (let i = 0; i < g.attributes.position.count; i++) { col[(o + i) * 3] = 0.42; col[(o + i) * 3 + 1] = 0.55; col[(o + i) * 3 + 2] = 0.3; }
+    for (let i = 0; i < g.attributes.position.count; i++) { col[(o + i) * 3] = 0.075; col[(o + i) * 3 + 1] = 0.13; col[(o + i) * 3 + 2] = 0.045; }
     o += g.attributes.position.count;
   }
   const out = new THREE.BufferGeometry();
@@ -455,10 +455,10 @@ export class GroundCover {
   update(cam) {
     const cx = cam.position.x, cz = cam.position.z, w = this.w;
     const agl = cam.position.y - Math.max(0, w.height(cx, cz));
-    const vis = agl < 260;
+    const vis = agl < 700;
     this.rocks.visible = this.bushes.visible = vis;
     if (!vis) return;
-    if (this.last && Math.hypot(cx - this.last.x, cz - this.last.z) < 14) return;
+    if (this.last && Math.hypot(cx - this.last.x, cz - this.last.z) < 20) return;
     this.last = { x: cx, z: cz };
     const st = this.step, R = this.R, R2 = R * R, o = this.o;
     const i0 = Math.floor((cx - R) / st), i1 = Math.ceil((cx + R) / st), j0 = Math.floor((cz - R) / st), j1 = Math.ceil((cz + R) / st);
@@ -468,18 +468,20 @@ export class GroundCover {
     for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
       const h1 = hash(i, j, 41), steepBoost = 0;
       const x = (i + hash(i, j, 42)) * st, z = (j + hash(i, j, 43)) * st;
-      const dx = x - cx, dz = z - cz;
-      if (dx * dx + dz * dz > R2) continue;
+      const dx = x - cx, dz = z - cz, dd = dx * dx + dz * dz;
+      if (dd > R2) continue;
+      // am Rand des Bereichs klein einwachsen statt plötzlich aufzutauchen
+      const edge = Math.min(1, (R - Math.sqrt(dd)) / (R * 0.3));
       const y = w.height(x, z);
       if (this.blocked(x, z, y)) continue;
       const nrm = w.normal(x, z);
       const steep = 1 - nrm.y;
       // Felsen: häufiger an Hängen, in Gruppen (Rauschen über die Zellen)
       const grp = 0.5 + 0.5 * Math.sin(i * 0.37 + j * 0.21) * Math.cos(i * 0.13 - j * 0.29);
-      const pr = o.rock * (0.4 + grp * 1.2) * (1 + steep * (o.steepRocks ?? 3)) + steepBoost;
+      const pr = o.rock * (0.4 + grp * 1.2) * (1 + steep * (o.steepRocks ?? 1.5)) + steepBoost;
       if (h1 < pr && nr < capR) {
         const big = hash(i, j, 44);
-        const k = 0.25 + big * big * (o.rockMax || 1.4);
+        const k = (0.25 + big * big * (o.rockMax || 1.4)) * edge;
         e.set(hash(i, j, 45) * 0.5, hash(i, j, 46) * 6.28, hash(i, j, 47) * 0.4);
         q.setFromEuler(e);
         m.compose(v.set(x, y - k * 0.12, z), q, s.set(k * (0.8 + hash(i, j, 48) * 0.6), k * (0.7 + hash(i, j, 49) * 0.6), k));
@@ -490,8 +492,8 @@ export class GroundCover {
         continue;
       }
       const h2 = hash(i, j, 51);
-      if (nrm.y > 0.8 && h2 < o.bush * (0.3 + grp * 1.4) && nb < capB) {
-        const k = (0.55 + hash(i, j, 52) * 0.9) * (o.bushSize || 1);
+      if (nrm.y > 0.8 && (!w.inForest || w.inForest(x, z) < 0.45) && h2 < o.bush * (0.3 + grp * 1.4) && nb < capB) {
+        const k = (0.55 + hash(i, j, 52) * 0.9) * (o.bushSize || 1) * edge;
         e.set(0, hash(i, j, 53) * 6.28, 0);
         q.setFromEuler(e);
         m.compose(v.set(x, y - 0.1, z), q, s.set(k * (0.9 + hash(i, j, 54) * 0.4), k * (0.7 + hash(i, j, 55) * 0.6), k));

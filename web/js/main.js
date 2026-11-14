@@ -141,10 +141,10 @@ class Game {
     }
     // Felsen und Büsche im Umkreis der Kamera
     if (!minimal) {
-      const COVER = { vietnam: [0.03, 0.32, [0.8, 1.0, 0.7]], afghanistan: [0.16, 0.07, [0.72, 0.78, 0.52]], mali: [0.1, 0.16, [0.8, 0.75, 0.45]], ukraine: [0.02, 0.1, [0.9, 1.0, 0.75]], flood: [0.02, 0.12, [0.85, 1.0, 0.75]], norway: [0.1, 0, [1, 1, 1]] }[T.id] || [0.05, 0.15, [1, 1, 1]];
+      const COVER = { vietnam: [0.006, 0.5, [0.9, 1.0, 0.85]], afghanistan: [0.03, 0.12, [1.25, 1.05, 0.8]], mali: [0.02, 0.28, [1.35, 1.0, 0.7]], ukraine: [0.004, 0.18, [0.9, 1.0, 0.75]], flood: [0.004, 0.2, [0.85, 1.0, 0.75]], norway: [0.025, 0, [1, 1, 1]] }[T.id] || [0.01, 0.2, [1, 1, 1]];
       const rc = new THREE.Color(this.world.rockColor || 0x6e665a);
       this.cover = new GroundCover(this.scene, this.world, {
-        radius: q === 'high' ? 240 : q === 'medium' ? 170 : 110, step: q === 'low' ? 8 : 6.5,
+        radius: q === 'high' ? 480 : q === 'medium' ? 360 : 240, step: q === 'low' ? 11 : 9,
         rock: COVER[0], bush: COVER[1], bushCol: COVER[2], rockCol: [rc.r * 1.1, rc.g * 1.1, rc.b * 1.1], shadows: q === 'high',
         rockMax: T.id === 'afghanistan' || T.id === 'norway' ? 2.2 : 1.3, bushSize: T.id === 'vietnam' ? 1.5 : 1,
       });
@@ -1849,14 +1849,15 @@ class Game {
       this.cockpitLook.yaw = clamp(this.cockpitLook.yaw - look.dx, -2.2, 2.2);
       this.cockpitLook.pitch = clamp(this.cockpitLook.pitch - look.dy, -0.9, 0.6);
       if (!this.input.mouseDown[2]) { this.cockpitLook.yaw *= 1 - damp(1.5, dt); this.cockpitLook.pitch *= 1 - damp(1.5, dt); }
-      cam.position.copy(m.eyePilot).applyQuaternion(h.quat).add(h.pos);
+      // Kopf höher und etwas weiter vorn als die Sitzposition: freie Sicht über Instrumentenbrett und Nase
+      cam.position.copy(m.eyePilot).add(this._eyeOff || (this._eyeOff = new THREE.Vector3(0, 0.3, -0.12))).applyQuaternion(h.quat).add(h.pos);
       // Im Landeanflug (tief und langsam) blickt der Pilot automatisch etwas nach unten
       const landing = clamp((45 - h.agl) / 35, 0, 1) * clamp((22 - h.speed) / 12, 0, 1);
       this.ckDown = (this.ckDown || 0) + (landing * 0.32 - (this.ckDown || 0)) * Math.min(1, dt * 2);
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(this.cockpitLook.pitch - 0.12 - this.ckDown, this.cockpitLook.yaw, 0, 'YXZ'));
       cam.quaternion.copy(h.quat).multiply(q);
       m.pilots[1].group.visible = false;
-      fov = cam.aspect < 1.2 ? 95 : 84;   // weitwinklig, damit man auch seitlich hinaussieht
+      fov = cam.aspect < 1.2 ? 110 : 98;   // stark weitwinklig, damit man auch seitlich und nach unten hinaussieht
     } else {
       const o = this.orbit;
       o.yaw -= look.dx; o.pitch = clamp(o.pitch + look.dy, -0.15, 1.2);
