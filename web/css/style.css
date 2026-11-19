@@ -393,3 +393,8 @@ body:not(.mp) .mp-only { display: none !important; }
 #btn-ptt { position: absolute; left: max(14px, env(safe-area-inset-left)); top: 44%; width: 74px; height: 50px; border-radius: 10px; background: rgba(20, 30, 20, 0.55); color: #e8f0d0; border: 1px solid rgba(255, 255, 255, 0.35); font: bold 12px system-ui, sans-serif; pointer-events: auto; }
 #btn-ptt.on { background: rgba(200, 150, 30, 0.75); border-color: #ffd36a; }
 body.touch #chat-box { bottom: auto; top: 12px; left: 50%; transform: translateX(-50%); }
+
+/* Bordmusik (nur Vietnam) */
+body:not([data-theme="vietnam"]) .vn-only { display: none !important; }
+body.music-on .music-btn { background: rgba(200, 150, 30, 0.75); border-color: #ffd36a; }
+.music-row { margin: 8px 0; font-size: 13px; line-height: 1.6; }

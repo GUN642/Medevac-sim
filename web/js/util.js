@@ -2,6 +2,8 @@ import { tr, getLang } from './i18n.js';
 // Kleine Hilfsfunktionen
 export const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 export const lerp = (a, b, t) => a + (b - a) * t;
+// weicher Betrag: wie |v|, aber um 0 abgerundet (Grate/Gipfel ohne scharfe Kante)
+export const softAbs = (v, k) => Math.sqrt(v * v + k * k) - k;
 export const smoothstep = (a, b, x) => {
   const t = clamp((x - a) / (b - a), 0, 1);
   return t * t * (3 - 2 * t);

@@ -48,6 +48,7 @@ export const BIND_DEFS = [
   { id: 'airsupport', label: 'Luftunterstützung', def: ['KeyL'] },
   { id: 'nvg', label: 'Nachtsichtgerät', def: ['KeyN'] },
   { id: 'chat', label: 'Text-Chat (Mehrspieler)', def: ['KeyK'] },
+  { id: 'music', label: 'Bordmusik an/aus/wechseln (Vietnam)', def: ['KeyJ'] },
   { id: 'ptt', label: 'Sprechfunk senden (gedrückt halten)', def: ['CapsLock', 'Mouse4'], held: true },
   { id: 'confirm', label: 'Bestätigen', def: ['Enter', 'NumpadEnter'] },
   { id: 'pause', label: 'Pause (Esc immer)', def: ['KeyP'] },

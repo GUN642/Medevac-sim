@@ -3,7 +3,7 @@ import * as THREE from './lib/three.module.min.js';
 import { HALF, CELL, FOB_POS } from './config.js';
 import { World } from './world.js';
 import { T } from './theme.js';
-import { smoothstep, lerp, dist2, clamp, makeRng } from './util.js';
+import { smoothstep, lerp, dist2, clamp, makeRng, softAbs } from './util.js';
 import * as M from './models.js';
 import * as A from './afgModels.js';
 
@@ -57,9 +57,10 @@ export class AfghanWorld extends World {
     const green = 1 - smoothstep(gzW - 60, gzW + 40, d);
     // Wüste: Dünen und flache Rücken, schroffe Grate in den Bergen
     const dunes = n.fbm(x * 0.0016 + 3, z * 0.0011 - 5, 3) * 7 + Math.abs(n.noise(x * 0.004, z * 0.004)) * 3;
-    let ridge = 1 - Math.abs(n.fbm(x * 0.0009 + 31, z * 0.0009 - 8, 5));
-    ridge = ridge * ridge * ridge;
-    const crag = Math.abs(n.noise(x * 0.006 + 4, z * 0.006 - 1)) * 40;
+    // Grate mit abgerundetem Kamm (weicher Betrag), Gipfel etwas breiter statt nadelspitz
+    let ridge = 1 - softAbs(n.fbm(x * 0.0009 + 31, z * 0.0009 - 8, 5), 0.09);
+    ridge = ridge * ridge * (0.55 + 0.45 * ridge);
+    const crag = softAbs(n.noise(x * 0.006 + 4, z * 0.006 - 1), 0.12) * 40;
     let h = 26 + dunes + mountain * (ridge * 640 + crag * (0.4 + mountain) + 60);
     // Abbruchkante zur Flussebene
     const valley = 3.5 + n.noise(x * 0.003, z * 0.003) * 1.2;

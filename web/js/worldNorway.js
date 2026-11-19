@@ -3,7 +3,7 @@ import * as THREE from './lib/three.module.min.js';
 import { HALF, CELL, FOB_POS } from './config.js';
 import { World } from './world.js';
 import { T } from './theme.js';
-import { smoothstep, lerp, dist2, clamp } from './util.js';
+import { smoothstep, lerp, dist2, clamp, softAbs } from './util.js';
 import * as M from './models.js';
 import * as A from './afgModels.js';
 import * as F from './floodModels.js';
@@ -33,8 +33,8 @@ export class NorwayWorld extends World {
     const n = this.n;
     // Hochgebirge: zerklüftete Gipfel, Grate
     const hills = n.fbm(x * 0.0008 + 3, z * 0.0008 - 2, 4);
-    let ridge = 1 - Math.abs(n.fbm(x * 0.0006 + 17, z * 0.0006 + 5, 4));
-    ridge = ridge * ridge * ridge;
+    let ridge = 1 - softAbs(n.fbm(x * 0.0006 + 17, z * 0.0006 + 5, 4), 0.08);
+    ridge = ridge * ridge * (0.5 + 0.5 * ridge);
     let h = 260 + hills * 160 + ridge * 520;
     // Fjord: tief eingeschnitten, steile Wände
     const fz = this.fjordZ(x);

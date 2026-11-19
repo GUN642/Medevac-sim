@@ -12,6 +12,7 @@ import { NorwayWorld } from './worldNorway.js';
 import { VrView } from './vr.js';
 import { Voice } from './voice.js';
 import { Comms } from './comms.js';
+import { Music } from './music.js';
 import { WeatherSys } from './weather.js';
 import { Career } from './career.js';
 import { Mounts } from './mounts.js';
@@ -165,6 +166,7 @@ class Game {
     this.audio = new AudioSys();
     this.voice = new Voice(this);
     this.comms = new Comms(this);
+    this.music = new Music(this);
     this.weatherSys = new WeatherSys(this);
     this.audio.setVolume(this.settings.volume);
     this.tr = netTransport();
@@ -186,8 +188,8 @@ class Game {
 
     window.addEventListener('resize', () => this.onResize());
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) { if (this.state === 'playing' && this.role === 'solo') this.pause(true); this.audio.suspend(); }
-      else if (this.state === 'playing') this.audio.resume();
+      if (document.hidden) { if (this.state === 'playing' && this.role === 'solo') this.pause(true); this.audio.suspend(); this.music.pause(true); }
+      else if (this.state === 'playing') { this.audio.resume(); this.music.pause(false); }
     });
     this.setupUI();
     this.onResize();
@@ -862,6 +864,9 @@ class Game {
     bind('set-weather', 'weather', Boolean);
     bind('set-tts', 'tts', Boolean, (on) => { if (!on) this.voice.stop(); });
     bind('set-openmic', 'openMic', Boolean);
+    $('music-file').addEventListener('change', (e) => { const f = e.target.files && e.target.files[0]; if (f) this.music.setOwn(f); e.target.value = ''; });
+    on('btn-music-file', () => $('music-file').click());
+    on('btn-music-clear', () => this.music.clearOwn());
     bind('set-sens', 'sensitivity', Number);
     bind('set-invert', 'invertY', Boolean);
     bind('set-invertx', 'invertX', Boolean);
@@ -1010,6 +1015,7 @@ class Game {
 
   showMenu() {
     this.state = 'menu';
+    this.music.stop(); this.music.mark();
     $('brownout').style.opacity = 0; this.boShown = 0;
     this.updateMenuLabels();
     this.hud.show(false);
@@ -1083,7 +1089,7 @@ class Game {
       $('pause').classList.remove('hidden');
       $('pause-mp-note').classList.toggle('hidden', this.role === 'solo');
       this.updateMpNote();
-      if (this.role === 'solo') this.audio.suspend();
+      if (this.role === 'solo') { this.audio.suspend(); this.music.pause(true); }
       this.input.unlockPointer();
       this.focusFirst($('pause'));
     } else if (!on && this.state === 'paused') {
@@ -1091,6 +1097,7 @@ class Game {
       for (const p of ['help', 'settings']) $(p).classList.add('hidden');
       this.state = 'playing';
       this.audio.resume();
+      this.music.pause(false);
       this.last = performance.now();
     }
     this.updateTouchVisibility();
@@ -1355,6 +1362,7 @@ class Game {
   handleActions(actions) {
     for (const a of actions) {
       if (a === 'chat' && this.state !== 'menu') { this.comms.openChat(); continue; }
+      if (a === 'music') { if (this.state === 'playing' && document.body.dataset.theme === 'vietnam') this.music.toggle(); continue; }
       const blocking = !$('confirm').classList.contains('hidden') || this.state === 'menu' || this.state === 'paused' || this.hud.briefOpen || this.crashShown || this.hud.crewOpen || !$('lobby').classList.contains('hidden');
       if (blocking) {
         if (a === 'confirm') {

@@ -3,7 +3,7 @@ import * as THREE from './lib/three.module.min.js';
 import { HALF, CELL, FOB_POS } from './config.js';
 import { World } from './world.js';
 import { T } from './theme.js';
-import { smoothstep, lerp, dist2, clamp } from './util.js';
+import { smoothstep, lerp, dist2, clamp, softAbs } from './util.js';
 import * as M from './models.js';
 import * as A from './afgModels.js';
 import * as F from './floodModels.js';
@@ -50,7 +50,7 @@ export class FloodWorld extends World {
     const { d, w } = this.riverDist(x, z);
     // Mittelgebirge: wellige Hochfläche mit Kuppen und Rücken
     const hills = n.fbm(x * 0.0009 + 3, z * 0.0009 - 2, 4);
-    let ridge = 1 - Math.abs(n.fbm(x * 0.0007 + 17, z * 0.0007 + 5, 3));
+    let ridge = 1 - softAbs(n.fbm(x * 0.0007 + 17, z * 0.0007 + 5, 3), 0.1);
     ridge *= ridge;
     const up = 150 + hills * 55 + ridge * 95;
     // Talprofil: flache Aue (unter Wasser), steile bewaldete Hänge

@@ -996,14 +996,33 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
   // Antennen, Positionslichter, Wartungsklappen-Rahmen am Pylon
   parts.push(P(box(0.03, 0.45, 0.16), 0x161616, [0, -1.35, 0.5], [0.3, 0, 0]), P(box(0.03, 0.4, 0.15), 0x161616, [0, 1.95, -2.8], [-0.3, 0, 0]));
   parts.push(P(box(1.0, 0.04, 2.0), 0x2c3134, [0, 3.83, 6.95]));
+  // Rettungswinde (wie MH-47G) über der rechten vorderen Tür: Halterung am Rumpf, Ausleger nach außen, Trommel, Seil und Haken
+  parts.push(P(box(0.32, 0.5, 0.5), 0x3a3f43, [1.62, 1.25, -5.15]));
+  parts.push(P(box(0.75, 0.16, 0.18), 0x3a3f43, [1.98, 1.42, -5.15]));
+  parts.push(P(box(0.08, 0.08, 0.6), 0x2c3033, [1.86, 1.2, -5.15], [0, 0, -0.75]));
+  parts.push(P(cyl(0.17, 0.17, 0.5, 14), 0x6f7376, [2.25, 1.38, -5.15], [HALFPI, 0, 0]));
+  parts.push(P(cyl(0.19, 0.19, 0.05, 14), 0x5b5f60, [2.25, 1.38, -4.89], [HALFPI, 0, 0]), P(cyl(0.19, 0.19, 0.05, 14), 0x5b5f60, [2.25, 1.38, -5.41], [HALFPI, 0, 0]));
+  parts.push(P(cyl(0.012, 0.012, 0.35, 4), 0x111111, [2.3, 1.05, -5.15]));
+  parts.push(P(box(0.08, 0.12, 0.05), 0x222222, [2.3, 0.84, -5.15]), P(tor(0.05, 0.015, 8), 0x8a8a80, [2.3, 0.74, -5.15]));
   parts.push(P(box(0.04, 0.5, 0.25), 0x111111, [0, 1.9, -2.0], [0.35, 0, 0]));
   parts.push(P(cyl(0.03, 0.03, 1.6, 6), 0x111111, [0.4, -1.0, -8.0], [1.2, 0, 0]));
-  // Luftbetankungssonde (deutsche CH-47F): rechts unten am Bug, weit über die Nase hinaus
-  parts.push(P(cyl(0.075, 0.075, 7.4, 10), 0x2c3033, [1.78, -0.55, -8.0], [HALFPI, 0, 0]));
-  parts.push(P(cyl(0.11, 0.075, 0.45, 12), 0x1e2123, [1.78, -0.55, -11.9], [HALFPI, 0, 0]));
-  parts.push(P(cyl(0.05, 0.11, 0.18, 12), 0x8a8f92, [1.78, -0.55, -12.2], [HALFPI, 0, 0]));
-  parts.push(P(box(0.26, 0.26, 1.1), 0x464c50, [1.72, -0.55, -4.6]));
-  for (const z of [-5.6, -7.0]) parts.push(P(box(0.32, 0.07, 0.14), 0x2c3033, [1.6, -0.55, z]));
+  // Luftbetankungssonde nach Vorbild MH-47G: dickes zweistufiges Teleskoprohr rechts unten am Bug,
+  // große Verkleidung an der Rumpfseite, Abstützungen und Sondenkopf mit Ventil weit vor der Nase
+  const PX = 1.86, PY = -0.5;
+  parts.push(P(box(0.42, 0.46, 2.3), 0x40464a, [PX - 0.1, PY, -4.55]));                     // Verkleidung/Gehäuse am Rumpf
+  parts.push(P(cyl(0.21, 0.07, 0.7, 12), 0x40464a, [PX - 0.08, PY, -6.0], [HALFPI, 0, 0]));     // Verkleidung läuft nach vorn spitz aus
+  parts.push(P(cyl(0.165, 0.165, 4.3, 14), 0x30353a, [PX, PY, -7.4], [HALFPI, 0, 0]));          // äußeres Rohr
+  parts.push(P(cyl(0.2, 0.2, 0.16, 14), 0x23272a, [PX, PY, -9.5], [HALFPI, 0, 0]));              // Manschette am Teleskopstoß
+  parts.push(P(cyl(0.125, 0.125, 2.6, 14), 0x3a3f44, [PX, PY, -10.85], [HALFPI, 0, 0]));        // inneres (ausfahrbares) Rohr
+  parts.push(P(cyl(0.15, 0.125, 0.3, 14), 0x23272a, [PX, PY, -12.25], [HALFPI, 0, 0]));          // Ventilgehäuse
+  parts.push(P(cyl(0.07, 0.11, 0.28, 12), 0x8a8f92, [PX, PY, -12.52], [HALFPI, 0, 0]));          // Hals
+  parts.push(P(sph(0.14, 12, 8), 0x9a9fa2, [PX, PY, -12.72], [0, 0, 0], [1, 1, 1.25]));           // Sondenkopf
+  parts.push(P(cyl(0.035, 0.035, 0.12, 8), 0x2a2d2f, [PX, PY, -12.92], [HALFPI, 0, 0]));          // Ventilspitze
+  // Abstützungen zum Rumpf und schräge Strebe zur Nase
+  for (const z of [-6.4, -7.6]) parts.push(P(box(0.38, 0.12, 0.2), 0x2c3033, [PX - 0.2, PY + 0.02, z]));
+  parts.push(P(box(0.09, 0.09, 1.9), 0x2c3033, [PX - 0.42, PY + 0.05, -8.0], [0, -0.22, 0]));
+  // Positionslicht/Leuchte für Nachtbetankung am Rohr
+  parts.push(P(box(0.08, 0.1, 0.16), 0xd8d8c0, [PX, PY + 0.19, -8.9]));
   for (const s of [-1, 1]) {
     decal(group, 'LUFTWAFFE', 2.8, 0.55, [h.X(1.6), 0.95, 1.6], s);
     ironCross(group, 1.0, [h.X(4.9), 0.45, 4.9], s);
@@ -1039,6 +1058,7 @@ function buildChinook({ static: isStatic = false, number = '82+01' } = {}) {
     eyePilot: new THREE.Vector3(0.65, 0.74, -7.66),
     spin: [[front, 'y', 18], [rear, 'y', -18]],
     exhaust: new THREE.Vector3(2.1, 1.59, 7.85),
+    hoist: new THREE.Vector3(2.3, 0.75, -5.15),
     gear: [[-1.6, -1.75, -4.6], [1.6, -1.75, -4.6], [-1.6, -1.75, 5.05], [1.6, -1.75, 5.05]],   // Aufsetzpunkte (Räder/Kufen) für den Bodenkontakt
   };
 }

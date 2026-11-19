@@ -20,6 +20,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -43,6 +44,19 @@ public class MainActivity extends Activity {
     private final LanNet net = new LanNet();
     private static final int REQ_MIC = 7;
     private PermissionRequest pendingMic;
+    private static final int REQ_FILE = 8;
+    private ValueCallback<Uri[]> fileCb;
+
+    // Dateiauswahl (eigene Bordmusik) aus der WebView
+    @Override
+    protected void onActivityResult(int code, int result, Intent data) {
+        if (code == REQ_FILE && fileCb != null) {
+            fileCb.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(result, data));
+            fileCb = null;
+            return;
+        }
+        super.onActivityResult(code, result, data);
+    }
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
@@ -101,6 +115,20 @@ public class MainActivity extends Activity {
             }
         });
         web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb, FileChooserParams params) {
+                if (fileCb != null) fileCb.onReceiveValue(null);
+                fileCb = cb;
+                try {
+                    startActivityForResult(params.createIntent(), REQ_FILE);
+                } catch (Exception e) {
+                    fileCb = null;
+                    cb.onReceiveValue(null);
+                    return false;
+                }
+                return true;
+            }
+
             // Sprechfunk: Mikrofon nur für die eigene Spielseite freigeben, dafür ggf. die Android-Berechtigung erfragen
             @Override
             public void onPermissionRequest(final PermissionRequest request) {

@@ -2,7 +2,7 @@
 import * as THREE from './lib/three.module.min.js';
 import { HALF, GRID, CELL, WORLD_SIZE, FOB_POS, FOB_NAME } from './config.js';
 import { makeNoise } from './noise.js';
-import { makeRng, smoothstep, clamp, lerp, dist2 } from './util.js';
+import { makeRng, smoothstep, clamp, lerp, dist2, softAbs } from './util.js';
 import * as M from './models.js';
 import { T, HELI_TYPES } from './theme.js';
 import { buildHeliModel } from './heliModels.js';
@@ -77,7 +77,8 @@ export class World {
     const n = this.n;
     const mountain = this.mountainMask(x, z);
     const hills = n.fbm(x * 0.0011, z * 0.0011, 4);
-    let ridge = 1 - Math.abs(n.fbm(x * 0.0007 + 11, z * 0.0007 + 4, 4));
+    // abgerundete Grate (weicher Betrag), Kuppen statt Nadelspitzen
+    let ridge = 1 - softAbs(n.fbm(x * 0.0007 + 11, z * 0.0007 + 4, 4), 0.1);
     ridge *= ridge;
     let h = 6 + hills * 5 + mountain * (ridge * 430 + (hills + 1) * 55);
     const { d, w } = this.riverDist(x, z);
