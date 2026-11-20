@@ -13,6 +13,7 @@ import { VrView } from './vr.js';
 import { Voice } from './voice.js';
 import { Comms } from './comms.js';
 import { Music } from './music.js';
+import { CHANGELOG, LATEST, seenId, markSeen, unseen, renderChangelog } from './changelog.js';
 import { WeatherSys } from './weather.js';
 import { Career } from './career.js';
 import { Mounts } from './mounts.js';
@@ -195,6 +196,7 @@ class Game {
     this.onResize();
     $('loading').classList.add('hidden');
     this.showMenu();
+    if (seenId() !== LATEST) this.showChangelog(true);
     try { if (sessionStorage.getItem('dustoff.openLobby')) { sessionStorage.removeItem('dustoff.openLobby'); this.openLobby(); } } catch (e) { /* privat */ }
     // Nach einem Kartenwechsel automatisch wieder dem Mehrspieler-Spiel beitreten
     try {
@@ -767,6 +769,8 @@ class Game {
     on('btn-help', () => this.openPanel('help'));
     this.tutorial = new Tutorial(this);
     on('btn-tutorial', () => this.tutorial.open(0));
+    on('btn-changelog', () => this.showChangelog(false));
+    on('btn-changelog-all', () => this.showChangelog(false));
     on('btn-map', () => this.cycleMap());
     on('btn-time', () => {
       if (this.started) return;
@@ -948,6 +952,17 @@ class Game {
       }
       tbl.appendChild(tr);
     }
+  }
+
+  // Änderungsprotokoll: nach einem Update automatisch (nur Neues), aus dem Menü komplett
+  showChangelog(isUpdate) {
+    const list = isUpdate ? unseen() : CHANGELOG;
+    if (!list.length) return;
+    renderChangelog($('changelog-body'), list, isUpdate);
+    $('btn-changelog-all').classList.toggle('hidden', !isUpdate || list.length >= CHANGELOG.length);
+    markSeen();
+    this.openPanel('changelog');
+    $('changelog-body').scrollTop = 0;
   }
 
   openPanel(id) {
@@ -1378,6 +1393,7 @@ class Game {
         if (a === 'nav-down' || a === 'nav-up') { this.moveFocus(a === 'nav-down' ? 1 : -1); continue; }
         if (a === 'nav-left' || a === 'nav-right') { this.adjustFocused(a === 'nav-right' ? 1 : -1); continue; }
         if (a.startsWith('dpad-')) continue;
+        if (a === 'pause' && !$('changelog').classList.contains('hidden')) { this.closePanel('changelog'); continue; }
         if (a === 'pause' && this.state === 'paused') { this.pause(false); continue; }
         if (a === 'crew' && this.hud.crewOpen) { this.hud.toggleCrew(false); continue; }
         if (this.state !== 'playing') continue;
@@ -1462,7 +1478,7 @@ class Game {
   }
 
   topOverlay() {
-    const ids = ['confirm', 'netlost', 'crashscreen', 'crew', 'binds', 'settings', 'help', 'lobby', 'pause', 'briefing', 'menu'];
+    const ids = ['confirm', 'netlost', 'crashscreen', 'crew', 'binds', 'settings', 'changelog', 'help', 'lobby', 'pause', 'briefing', 'menu'];
     for (const id of ids) { const e = $(id); if (e && !e.classList.contains('hidden')) return e; }
     return null;
   }

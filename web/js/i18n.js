@@ -437,7 +437,7 @@ const EN_T = {
   'Mehrspieler-Sprechfunk: Mikrofon dauerhaft offen (statt Sprechtaste)': 'Multiplayer voice radio: open microphone (instead of push-to-talk)',
   'CHAT': 'CHAT', '🎙 FUNK': '🎙 RADIO', 'Nachricht an alle – Enter senden, Esc abbrechen': 'Message to all – Enter to send, Esc to cancel',
   'Verstanden': 'Copy', 'Brauche Hilfe!': 'Need help!', 'Feindkontakt!': 'Contact!', 'Bin bereit': 'Ready', 'Warte auf euch': 'Waiting for you', 'Abflug': 'Lifting off',
-  'Text-Chat (Mehrspieler)': 'Text chat (multiplayer)', 'Bordmusik an/aus/wechseln (Vietnam)': 'On-board music on/off/next (Vietnam)',
+  'Text-Chat (Mehrspieler)': 'Text chat (multiplayer)', 'NEUIGKEITEN': 'WHAT’S NEW', 'WAS IST NEU?': 'WHAT’S NEW?', 'ALLE ÄNDERUNGEN': 'ALL CHANGES', 'Bordmusik an/aus/wechseln (Vietnam)': 'On-board music on/off/next (Vietnam)',
   '♫ MUSIK': '♫ MUSIC', 'Bordlautsprecher aus': 'Loudspeaker off', 'Bordlautsprecher: Richard Wagner – „Walkürenritt“': 'Loudspeaker: Richard Wagner – “Ride of the Valkyries”',
   'Bordlautsprecher: {0}': 'Loudspeaker: {0}', 'Musikdatei kann nicht abgespielt werden': 'Music file cannot be played', 'keine Datei gewählt': 'no file selected', 'DATEI WÄHLEN': 'CHOOSE FILE', 'ENTFERNEN': 'REMOVE',
   'Bordmusik Vietnam (Taste J / Knopf ♫ MUSIK): „Walkürenritt“ ist eingebaut; zusätzlich eigene Musikdatei, z. B. „Fortunate Son“ (bleibt nur auf diesem Gerät):': 'On-board music in Vietnam (key J / ♫ MUSIC button): “Ride of the Valkyries” is built in; you can also add your own music file, e.g. “Fortunate Son” (stays on this device only):', 'Sprechfunk senden (gedrückt halten)': 'Voice radio transmit (hold)',
